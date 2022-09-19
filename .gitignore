@@ -1,0 +1,9 @@
+.vscode/*
+.env
+
+*__pycache__/
+
+ffmpeg
+data
+discord.log
+Pipfile.lock
