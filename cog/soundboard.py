@@ -56,7 +56,6 @@ class SoundBoardCog(commands.Cog):
         source = discord.PCMVolumeTransformer(
             discord.FFmpegPCMAudio(
                 source=file_path,
-                executable="/ffmpeg/bin/ffmpeg.exe",
             ),
             volume=0.55
         )
