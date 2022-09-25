@@ -1,13 +1,14 @@
 import asyncio
 import os
 from typing import List
+import pytz
 import discord
 import logging
 import logging.handlers
 from discord.ext import commands
 
-# MY_GUILD = discord.Object(id=613605418882564096)  # replace with your guild id
-MY_GUILD = discord.Object(id=299536709778014210)  # replace with your guild id
+MY_GUILD = discord.Object(id=613605418882564096)  # replace with your guild id
+# MY_GUILD = discord.Object(id=299536709778014210)  # replace with your guild id
 
 
 class MyClient(commands.Bot):
@@ -64,6 +65,17 @@ async def main():
         @bot.tree.command(name="hi")
         async def hi(interaction: discord.Interaction):
             await interaction.response.send_message(f'Hi, {interaction.user.mention}')
+
+        @bot.tree.command(name="stalk")
+        async def stalk(interaction: discord.Interaction):
+            member = interaction.user
+            date = member.joined_at
+            print(f"before={date}")
+            timezone = pytz.timezone('Pacific/Auckland')
+            date = date.astimezone(tz=timezone)
+            print(f"after={date}")
+            formatted_date = date.strftime("%A %d %b %Y %I:%M%p %Z %z")
+            await interaction.response.send_message(formatted_date)
 
         @bot.tree.command(name="sync")
         async def sync(interaction: discord.Interaction):
