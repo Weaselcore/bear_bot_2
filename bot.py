@@ -6,8 +6,8 @@ import logging
 import logging.handlers
 from discord.ext import commands
 
-# MY_GUILD = discord.Object(id=613605418882564096)  # replace with your guild id
-MY_GUILD = discord.Object(id=299536709778014210)  # replace with your guild id
+MY_GUILD = discord.Object(id=613605418882564096)  # replace with your guild id
+# MY_GUILD = discord.Object(id=299536709778014210)  # replace with your guild id
 
 
 class MyClient(commands.Bot):
@@ -28,9 +28,9 @@ class MyClient(commands.Bot):
     async def setup_hook(self) -> None:
         await self.load_extension('cog.lobby')
         await self.load_extension('cog.soundboard')
-        # self.tree.copy_global_to(guild=MY_GUILD)
-        # await self.tree.sync(guild=MY_GUILD)
-        # TODO: Make this more dynamic
+        self.tree.copy_global_to(guild=MY_GUILD)
+        await self.tree.sync(guild=MY_GUILD)
+        # TODO: Persistent?
         self.lobby = {}
         # Any database would be initialised here.
 
