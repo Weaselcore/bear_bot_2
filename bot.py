@@ -6,7 +6,9 @@ import logging
 import logging.handlers
 from discord.ext import commands
 
-MY_GUILDS = [discord.Object(id=613605418882564096), discord.Object(id=299536709778014210)]
+GUILD = discord.Object(id=299536709778014210)
+TEST_GUILD = discord.Object(id=613605418882564096)
+DEV = False
 
 
 class MyClient(commands.Bot):
@@ -68,11 +70,16 @@ async def main():
         async def sync(interaction: discord.Interaction):
             if interaction.user == interaction.guild.owner:
                 # This copies the global commands over to your guild.
-                for guild in MY_GUILDS:
-                    bot.tree.copy_global_to(guild=guild)
-                    await bot.tree.sync(guild=guild)
+                guild_to_sync = None
+                synced_commands = None
+                if DEV:
+                    guild_to_sync = TEST_GUILD
+                else:
+                    guild_to_sync = GUILD
+                if guild_to_sync:
+                    bot.tree.copy_global_to(guild=guild_to_sync)
                     synced_commands: List[discord.AppCommand] | None = await bot.tree.sync(
-                        guild=guild
+                        guild=guild_to_sync
                     )
                 if synced_commands is None:
                     await interaction.response.send_message(
