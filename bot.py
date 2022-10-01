@@ -6,8 +6,7 @@ import logging
 import logging.handlers
 from discord.ext import commands
 
-MY_GUILD = discord.Object(id=613605418882564096)  # replace with your guild id
-# MY_GUILD = discord.Object(id=299536709778014210)  # replace with your guild id
+MY_GUILDS = [discord.Object(id=613605418882564096), discord.Object(id=299536709778014210)]
 
 
 class MyClient(commands.Bot):
@@ -28,8 +27,8 @@ class MyClient(commands.Bot):
     async def setup_hook(self) -> None:
         await self.load_extension('cog.lobby')
         await self.load_extension('cog.soundboard')
-        self.tree.copy_global_to(guild=MY_GUILD)
-        await self.tree.sync(guild=MY_GUILD)
+        # self.tree.copy_global_to(guild=MY_GUILD)
+        # await self.tree.sync(guild=MY_GUILD)
         # TODO: Persistent?
         self.lobby = {}
         # Any database would be initialised here.
@@ -69,10 +68,12 @@ async def main():
         async def sync(interaction: discord.Interaction):
             if interaction.user == interaction.guild.owner:
                 # This copies the global commands over to your guild.
-                bot.tree.copy_global_to(guild=MY_GUILD)
-                synced_commands: List[discord.AppCommand] | None = await bot.tree.sync(
-                    guild=MY_GUILD
-                )
+                for guild in MY_GUILDS:
+                    bot.tree.copy_global_to(guild=guild)
+                    await bot.tree.sync(guild=guild)
+                    synced_commands: List[discord.AppCommand] | None = await bot.tree.sync(
+                        guild=guild
+                    )
                 if synced_commands is None:
                     await interaction.response.send_message(
                         content="No commands to sync"
