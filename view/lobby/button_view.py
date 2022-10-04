@@ -233,6 +233,7 @@ class ButtonView(discord.ui.View):
         # TODO: Merge with owner leave listener
         # Delete lobby if there is 1 person left
         if LobbyManager.get_member_length(interaction.client, self.lobby_id) == 1:
+            interaction.client.dispatch("stop_promote_lobby", self.lobby_id)
             await LobbyManager.delete_lobby(interaction.client, self.lobby_id)
             embed_type = UpdateMessageEmbedType.DELETE
             await original_channel.send(
