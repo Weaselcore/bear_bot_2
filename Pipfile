@@ -8,6 +8,7 @@ name = "pypi"
 ffmpeg-python = "*"
 aiofiles = "*"
 perflint = "*"
+pytz = "*"
 
 [dev-packages]
 autopep8 = "*"

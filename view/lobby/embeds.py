@@ -1,6 +1,7 @@
 from datetime import datetime
 from enum import Enum
 import discord
+import pytz
 from discord.ext import commands
 
 from model.lobby_model import LobbyManager, LobbyState
@@ -87,32 +88,6 @@ class LobbyEmbed(discord.Embed):
                 )
 
 
-class UpdateMessageEmbedColour(Enum):
-    LEAVE = discord.Color.red()
-    JOIN = discord.Color.blue()
-    READY = discord.Color.green()
-    OWNER_CHANGE = discord.Color.blurple()
-    DESCRIPTION_CHANGE = discord.Color.blurple()
-    SIZE_CHANGE = discord.Color.blurple()
-    GAME_CHANGE = discord.Color.blurple()
-    LOCK = discord.Color.yellow()
-    UNLOCK = discord.Color.blue()
-    DELETE = discord.Color.red()
-
-
-class UpdateMessageEmbedMessage(Enum):
-    LEAVE = 'left the lobby!'
-    JOIN = 'joined the lobby!'
-    READY = 'is ready!'
-    OWNER_CHANGE = 'has taken over the lobby!'
-    DESCRIPTION_CHANGE = 'has changed the description to'
-    SIZE_CHANGE = 'has changed the game size to'
-    GAME_CHANGE = 'has changed the game to'
-    LOCK = 'has locked the lobby!'
-    UNLOCKED = 'has unlocked the lobby!'
-    DELETE = 'has deleted the lobby!'
-
-
 class UpdateMessageEmbedType(Enum):
     LEAVE = 'LEAVE'
     JOIN = 'JOIN'
@@ -137,44 +112,44 @@ class UpdateMessageEmbed(discord.Embed):
         super().__init__()
         self.payload = {
             UpdateMessageEmbedType.LEAVE.value: {
-                'colour': UpdateMessageEmbedColour.LEAVE.value,
-                'message': UpdateMessageEmbedMessage.LEAVE.value
+                'colour': discord.Color.red(),
+                'message': 'left the lobby!'
             },
             UpdateMessageEmbedType.JOIN.value: {
-                'colour': UpdateMessageEmbedColour.JOIN.value,
-                'message': UpdateMessageEmbedMessage.JOIN.value
+                'colour': discord.Color.blue(),
+                'message': 'joined the lobby!'
             },
             UpdateMessageEmbedType.READY.value: {
-                'colour': UpdateMessageEmbedColour.READY.value,
-                'message': UpdateMessageEmbedMessage.READY.value
+                'colour': discord.Color.green(),
+                'message': 'is ready!'
             },
             UpdateMessageEmbedType.OWNER_CHANGE.value: {
-                'colour': UpdateMessageEmbedColour.OWNER_CHANGE.value,
-                'message': UpdateMessageEmbedMessage.OWNER_CHANGE.value
+                'colour': discord.Color.blurple(),
+                'message': 'has taken over the lobby!'
             },
             UpdateMessageEmbedType.DESCRIPTION_CHANGE.value: {
-                'colour': UpdateMessageEmbedColour.DESCRIPTION_CHANGE.value,
-                'message': UpdateMessageEmbedMessage.DESCRIPTION_CHANGE.value
+                'colour': discord.Color.blurple(),
+                'message': 'has changed the description to'
             },
             UpdateMessageEmbedType.SIZE_CHANGE.value: {
-                'colour': UpdateMessageEmbedColour.SIZE_CHANGE.value,
-                'message': UpdateMessageEmbedMessage.SIZE_CHANGE.value
+                'colour': discord.Color.blurple(),
+                'message': 'has changed the game size to'
             },
             UpdateMessageEmbedType.GAME_CHANGE.value: {
-                'colour': UpdateMessageEmbedColour.GAME_CHANGE.value,
-                'message': UpdateMessageEmbedMessage.GAME_CHANGE.value
+                'colour': discord.Color.blurple(),
+                'message': 'has changed the game to'
             },
             UpdateMessageEmbedType.LOCK.value: {
-                'colour': UpdateMessageEmbedColour.LOCK.value,
-                'message': UpdateMessageEmbedMessage.LOCK.value
+                'colour': discord.Color.yellow(),
+                'message': 'has locked the lobby!'
             },
             UpdateMessageEmbedType.UNLOCKED.value: {
-                'colour': UpdateMessageEmbedColour.UNLOCK.value,
-                'message': UpdateMessageEmbedMessage.UNLOCKED.value
+                'colour': discord.Color.blue(),
+                'message': 'has unlocked the lobby!'
             },
             UpdateMessageEmbedType.DELETE.value: {
-                'colour': UpdateMessageEmbedColour.DELETE.value,
-                'message': UpdateMessageEmbedMessage.DELETE.value
+                'colour': discord.Color.red(),
+                'message': 'has shut the door behind them, lobby closed!'
             }
         }
 
@@ -190,9 +165,7 @@ class UpdateMessageEmbed(discord.Embed):
                     inline=False
                 )
         self.color = self.payload[embed_type.value]['colour']
-        self.set_footer(
-            text=f"⌚ {datetime.now().strftime('%I:%M:%S%p')}"
-        )
+        self._set_footer()
 
     def _set_descriptor(self, bot, lobby_id, embed_type) -> None:
         if embed_type == UpdateMessageEmbedType.DELETE:
@@ -211,7 +184,7 @@ class UpdateMessageEmbed(discord.Embed):
         lobby_id: int,
         embed_type: UpdateMessageEmbedType
     ) -> None:
-        extra = self.get_additional_fields(embed_type, lobby_id, bot)
+        extra = self._get_additional_fields(embed_type, lobby_id, bot)
         message = f"{self.payload[embed_type.value]['message']}"
 
         if extra is not None:
@@ -229,7 +202,7 @@ class UpdateMessageEmbed(discord.Embed):
             value=message,
         )
 
-    def get_additional_fields(
+    def _get_additional_fields(
         self,
         embed_type: UpdateMessageEmbedType,
         lobby_id: int,
@@ -241,3 +214,11 @@ class UpdateMessageEmbed(discord.Embed):
             return LobbyManager.get_gamesize(bot, lobby_id)
         elif embed_type == UpdateMessageEmbedType.DESCRIPTION_CHANGE:
             return LobbyManager.get_descriptor(bot, lobby_id)
+
+    def _set_footer(self):
+        timezone = pytz.timezone('Pacific/Auckland')
+        date_time = datetime.now()
+        localised_date_time = date_time.astimezone(tz=timezone)
+        self.set_footer(
+            text=f"⌚ {localised_date_time.strftime('%I:%M:%S%p')}"
+        )
