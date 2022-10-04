@@ -356,9 +356,10 @@ class ButtonView(discord.ui.View):
 
     @discord.ui.button(label="Disband", style=discord.ButtonStyle.blurple)
     async def disband(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(
-            ConfirmationModal(self.lobby_id)
-        )
+        if interaction.user == LobbyManager.get_lobby_owner(interaction.client, self.lobby_id):
+            await interaction.response.send_modal(
+                ConfirmationModal(self.lobby_id)
+            )
 
     @discord.ui.button(label="Promote: OFF", style=discord.ButtonStyle.blurple)
     async def promote(self, interaction: discord.Interaction, button: discord.ui.Button):
