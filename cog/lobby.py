@@ -30,15 +30,16 @@ class PromotionEmbed(discord.Embed):
     def __init__(self, bot: commands.Bot, promotion: Promotion):
         super().__init__(
             title=f'Sponsor Friendly Ad for {promotion.game.game_name}',
-            description=f'Click on lobby <#{promotion.lobby_id}> to join!',
             color=discord.Color.dark_orange(),
         )
+        channel = LobbyManager.get_channel(bot, promotion.lobby_id)
+        self.description = f'Click on lobby <#{channel.id}> to join!'
         self.set_author(name=bot.user.name, icon_url=bot.user.display_avatar.url)
         lobby_size = LobbyManager.get_member_length(bot, promotion.lobby_id)
         game_size = int(LobbyManager.get_gamesize(bot, promotion.lobby_id))
         self.add_field(
-            name=f'R>{game_size - lobby_size}',
-            value=f'Role: <@&{promotion.game.role}>',
+            name='Slots Left:',
+            value=f'R>{game_size - lobby_size}',
         )
         if promotion.game.icon_url:
             self.set_thumbnail(url=promotion.game.icon_url)
@@ -62,6 +63,7 @@ class LobbyCog(commands.Cog):
             self.current_promotion: Promotion = await self.get_oldest_schedule()
             if not self.current_promotion.has_promoted:
                 await self.current_promotion.original_channel.send(
+                    content=f'<@&{self.current_promotion.game.role}>',
                     embed=PromotionEmbed(
                         bot=self.bot,
                         promotion=self.current_promotion
@@ -71,6 +73,7 @@ class LobbyCog(commands.Cog):
             await discord.utils.sleep_until(self.current_promotion.date_time)
             if self.current_promotion in self.lobby_to_promote:
                 await self.current_promotion.original_channel.send(
+                    content=f'<@&{self.current_promotion.game.role}>',
                     embed=PromotionEmbed(
                         bot=self.bot,
                         promotion=self.current_promotion

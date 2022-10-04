@@ -223,12 +223,14 @@ class ButtonView(discord.ui.View):
 
     @discord.ui.button(label="Leave", style=discord.ButtonStyle.red)
     async def leave(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # TODO: Check if promote button is toggled, to continue promoting
         await interaction.response.defer()
         embed_type = None
         lobby_owner = LobbyManager.get_lobby_owner(
             interaction.client, self.lobby_id)
         original_channel = LobbyManager.get_original_channel(
             interaction.client, self.lobby_id)
+        # TODO: Merge with owner leave listener
         # Delete lobby if there is 1 person left
         if LobbyManager.get_member_length(interaction.client, self.lobby_id) == 1:
             await LobbyManager.delete_lobby(interaction.client, self.lobby_id)
