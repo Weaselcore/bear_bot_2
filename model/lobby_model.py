@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from time import gmtime, strftime
 from discord.ext import commands
 import discord
 
@@ -38,32 +39,20 @@ class MemberModel:
 @dataclass
 class LobbyModel:
     # Use the message id as the lobby id
-    owner: discord.Member
-    original_channel: discord.TextChannel
-    lobby_channel: discord.TextChannel
     control_panel: discord.Message
-    is_updating: bool = False,
-    embed_message: discord.Message = None
-    embed: discord.Embed = None
+    lobby_channel: discord.TextChannel
+    original_channel: discord.TextChannel
+    owner: discord.Member
+    created_datetime = datetime.now()
     description: str = None
-    members: list[MemberModel] = field(default_factory=list)
-    status = LobbyState.UNLOCKED
+    embed: discord.Embed = None
+    embed_message: discord.Message = None
     game_code = 'gametype'
     game_size = 1
-
-    def __str__(self):
-        return f'Owner        : {self.owner}\n'\
-            f'Embed        : {self.members}\n'\
-            f'Og_channel_id: {self.original_channel}\n'\
-            f'Lobby        : {self.lobby_channel}\n'\
-            f'Game_code    : {self.game_code}\n'\
-            f'Game_size    : {self.game_size}\n'
-
-    def update_status(self):
-        if self.status == LobbyState.UNLOCKED:
-            self.status = LobbyState.LOCKED
-        else:
-            self.status = LobbyState.UNLOCKED
+    last_promotion_message: discord.Message = None
+    members: list[MemberModel] = field(default_factory=list)
+    thread: discord.Thread = None
+    status = LobbyState.UNLOCKED
 
 
 class LobbyManager:
@@ -75,6 +64,14 @@ class LobbyManager:
     @staticmethod
     def set_lobby(bot: commands.Bot, lobby_id: int, lobby: LobbyModel) -> None:
         bot.lobby[lobby_id] = lobby
+
+    @staticmethod
+    def get_thread(bot: commands.Bot, lobby_id: int) -> discord.Thread:
+        return bot.lobby[lobby_id].thread
+
+    @staticmethod
+    def set_thread(bot: commands.Bot, lobby_id: int, thread: discord.Thread) -> None:
+        bot.lobby[lobby_id].thread = thread
 
     @staticmethod
     def get_gamecode(bot: commands.Bot, lobby_id: int) -> str:
@@ -118,7 +115,11 @@ class LobbyManager:
     @staticmethod
     def update_lobby_status(bot: commands.Bot, lobby_id: int) -> LobbyModel:
         lobby_model = bot.lobby[lobby_id]
-        lobby_model.update_status()
+
+        if lobby_model.status == LobbyState.UNLOCKED:
+            lobby_model.status = LobbyState.LOCKED
+        else:
+            lobby_model.status = LobbyState.UNLOCKED
 
     @staticmethod
     def get_channel(bot: commands.Bot, lobby_id: int) -> discord.TextChannel:
@@ -310,3 +311,25 @@ class LobbyManager:
             return True
         else:
             return False
+
+    @staticmethod
+    def get_session_time(bot: commands.Bot, lobby_id: int) -> str:
+        '''Get the session time of the lobby'''
+        creation: datetime = bot.lobby[lobby_id].created_datetime
+        deletion = datetime.now()
+        duration = deletion - creation
+        return strftime("%H:%M:%S", gmtime(duration.total_seconds()))
+
+    @staticmethod
+    def get_last_promotion_message(bot: commands.Bot, lobby_id: int) -> discord.Message | None:
+        '''Get the last promotion message'''
+        return bot.lobby[lobby_id].last_promotion_message
+
+    @staticmethod
+    def set_last_promotion_message(
+        bot: commands.Bot,
+        lobby_id: int,
+        message: discord.Message
+    ) -> None:
+        '''Set the last promotion message'''
+        bot.lobby[lobby_id].last_promotion_message = message

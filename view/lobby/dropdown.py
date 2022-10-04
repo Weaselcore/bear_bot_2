@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+from model.game_model import GameManager
 
 from model.lobby_model import LobbyManager
 from view.lobby.button_view import ButtonView
@@ -10,7 +11,8 @@ from view.lobby.embeds import LobbyEmbed, UpdateMessageEmbed, UpdateMessageEmbed
 class DropdownView(discord.ui.View):
     def __init__(
         self,
-        lobby_id: int
+        lobby_id: int,
+        game_manager: GameManager,
     ):
         super().__init__(timeout=None)
 
@@ -18,25 +20,26 @@ class DropdownView(discord.ui.View):
         self.add_item(
             GameDropdown(
                 lobby_id=lobby_id,
+                game_manager=game_manager,
             )
         )
 
 
 class GameDropdown(discord.ui.Select):
     """A select dropdown for a list of games."""
-    def __init__(self, lobby_id: str):
+
+    def __init__(self, lobby_id: str, game_manager: GameManager):
         # Set the options that will be presented inside the dropdown
-        options = [
-            discord.SelectOption(
-                label='Valorant',
-                value='VAL'),
-            discord.SelectOption(
-                label='Lost Ark',
-                value='ARK'),
-            discord.SelectOption(
-                label='League of Legends',
-                value='LOL'),
-        ]
+        self.game_manager = game_manager
+        options = []
+        # Create select dropdown options from file.
+        for game in game_manager.load_games():
+            options.append(
+                discord.SelectOption(
+                    label=game.game_name,
+                    value=game.game_code,
+                )
+            )
 
         super().__init__(placeholder='Choose your game...',
                          min_values=1, max_values=1, options=options)
@@ -50,17 +53,11 @@ class GameDropdown(discord.ui.Select):
                 self.lobby_id,
                 interaction.data['values'][0]
             )
-            # Update view with [NumberDropdown]
-            if lobby_model.game_code == 'VAL':
-                number = 5
-            elif lobby_model.game_code == 'ARK':
-                number = 8
-            elif lobby_model.game_code == 'LOL':
-                number = 5
-            else:
-                number = 1
+            # Get max number from stored [GameModel] object.
+            number = self.game_manager.get_max_size(lobby_model.game_code)
+
+            # If the view already has a NumberDropdown for an updated one
             if (len(self.view.children) != 1):
-                # If the view already has a NumberDropdown for an updated one
                 self.view.remove_item(self.view.children[1])
 
             self.view.children[0].placeholder = lobby_model.game_code
@@ -71,12 +68,13 @@ class GameDropdown(discord.ui.Select):
                     number=number
                 )
             )
-            lobby_model = LobbyManager.get_lobby(interaction.client, self.lobby_id)
+            lobby_model = LobbyManager.get_lobby(
+                interaction.client, self.lobby_id)
             # Edit game dropdown to reflect selected value
             await lobby_model.control_panel.edit(content="", view=self.view)
             # Send update message
-            original_channel = LobbyManager.get_original_channel(interaction.client, self.lobby_id)
-            await original_channel.send(
+            thread = LobbyManager.get_thread(interaction.client, self.lobby_id)
+            await thread.send(
                 embed=UpdateMessageEmbed(
                     bot=interaction.client,
                     lobby_id=self.lobby_id,
@@ -94,7 +92,7 @@ class NumberDropdown(discord.ui.Select):
         self,
         lobby_id: int,
         bot: commands.Bot,
-        number: int
+        number: int,
     ):
         # Set the options that will be presented inside the dropdown
         options = [
@@ -149,13 +147,14 @@ class NumberDropdown(discord.ui.Select):
                 view=button
             )
 
-            LobbyManager.set_embed_message(self.bot, self.lobby_id, embed_message)
+            LobbyManager.set_embed_message(
+                self.bot, self.lobby_id, embed_message)
         else:
             self.bot.dispatch('update_lobby_embed', self.lobby_id)
 
         # Send update message
-        original_channel = LobbyManager.get_original_channel(interaction.client, self.lobby_id)
-        await original_channel.send(
+        thread = LobbyManager.get_thread(interaction.client, self.lobby_id)
+        await thread.send(
             embed=UpdateMessageEmbed(
                 bot=interaction.client,
                 lobby_id=self.lobby_id,

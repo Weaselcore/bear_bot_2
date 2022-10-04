@@ -4,6 +4,7 @@
 *__pycache__/
 
 ffmpeg
-data
+data/sound_bites/*
+games.json
 discord.log
 Pipfile.lock
