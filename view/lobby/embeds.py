@@ -149,7 +149,7 @@ class UpdateMessageEmbed(discord.Embed):
             },
             UpdateMessageEmbedType.DELETE.value: {
                 'colour': discord.Color.red(),
-                'message': 'has shut the door behind them, lobby closed!'
+                'message': 'has shut the door behind them, lobby closed! 🛑'
             }
         }
 

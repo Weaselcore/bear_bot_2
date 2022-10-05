@@ -6,7 +6,6 @@ from discord import Interaction, app_commands
 import discord
 
 from view.lobby.dropdown import DropdownView
-from view.lobby.embeds import UpdateMessageEmbed
 from model.lobby_model import (
     LobbyManager,
     LobbyModel,
@@ -24,6 +23,10 @@ class Promotion:
 
     def update_date_time(self):
         self.date_time = datetime.now() + timedelta(minutes=10.0)
+
+    def __repr__(self):
+        return f"Promotion: {self.lobby_id}, {self.game.game_code}, {str(self.date_time)}" \
+            + f", has_promoted: {self.has_promoted}"
 
 
 class PromotionEmbed(discord.Embed):
@@ -60,41 +63,63 @@ class LobbyCog(commands.Cog):
         await self.bot.wait_until_ready()
 
         while not self.bot.is_closed():
+            # Get the next item to be scheduled
             self.current_promotion: Promotion = await self.get_oldest_schedule()
+            # Promote immediately if the lobby hasn't been promoted before
             if not self.current_promotion.has_promoted:
-                await self.current_promotion.original_channel.send(
-                    content=f'<@&{self.current_promotion.game.role}>',
-                    embed=PromotionEmbed(
-                        bot=self.bot,
-                        promotion=self.current_promotion
-                    )
-                )
+                await self._promote()
                 self.current_promotion.has_promoted = True
+            # Sleep till the promotion is due to be executed
             await discord.utils.sleep_until(self.current_promotion.date_time)
+            # If the item is still in the list, promote it.
             if self.current_promotion in self.lobby_to_promote:
-                await self.current_promotion.original_channel.send(
-                    content=f'<@&{self.current_promotion.game.role}>',
-                    embed=PromotionEmbed(
-                        bot=self.bot,
-                        promotion=self.current_promotion
-                    )
-                )
+                await self._promote()
                 # Recalculate new datetime
                 self.current_promotion.update_date_time()
 
+    async def _promote(self):
+        # Might not be the first time the lobby has been promoted; Delete old ad
+        last_message = LobbyManager.get_last_promotion_message(
+            self.bot,
+            self.current_promotion.lobby_id
+        )
+        # Try to delete old message
+        if last_message:
+            try:
+                await last_message.delete()
+            except discord.errors.NotFound:
+                pass
+        # Send new ad
+        message = await self.current_promotion.original_channel.send(
+            content=f'<@&{self.current_promotion.game.role}>',
+            embed=PromotionEmbed(
+                bot=self.bot,
+                promotion=self.current_promotion
+            )
+        )
+        # Store last promotion message
+        LobbyManager.set_last_promotion_message(
+            self.bot,
+            self.current_promotion.lobby_id,
+            message
+        )
+
     async def get_oldest_schedule(self):
+        # If the list is empty, wait for an item to be added
         if len(self.lobby_to_promote) == 0:
             await self.has_schedule.wait()
+        # Get the oldest item
         return min(self.lobby_to_promote, key=lambda x: x.date_time)
 
     def schedule_item(self, item: Promotion):
+        # Add item to list and resume the scheduler
         if len(self.lobby_to_promote) == 0:
             self.lobby_to_promote.append(item)
             self.has_schedule.set()
             return
-
+        # Add item to list if the scheduler is running
         self.lobby_to_promote.append(item)
-
+        # If the item is the oldest, cancel the current promotion and start a new one
         if self.current_promotion is not None and item.date_time < self.current_promotion.date_time:
             self.task.cancel()
             self.task = self.bot.loop.create_task(self.promotion_scheduler())
@@ -119,6 +144,7 @@ class LobbyCog(commands.Cog):
 
     @update_lobby_embed.before_loop
     async def before_update_lobby_embed(self):
+        # Add a delay to bulk edit, rate limit to update embed is 5 per 5 seconds
         await asyncio.sleep(5)
 
     @commands.Cog.listener()
@@ -130,7 +156,6 @@ class LobbyCog(commands.Cog):
     @commands.Cog.listener()
     async def on_promote_lobby(self, lobby_id: int):
         """Promote the lobby"""
-        print(f'Promoting lobby {lobby_id}')
         if lobby_id not in self.lobby_to_promote:
             self.schedule_item(
                 item=Promotion(
@@ -139,14 +164,15 @@ class LobbyCog(commands.Cog):
                     original_channel=LobbyManager.get_original_channel(self.bot, lobby_id)
                 )
             )
+            LobbyManager.set_is_promoting(self.bot, lobby_id, True)
 
     @commands.Cog.listener()
     async def on_stop_promote_lobby(self, lobby_id: int):
         """Stop promoting the lobby"""
-        print(f'Stop promoting lobby {lobby_id}')
         for game_model in self.lobby_to_promote:
             if game_model.lobby_id == lobby_id:
                 self.remove_schedule(game_model)
+                LobbyManager.set_is_promoting(self.bot, lobby_id, False)
 
     @app_commands.command(description="Create lobby through UI", name='lobby')
     async def create_lobby(self, interaction: Interaction):
@@ -193,7 +219,7 @@ class LobbyCog(commands.Cog):
         # Create thread for logging
         thread_message = await channel.send("Creating thread...")
         thread = await channel.create_thread(
-            name="Thread Log",
+            name="History Log Thread",
             message=thread_message
         )
         LobbyManager.set_thread(self.bot, interaction.user.id, thread)
@@ -276,45 +302,19 @@ class LobbyCog(commands.Cog):
                 ephemeral=True
             )
             return
-
+        # Get all games
+        list_of_games = '\n'.join(
+            [f'Name: {game.game_name} - Code: {game.game_code}' for game in games]
+        )
         # Send message to the user
         await interaction.response.send_message(
             embed=discord.Embed(
                 title='Games',
-                description='\n'.join([f'{game.game_name} - {game.game_code}' for game in games]),
+                description=list_of_games,
                 color=discord.Color.green(),
             ),
             ephemeral=True
         )
-
-    # TODO: Refactor out of this class
-    @commands.Cog.listener()
-    async def on_owner_leave(
-        self,
-        lobby_id: int,
-        interaction: discord.Interaction,
-    ):
-        lobby_owner = LobbyManager.get_lobby_owner(self.bot, lobby_id)
-        if interaction.user != lobby_owner:
-            await interaction.response.defer()
-            return
-        count = LobbyManager.get_member_length(self.bot, lobby_id)
-        if count == 1:
-            channel = LobbyManager.get_original_channel(self.bot, lobby_id)
-            await channel.send(
-                embed=UpdateMessageEmbed(
-                    title="Lobby Closed",
-                    value=f"🛑 Lobby {interaction.channel.name} has been deleted.",
-                    color=discord.Color.red()
-                )
-            )
-            await LobbyManager.delete_lobby(self.bot, lobby_id)
-        else:
-            success = await LobbyManager.remove_owner(self.bot, lobby_id)
-            if success:
-                LobbyManager.get_lobby_owner(self.bot, lobby_id)
-        interaction.client.dispatch('update_lobby_embed', lobby_id)
-        await interaction.response.defer()
 
 
 async def setup(bot):
