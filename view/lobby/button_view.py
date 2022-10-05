@@ -147,7 +147,6 @@ class ButtonView(discord.ui.View):
             return
         LobbyManager.add_member(
             interaction.client, self.lobby_id, interaction.user)
-        await interaction.response.edit_message(view=self)
         thread = LobbyManager.get_thread(interaction.client, self.lobby_id)
         await thread.send(
             embed=UpdateMessageEmbed(
@@ -159,6 +158,9 @@ class ButtonView(discord.ui.View):
         )
         if LobbyManager.is_full(interaction.client, self.lobby_id):
             interaction.client.dispatch("stop_promote_lobby", self.lobby_id)
+            # Turn off promotion when the lobby is full
+            self.promote.label = "Promote: OFF"
+        await interaction.response.edit_message(view=self)
         interaction.client.dispatch('update_lobby_embed', self.lobby_id)
 
     @discord.ui.button(label="Ready", style=discord.ButtonStyle.green)
@@ -229,11 +231,9 @@ class ButtonView(discord.ui.View):
             interaction.client, self.lobby_id)
         original_channel = LobbyManager.get_original_channel(
             interaction.client, self.lobby_id)
-        # TODO: Merge with owner leave listener
         # Delete lobby if there is 1 person left
         if LobbyManager.get_member_length(interaction.client, self.lobby_id) == 1:
             interaction.client.dispatch("stop_promote_lobby", self.lobby_id)
-            await LobbyManager.delete_lobby(interaction.client, self.lobby_id)
             embed_type = UpdateMessageEmbedType.DELETE
             await original_channel.send(
                 embed=UpdateMessageEmbed(
@@ -247,6 +247,7 @@ class ButtonView(discord.ui.View):
                     inline=False
                 )
             )
+            await LobbyManager.delete_lobby(interaction.client, self.lobby_id)
             return
         # Remove member from lobby
         elif interaction.user != lobby_owner:
@@ -301,7 +302,6 @@ class ButtonView(discord.ui.View):
         lobby_status = LobbyManager.lock(interaction.client, self.lobby_id)
 
         status = None
-
         # Send update message
         if lobby_status == LobbyState.LOCKED:
             status = UpdateMessageEmbedType.LOCK
@@ -364,7 +364,9 @@ class ButtonView(discord.ui.View):
     @discord.ui.button(label="Promote: OFF", style=discord.ButtonStyle.blurple)
     async def promote(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user == LobbyManager.get_lobby_owner(interaction.client, self.lobby_id):
-            if button.label == "Promote: OFF":
+            is_promoting = LobbyManager.get_is_promoting(interaction.client, self.lobby_id)
+            is_full = LobbyManager.is_full(interaction.client, self.lobby_id)
+            if not is_promoting and not is_full:
                 button.label = "Promote: ON"
                 interaction.client.dispatch("promote_lobby", self.lobby_id,)
             else:
