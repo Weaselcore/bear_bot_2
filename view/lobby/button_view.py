@@ -143,7 +143,7 @@ class ButtonView(discord.ui.View):
     @discord.ui.button(label='Join', style=discord.ButtonStyle.green)
     async def join_button(self, interaction: discord.Interaction, button: discord.ui.Button,):
         if LobbyManager.has_joined(interaction.client, self.lobby_id, interaction.user):
-            interaction.response.defer()
+            await interaction.response.defer()
             return
         LobbyManager.add_member(
             interaction.client, self.lobby_id, interaction.user)
