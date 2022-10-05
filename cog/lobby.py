@@ -60,7 +60,9 @@ class LobbyCog(commands.Cog):
         await self.bot.wait_until_ready()
 
         while not self.bot.is_closed():
+            # Get the next item to be scheduled
             self.current_promotion: Promotion = await self.get_oldest_schedule()
+            # If it hasn't been promoted yet, promote it
             if not self.current_promotion.has_promoted:
                 message = await self.current_promotion.original_channel.send(
                     content=f'<@&{self.current_promotion.game.role}>',
@@ -75,8 +77,18 @@ class LobbyCog(commands.Cog):
                     message.id
                 )
                 self.current_promotion.has_promoted = True
+            # Sleep till the promotion is due to be executed
             await discord.utils.sleep_until(self.current_promotion.date_time)
+            # If the item is still in the list, promote it.
             if self.current_promotion in self.lobby_to_promote:
+                # Get and delete the last promotion message
+                last_message = LobbyManager.get_last_promotion_message(
+                    self.bot,
+                    self.current_promotion.lobby_id
+                )
+                if last_message:
+                    await last_message.delete()
+                # Send promotion message
                 message = await self.current_promotion.original_channel.send(
                     content=f'<@&{self.current_promotion.game.role}>',
                     embed=PromotionEmbed(
@@ -84,36 +96,31 @@ class LobbyCog(commands.Cog):
                         promotion=self.current_promotion
                     )
                 )
-                last_message = LobbyManager.get_last_promotion_message(
-                    self.bot,
-                    self.current_promotion.lobby_id
-                )
-                if last_message:
-                    last_message = await self.current_promotion.original_channel.fetch_message(
-                        last_message
-                    )
-                    await last_message.delete()
+                # Update the last promotion message
                 LobbyManager.set_last_promotion_message(
                     self.bot,
                     self.current_promotion.lobby_id,
-                    message.id
+                    message
                 )
                 # Recalculate new datetime
                 self.current_promotion.update_date_time()
 
     async def get_oldest_schedule(self):
+        # If the list is empty, wait for an item to be added
         if len(self.lobby_to_promote) == 0:
             await self.has_schedule.wait()
+        # Get the oldest item
         return min(self.lobby_to_promote, key=lambda x: x.date_time)
 
     def schedule_item(self, item: Promotion):
+        # Add item to list and resume the scheduler
         if len(self.lobby_to_promote) == 0:
             self.lobby_to_promote.append(item)
             self.has_schedule.set()
             return
-
+        # Add item to list if the scheduler is running
         self.lobby_to_promote.append(item)
-
+        # If the item is the oldest, cancel the current promotion and start a new one
         if self.current_promotion is not None and item.date_time < self.current_promotion.date_time:
             self.task.cancel()
             self.task = self.bot.loop.create_task(self.promotion_scheduler())
@@ -138,6 +145,7 @@ class LobbyCog(commands.Cog):
 
     @update_lobby_embed.before_loop
     async def before_update_lobby_embed(self):
+        # Add a delay to bulk edit, rate limit to update embed is 5 per 5 seconds
         await asyncio.sleep(5)
 
     @commands.Cog.listener()
@@ -212,7 +220,7 @@ class LobbyCog(commands.Cog):
         # Create thread for logging
         thread_message = await channel.send("Creating thread...")
         thread = await channel.create_thread(
-            name="Thread Log",
+            name="History Log Thread",
             message=thread_message
         )
         LobbyManager.set_thread(self.bot, interaction.user.id, thread)
