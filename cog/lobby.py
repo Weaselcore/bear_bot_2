@@ -18,11 +18,11 @@ class Promotion:
     lobby_id: int
     game: GameModel
     original_channel: discord.TextChannel
-    date_time = datetime.now() + timedelta(seconds=10.0)
+    date_time = datetime.now() + timedelta(minutes=10.0)
     has_promoted = False
 
     def update_date_time(self):
-        self.date_time = datetime.now() + timedelta(seconds=10.0)
+        self.date_time = datetime.now() + timedelta(minutes=10.0)
 
     def __repr__(self):
         return f"Promotion: {self.lobby_id}, {self.game.game_code}, {str(self.date_time)}" \
