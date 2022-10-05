@@ -359,7 +359,8 @@ class ButtonView(discord.ui.View):
             await interaction.response.send_modal(
                 ConfirmationModal(self.lobby_id)
             )
-        interaction.response.defer()
+        else:
+            await interaction.response.defer()
 
     @discord.ui.button(label="Promote: OFF", style=discord.ButtonStyle.blurple)
     async def promote(self, interaction: discord.Interaction, button: discord.ui.Button):
