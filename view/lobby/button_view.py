@@ -223,7 +223,6 @@ class ButtonView(discord.ui.View):
 
     @discord.ui.button(label="Leave", style=discord.ButtonStyle.red)
     async def leave(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # TODO: Check if promote button is toggled, to continue promoting
         await interaction.response.defer()
         embed_type = None
         lobby_owner = LobbyManager.get_lobby_owner(

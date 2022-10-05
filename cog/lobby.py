@@ -62,22 +62,41 @@ class LobbyCog(commands.Cog):
         while not self.bot.is_closed():
             self.current_promotion: Promotion = await self.get_oldest_schedule()
             if not self.current_promotion.has_promoted:
-                await self.current_promotion.original_channel.send(
+                message = await self.current_promotion.original_channel.send(
                     content=f'<@&{self.current_promotion.game.role}>',
                     embed=PromotionEmbed(
                         bot=self.bot,
                         promotion=self.current_promotion
                     )
                 )
+                LobbyManager.set_last_promotion_message(
+                    self.bot,
+                    self.current_promotion.lobby_id,
+                    message.id
+                )
                 self.current_promotion.has_promoted = True
             await discord.utils.sleep_until(self.current_promotion.date_time)
             if self.current_promotion in self.lobby_to_promote:
-                await self.current_promotion.original_channel.send(
+                message = await self.current_promotion.original_channel.send(
                     content=f'<@&{self.current_promotion.game.role}>',
                     embed=PromotionEmbed(
                         bot=self.bot,
                         promotion=self.current_promotion
                     )
+                )
+                last_message = LobbyManager.get_last_promotion_message(
+                    self.bot,
+                    self.current_promotion.lobby_id
+                )
+                if last_message:
+                    last_message = await self.current_promotion.original_channel.fetch_message(
+                        last_message
+                    )
+                    await last_message.delete()
+                LobbyManager.set_last_promotion_message(
+                    self.bot,
+                    self.current_promotion.lobby_id,
+                    message.id
                 )
                 # Recalculate new datetime
                 self.current_promotion.update_date_time()
