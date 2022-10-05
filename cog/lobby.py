@@ -314,35 +314,6 @@ class LobbyCog(commands.Cog):
             ephemeral=True
         )
 
-    # TODO: Refactor out of this class
-    @commands.Cog.listener()
-    async def on_owner_leave(
-        self,
-        lobby_id: int,
-        interaction: discord.Interaction,
-    ):
-        lobby_owner = LobbyManager.get_lobby_owner(self.bot, lobby_id)
-        if interaction.user != lobby_owner:
-            await interaction.response.defer()
-            return
-        count = LobbyManager.get_member_length(self.bot, lobby_id)
-        if count == 1:
-            channel = LobbyManager.get_original_channel(self.bot, lobby_id)
-            await channel.send(
-                embed=UpdateMessageEmbed(
-                    title="Lobby Closed",
-                    value=f"🛑 Lobby {interaction.channel.name} has been deleted.",
-                    color=discord.Color.red()
-                )
-            )
-            await LobbyManager.delete_lobby(self.bot, lobby_id)
-        else:
-            success = await LobbyManager.remove_owner(self.bot, lobby_id)
-            if success:
-                LobbyManager.get_lobby_owner(self.bot, lobby_id)
-        interaction.client.dispatch('update_lobby_embed', lobby_id)
-        await interaction.response.defer()
-
 
 async def setup(bot):
     await bot.add_cog(LobbyCog(bot))
