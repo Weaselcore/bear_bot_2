@@ -259,6 +259,11 @@ class ButtonView(discord.ui.View):
             LobbyManager.remove_owner(interaction.client, self.lobby_id)
             embed_type = UpdateMessageEmbedType.OWNER_CHANGE
 
+        # Update Ready button
+        number_filled = len(LobbyManager.get_members_ready(interaction.client, self.lobby_id))
+        self.ready.label = f"Ready: {number_filled}"
+        await interaction.response.edit_message(view=self)
+
         await original_channel.send(
             embed=UpdateMessageEmbed(
                 interaction.client,
