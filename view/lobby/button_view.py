@@ -1,7 +1,7 @@
 import discord
 
 from model.lobby_model import LobbyManager, LobbyState, MemberState
-from view.lobby.embeds import UpdateMessageEmbed, UpdateMessageEmbedType
+from view.lobby.embeds import UpdateEmbedManager, UpdateMessageEmbedType
 
 
 class DescriptionModal(discord.ui.Modal, title='Edit Description'):
@@ -21,13 +21,15 @@ class DescriptionModal(discord.ui.Modal, title='Edit Description'):
             interaction.client, self.lobby_id, self.answer.value)
         # Send update embed
         thread = LobbyManager.get_thread(interaction.client, self.lobby_id)
+        message_details = UpdateEmbedManager.get_message_details(
+            bot=interaction.client,
+            lobby_id=self.lobby_id,
+            embed_type=UpdateMessageEmbedType.DESCRIPTION_CHANGE,
+            member=interaction.user
+        )
         await thread.send(
-            embed=UpdateMessageEmbed(
-                bot=interaction.client,
-                lobby_id=self.lobby_id,
-                member=interaction.user,
-                embed_type=UpdateMessageEmbedType.DESCRIPTION_CHANGE
-            )
+            content=message_details[0],
+            embed=message_details[1],
         )
         interaction.client.dispatch('update_lobby_embed', self.lobby_id)
 
@@ -45,30 +47,20 @@ class ConfirmationModal(discord.ui.Modal, title='Are you sure? Reason optional.'
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        channel = LobbyManager.get_original_channel(
+        original_channel = LobbyManager.get_original_channel(
             interaction.client, self.lobby_id)
-        extra_info = LobbyManager.get_session_time(
-            interaction.client, self.lobby_id)
-        await LobbyManager.delete_lobby(interaction.client, self.lobby_id)
-        embed = UpdateMessageEmbed(
+        message_details = UpdateEmbedManager.get_message_details(
             bot=interaction.client,
             lobby_id=self.lobby_id,
-            member=interaction.user,
             embed_type=UpdateMessageEmbedType.DELETE,
-        ).add_field(
-            name="Session Duration:",
-            value=extra_info,
-            inline=False
+            member=interaction.user,
         )
-        if self.reason.value:
-            embed.add_field(
-                name="Reason:",
-                value=self.reason.value,
-                inline=False
-            )
-        await channel.send(
-            embed=embed,
+        await original_channel.send(
+            content=message_details[0],
+            embed=message_details[1].add_field(name='Reason', value=self.reason.value)
         )
+        await LobbyManager.delete_lobby(interaction.client, self.lobby_id)
+        await interaction.channel.delete()
 
 
 class OwnerSelectView(discord.ui.View):
@@ -121,14 +113,16 @@ class OwnerSelectView(discord.ui.View):
             original_channel = LobbyManager.get_original_channel(
                 interaction.client, self.lobby_id)
             # Disable view after selection
-            await self.view.stop()
+            self.view.stop()
+            message_details = UpdateEmbedManager.get_message_details(
+                bot=interaction.client,
+                lobby_id=self.lobby_id,
+                member=interaction.user,
+                embed_type=UpdateMessageEmbedType.OWNER_CHANGE
+            )
             await original_channel.send(
-                embed=UpdateMessageEmbed(
-                    interaction.client,
-                    self.lobby_id,
-                    interaction.user,
-                    UpdateMessageEmbedType.OWNER_CHANGE
-                )
+                content=message_details[0],
+                embed=message_details[1]
             )
 
 
@@ -148,13 +142,15 @@ class ButtonView(discord.ui.View):
         LobbyManager.add_member(
             interaction.client, self.lobby_id, interaction.user)
         thread = LobbyManager.get_thread(interaction.client, self.lobby_id)
+        message_details = UpdateEmbedManager.get_message_details(
+            bot=interaction.client,
+            lobby_id=self.lobby_id,
+            member=interaction.user,
+            embed_type=UpdateMessageEmbedType.JOIN
+        )
         await thread.send(
-            embed=UpdateMessageEmbed(
-                bot=interaction.client,
-                lobby_id=self.lobby_id,
-                member=interaction.user,
-                embed_type=UpdateMessageEmbedType.JOIN
-            )
+            content=message_details[0],
+            embed=message_details[1],
         )
         if LobbyManager.is_full(interaction.client, self.lobby_id):
             interaction.client.dispatch("stop_promote_lobby", self.lobby_id)
@@ -202,26 +198,16 @@ class ButtonView(discord.ui.View):
         thread = LobbyManager.get_thread(interaction.client, self.lobby_id)
 
         if member_state == MemberState.READY:
-            update_embed = UpdateMessageEmbed(
-                interaction.client,
-                self.lobby_id,
-                interaction.user,
-                UpdateMessageEmbedType.READY
+            message_details = UpdateEmbedManager.get_message_details(
+                bot=interaction.client,
+                lobby_id=self.lobby_id,
+                embed_type=UpdateMessageEmbedType.READY,
+                member=interaction.user
             )
-            members_ready = len(LobbyManager.get_members_ready(
-                interaction.client, self.lobby_id))
-            game_size = int(LobbyManager.get_gamesize(
-                interaction.client, self.lobby_id))
-            lobby_owner = LobbyManager.get_lobby_owner(
-                interaction.client, self.lobby_id)
-            if members_ready == game_size:
-                # Add addional field in embed
-                update_embed.add_field(
-                    name="Everyone has readied up!",
-                    value=f"🔒 <@{lobby_owner.id}>, please lock the lobby.",
-                    inline=False
-                )
-            await thread.send(embed=update_embed)
+            await thread.send(
+                content=message_details[0],
+                embed=message_details[1]
+            )
 
     @discord.ui.button(label="Leave", style=discord.ButtonStyle.red)
     async def leave(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -233,24 +219,21 @@ class ButtonView(discord.ui.View):
         embed_type = None
         lobby_owner = LobbyManager.get_lobby_owner(
             interaction.client, self.lobby_id)
-        original_channel = LobbyManager.get_original_channel(
+        thread = LobbyManager.get_thread(
             interaction.client, self.lobby_id)
 
         # Delete lobby if there is 1 person left
         if LobbyManager.get_member_length(interaction.client, self.lobby_id) == 1:
             interaction.client.dispatch("stop_promote_lobby", self.lobby_id)
-            embed_type = UpdateMessageEmbedType.DELETE
-            await original_channel.send(
-                embed=UpdateMessageEmbed(
-                    interaction.client,
-                    self.lobby_id,
-                    interaction.user,
-                    embed_type
-                ).add_field(
-                    name="Session Duration:",
-                    value=LobbyManager.get_session_time(interaction.client, self.lobby_id),
-                    inline=False
-                )
+            message_details = UpdateEmbedManager.get_message_details(
+                bot=interaction.client,
+                lobby_id=self.lobby_id,
+                embed_type=UpdateMessageEmbedType.DELETE,
+                member=interaction.user
+            )
+            await LobbyManager.get_original_channel(interaction.client, self.lobby_id).send(
+                content=message_details[0],
+                embed=message_details[1]
             )
             await LobbyManager.delete_lobby(interaction.client, self.lobby_id)
             return
@@ -269,13 +252,16 @@ class ButtonView(discord.ui.View):
         self.ready.label = f"Ready: {number_filled}"
         await interaction.response.edit_message(view=self)
 
-        await original_channel.send(
-            embed=UpdateMessageEmbed(
-                interaction.client,
-                self.lobby_id,
-                interaction.user,
-                embed_type
-            )
+        message_details = UpdateEmbedManager.get_message_details(
+            bot=interaction.client,
+            lobby_id=self.lobby_id,
+            embed_type=embed_type,
+            member=interaction.user
+        )
+
+        await thread.send(
+            content=message_details[0],
+            embed=message_details[1]
         )
         # Update lobby embed
         interaction.client.dispatch('update_lobby_embed', self.lobby_id)
@@ -311,25 +297,27 @@ class ButtonView(discord.ui.View):
         # Update lobby state
         lobby_status = LobbyManager.lock(interaction.client, self.lobby_id)
 
-        status = None
+        embed_type = None
         # Send update message
         if lobby_status == LobbyState.LOCKED:
-            status = UpdateMessageEmbedType.LOCK
+            embed_type = UpdateMessageEmbedType.LOCK
         elif lobby_status == LobbyState.UNLOCKED:
-            status = UpdateMessageEmbedType.UNLOCKED
+            embed_type = UpdateMessageEmbedType.UNLOCKED
         # Update lobby embed
         interaction.client.dispatch('update_lobby_embed', self.lobby_id)
         # Send update message
-        if status:
+        if embed_type:
             original_channel = LobbyManager.get_original_channel(
                 interaction.client, self.lobby_id)
+            message_details = UpdateEmbedManager.get_message_details(
+                bot=interaction.client,
+                lobby_id=self.lobby_id,
+                embed_type=embed_type,
+                member=interaction.user
+            )
             await original_channel.send(
-                embed=UpdateMessageEmbed(
-                    interaction.client,
-                    self.lobby_id,
-                    interaction.user,
-                    status
-                )
+                content=message_details[0],
+                embed=message_details[1]
             )
 
     @discord.ui.button(label="Change Leader", style=discord.ButtonStyle.blurple)
