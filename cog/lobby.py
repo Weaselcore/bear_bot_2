@@ -316,6 +316,83 @@ class LobbyCog(commands.Cog):
             ephemeral=True
         )
 
+    @app_commands.command(description="Add user to the lobby", name='adduser')
+    async def add_user(self, interaction: discord.Interaction, user: discord.User):
+        """Adds a user to the lobby"""
+        # Check if there are lobbies
+        if len(self.bot.lobby) == 0:
+            await interaction.response.send_message(
+                'There are no lobbies!',
+                ephemeral=True
+            )
+            return
+        # Check if interaction user is the owner of the lobby
+        for key, lobby_model in self.bot.lobby.items():
+            if lobby_model.owner == interaction.user:
+                # Add user to the lobby
+                success = LobbyManager.add_member(interaction.client, key, user)
+                # Send message to the user
+                if success:
+                    await interaction.response.send_message(
+                        f'User {user.display_name} added!',
+                        ephemeral=True
+                    )
+                else:
+                    await interaction.response.send_message(
+                        f'User {user.display_name} already in the lobby!',
+                        ephemeral=True
+                    )
+                interaction.dispatch("update_lobby_embed", key)
+                return
+        else:
+            # Send message to the user
+            await interaction.response.send_message(
+                'You are not the owner of the lobby!',
+                ephemeral=True
+            )
+
+    @app_commands.command(description="Remove user from the lobby", name='removeuser')
+    async def remove_user(self, interaction: discord.Interaction, user: discord.User):
+        """Removes a user from the lobby"""
+        # Check if there are lobbies
+        if len(self.bot.lobby) == 0:
+            await interaction.response.send_message(
+                'There are no lobbies!',
+                ephemeral=True
+            )
+            return
+        # Check if interaction user is the owner of the lobby
+        if user == interaction.user:
+            await interaction.response.send_message(
+                'You cannot remove yourself!',
+                ephemeral=True
+            )
+            return
+        # Check if interaction user is the owner of the lobby
+        for key, lobby_model in self.bot.lobby.items():
+            if lobby_model.owner == interaction.user:
+                # Remove user from the lobby
+                success = LobbyManager.remove_member(interaction.client, key, user)
+                # Send message to the user
+                if success:
+                    await interaction.response.send_message(
+                        f'User {user.display_name} removed!',
+                        ephemeral=True
+                    )
+                else:
+                    await interaction.response.send_message(
+                        f'User {user.display_name} not in the lobby!',
+                        ephemeral=True
+                    )
+                interaction.dispatch("update_lobby_embed", key)
+                return
+        else:
+            # Send message to the user
+            await interaction.response.send_message(
+                'You are not the owner of the lobby!',
+                ephemeral=True
+            )
+
 
 async def setup(bot):
     await bot.add_cog(LobbyCog(bot))
