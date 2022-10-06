@@ -225,12 +225,17 @@ class ButtonView(discord.ui.View):
 
     @discord.ui.button(label="Leave", style=discord.ButtonStyle.red)
     async def leave(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer()
+        # Check if user is in lobby
+        if not LobbyManager.has_joined(interaction.client, self.lobby_id, interaction.user):
+            await interaction.response.defer()
+            return
+
         embed_type = None
         lobby_owner = LobbyManager.get_lobby_owner(
             interaction.client, self.lobby_id)
         original_channel = LobbyManager.get_original_channel(
             interaction.client, self.lobby_id)
+
         # Delete lobby if there is 1 person left
         if LobbyManager.get_member_length(interaction.client, self.lobby_id) == 1:
             interaction.client.dispatch("stop_promote_lobby", self.lobby_id)
@@ -255,7 +260,7 @@ class ButtonView(discord.ui.View):
                 interaction.client, self.lobby_id, interaction.user)
             embed_type = UpdateMessageEmbedType.LEAVE
         # Remove user and find new leader
-        else:
+        elif interaction.user == lobby_owner:
             LobbyManager.remove_owner(interaction.client, self.lobby_id)
             embed_type = UpdateMessageEmbedType.OWNER_CHANGE
 
