@@ -181,7 +181,7 @@ class UpdateEmbedManager:
                 name=member.display_name,
                 value='has shut the door behind them, lobby closed! 🛑'
             ).set_footer(
-                text=LobbyManager.get_session_time(bot, lobby_id)
+                text=f'Session Duration: {LobbyManager.get_session_time(bot, lobby_id)}'
             )
             return (None, embed)
         elif embed_type == UpdateMessageEmbedType.GAME_CHANGE:
