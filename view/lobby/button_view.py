@@ -330,10 +330,15 @@ class ButtonView(discord.ui.View):
             options = []
             list_of_users = LobbyManager.get_members(
                 interaction.client, self.lobby_id)
+            # Return if there is only one person in the lobby
+            if len(list_of_users) == 1:
+                await interaction.response.defer()
+                return
             # Get a list of users
             for member_model in list_of_users:
                 options.append(
-                    (member_model.member.display_name, member_model.member.id))
+                    (member_model.member.display_name, member_model.member.id)
+                )
             await interaction.response.send_message(
                 view=OwnerSelectView(
                     self.lobby_id,
