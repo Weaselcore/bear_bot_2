@@ -57,7 +57,11 @@ class ConfirmationModal(discord.ui.Modal, title='Are you sure? Reason optional.'
         )
         await original_channel.send(
             content=message_details[0],
-            embed=message_details[1].add_field(name='Reason', value=self.reason.value)
+            embed=message_details[1].add_field(
+                name='Reason',
+                value=self.reason.value,
+                inline=False
+            )
         )
         await LobbyManager.delete_lobby(interaction.client, self.lobby_id)
         await interaction.channel.delete()
