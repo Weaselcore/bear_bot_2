@@ -5,7 +5,11 @@ from model.game_model import GameManager
 from model.lobby_model import LobbyManager
 from view.lobby.button_view import ButtonView
 
-from view.lobby.embeds import LobbyEmbed, UpdateMessageEmbed, UpdateMessageEmbedType
+from view.lobby.embeds import (
+    LobbyEmbed,
+    UpdateEmbedManager,
+    UpdateEmbedType
+)
 
 
 class DropdownView(discord.ui.View):
@@ -74,13 +78,15 @@ class GameDropdown(discord.ui.Select):
             await lobby_model.control_panel.edit(content="", view=self.view)
             # Send update message
             thread = LobbyManager.get_thread(interaction.client, self.lobby_id)
+            message_details = UpdateEmbedManager.get_message_details(
+                bot=interaction.client,
+                lobby_id=self.lobby_id,
+                embed_type=UpdateEmbedType.GAME_CHANGE,
+                member=interaction.user,
+            )
             await thread.send(
-                embed=UpdateMessageEmbed(
-                    bot=interaction.client,
-                    lobby_id=self.lobby_id,
-                    member=interaction.user,
-                    embed_type=UpdateMessageEmbedType.GAME_CHANGE
-                )
+                content=message_details[0],
+                embed=message_details[1]
             )
         # Defer interaction update
         await interaction.response.defer()
@@ -154,11 +160,13 @@ class NumberDropdown(discord.ui.Select):
 
         # Send update message
         thread = LobbyManager.get_thread(interaction.client, self.lobby_id)
+        message_details = UpdateEmbedManager.get_message_details(
+            bot=interaction.client,
+            lobby_id=self.lobby_id,
+            embed_type=UpdateEmbedType.SIZE_CHANGE,
+            member=interaction.user
+        )
         await thread.send(
-            embed=UpdateMessageEmbed(
-                bot=interaction.client,
-                lobby_id=self.lobby_id,
-                member=interaction.user,
-                embed_type=UpdateMessageEmbedType.SIZE_CHANGE
-            )
+            content=message_details[0],
+            embed=message_details[1]
         )

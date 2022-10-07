@@ -15,8 +15,8 @@ class MemberState(Enum):
 
 
 class LobbyState(Enum):
-    LOCKED = 'locked',
-    UNLOCKED = 'unlocked',
+    LOCK = 'locked',
+    UNLOCK = 'unlocked',
 
     def __str__(self):
         return f'{ self.value[0].upper()}'
@@ -53,7 +53,7 @@ class LobbyModel:
     is_promoting = False
     members: list[MemberModel] = field(default_factory=list)
     thread: discord.Thread = None
-    status = LobbyState.UNLOCKED
+    status = LobbyState.UNLOCK
 
 
 class LobbyManager:
@@ -117,10 +117,10 @@ class LobbyManager:
     def update_lobby_status(bot: commands.Bot, lobby_id: int) -> LobbyModel:
         lobby_model = bot.lobby[lobby_id]
 
-        if lobby_model.status == LobbyState.UNLOCKED:
-            lobby_model.status = LobbyState.LOCKED
+        if lobby_model.status == LobbyState.UNLOCK:
+            lobby_model.status = LobbyState.LOCK
         else:
-            lobby_model.status = LobbyState.UNLOCKED
+            lobby_model.status = LobbyState.UNLOCK
 
     @staticmethod
     def get_channel(bot: commands.Bot, lobby_id: int) -> discord.TextChannel:
@@ -200,10 +200,10 @@ class LobbyManager:
 
     @staticmethod
     def lock(bot: commands.Bot, lobby_id: int) -> LobbyState:
-        if bot.lobby[lobby_id].status == LobbyState.UNLOCKED:
-            new_status = LobbyState.LOCKED
-        elif bot.lobby[lobby_id].status == LobbyState.LOCKED:
-            new_status = LobbyState.UNLOCKED
+        if bot.lobby[lobby_id].status == LobbyState.UNLOCK:
+            new_status = LobbyState.LOCK
+        elif bot.lobby[lobby_id].status == LobbyState.LOCK:
+            new_status = LobbyState.UNLOCK
         bot.lobby[lobby_id].status = new_status
         return new_status
 
@@ -319,7 +319,7 @@ class LobbyManager:
         creation: datetime = bot.lobby[lobby_id].created_datetime
         deletion = datetime.now()
         duration = deletion - creation
-        return strftime("%H:%M:%S", gmtime(duration.total_seconds()))
+        return "Session Duration: " + strftime("%H:%M:%S", gmtime(duration.total_seconds()))
 
     @staticmethod
     def get_last_promotion_message(bot: commands.Bot, lobby_id: int) -> discord.Message | None:
@@ -344,3 +344,19 @@ class LobbyManager:
     def set_is_promoting(bot: commands.Bot, lobby_id: int, state: bool) -> None:
         '''Set the is promoting state'''
         bot.lobby[lobby_id].is_promoting = state
+
+    @staticmethod
+    def get_unready_mentions(bot: commands.Bot, lobby_id: int) -> str:
+        members_to_ping = LobbyManager.get_members_not_ready(bot, lobby_id)
+        mention_list = [f'<@{member.id}>' for member in members_to_ping]
+        return ", ".join(mention_list)
+
+    @staticmethod
+    def get_ready_mentions(bot: commands.Bot, lobby_id: int) -> str:
+        members_to_ping = LobbyManager.get_members_ready(bot, lobby_id)
+        mention_list = [f'<@{member.id}>' for member in members_to_ping]
+        return ", ".join(mention_list)
+
+    @staticmethod
+    def get_new_owner_mention(bot: commands.Bot, lobby_id: int) -> str:
+        return f'<@{LobbyManager.get_lobby_owner(bot, lobby_id).id}>'
