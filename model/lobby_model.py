@@ -50,6 +50,7 @@ class LobbyModel:
     game_code = 'gametype'
     game_size = 1
     last_promotion_message: discord.Message = None
+    last_promotion_datetime: datetime = None
     is_promoting = False
     members: list[MemberModel] = field(default_factory=list)
     thread: discord.Thread = None
@@ -335,15 +336,6 @@ class LobbyManager:
         '''Set the last promotion message'''
         bot.lobby[lobby_id].last_promotion_message = message
 
-    @staticmethod
-    def get_is_promoting(bot: commands.Bot, lobby_id: int) -> bool:
-        '''Get the is promoting state'''
-        return bot.lobby[lobby_id].is_promoting
-
-    @staticmethod
-    def set_is_promoting(bot: commands.Bot, lobby_id: int, state: bool) -> None:
-        '''Set the is promoting state'''
-        bot.lobby[lobby_id].is_promoting = state
 
     @staticmethod
     def get_unready_mentions(bot: commands.Bot, lobby_id: int) -> str:
