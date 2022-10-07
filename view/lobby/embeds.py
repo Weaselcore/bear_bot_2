@@ -50,7 +50,7 @@ class LobbyEmbed(discord.Embed):
 
     def _set_colour(self) -> None:
         lobby_state = LobbyManager.get_lobby_status(self.bot, self.lobby_id)
-        if lobby_state == LobbyState.LOCKED:
+        if lobby_state == LobbyState.LOCK:
             self.color = discord.Color.yellow()
         elif LobbyManager.is_full(self.bot, self.lobby_id):
             self.color = discord.Color.green()
@@ -88,20 +88,20 @@ class LobbyEmbed(discord.Embed):
                 )
 
 
-class UpdateMessageEmbedType(Enum):
+class UpdateEmbedType(Enum):
     LEAVE = 'LEAVE'
     JOIN = 'JOIN'
     READY = 'READY'
-    OWNER_CHANGE = 'OWNER CHANGED'
-    DESCRIPTION_CHANGE = 'DESCRIPTION CHANGED'
-    SIZE_CHANGE = 'SIZE CHANGED'
-    GAME_CHANGE = 'GAME CHANGED'
-    LOCK = 'LOCKED'
-    UNLOCKED = 'UNLOCKED'
-    DELETE = 'DELETED'
+    OWNER_CHANGE = 'OWNER_CHANGE'
+    DESCRIPTION_CHANGE = 'DESCRIPTION_CHANGE'
+    SIZE_CHANGE = 'SIZE_CHANGE'
+    GAME_CHANGE = 'GAME_CHANGE'
+    LOCK = 'LOCK'
+    UNLOCK = 'UNLOCK'
+    DELETE = 'DELETE'
 
 
-class UpdateMessageEmbedColour(Enum):
+class UpdateEmbedColour(Enum):
     LEAVE = discord.Color.red()
     JOIN = discord.Color.blue()
     READY = discord.Color.green()
@@ -110,8 +110,21 @@ class UpdateMessageEmbedColour(Enum):
     SIZE_CHANGE = discord.Color.blurple()
     GAME_CHANGE = discord.Color.blurple()
     LOCK = discord.Color.yellow()
-    UNLOCKED = discord.Color.blue()
+    UNLOCK = discord.Color.blue()
     DELETE = discord.Color.red()
+
+
+class UpdateEmbedMessage(Enum):
+    LEAVE = 'has left the lobby! 💨'
+    JOIN = 'has joined the lobby! 🏃‍♂️'
+    READY = 'is ready! 🟢'
+    OWNER_CHANGE = 'has changed the lobby owner to'
+    DESCRIPTION_CHANGE = 'has changed the lobby description to'
+    SIZE_CHANGE = 'has changed the lobby size to'
+    GAME_CHANGE = 'has changed the lobby game to'
+    LOCK = 'has locked the lobby! 🔒'
+    UNLOCK = 'has unlocked the lobby! 🔓'
+    DELETE = 'has deleted the lobby! 🛑'
 
 
 class UpdateEmbedManager:
@@ -120,7 +133,7 @@ class UpdateEmbedManager:
     def get_message_details( #noqa
         bot: commands.Bot,
         lobby_id: int,
-        embed_type: UpdateMessageEmbedType,
+        embed_type: UpdateEmbedType,
         member: discord.Member = None
     ) -> set[list | None, discord.Embed]:
 
@@ -133,109 +146,81 @@ class UpdateEmbedManager:
             )
             return embed
 
-        def _get_unready_mentions(bot: commands.Bot, lobby_id: int) -> str:
-            members_to_ping = LobbyManager.get_members_not_ready(bot, lobby_id)
-            mention_list = [f'<@{member.id}>' for member in members_to_ping]
-            return ", ".join(mention_list)
+        def _get_embed(
+            lobby_id: int,
+            bot: commands.Bot,
+            embed_type: UpdateEmbedType
+        ) -> discord.Embed:
 
-        def _get_ready_mentions(bot: commands.Bot, lobby_id: int) -> str:
-            members_to_ping = LobbyManager.get_members_ready(bot, lobby_id)
-            mention_list = [f'<@{member.id}>' for member in members_to_ping]
-            return ", ".join(mention_list)
+            if embed_type == UpdateEmbedType.OWNER_CHANGE:
+                embed = discord.Embed(
+                    color=UpdateEmbedColour[embed_type.value].value,
+                    description=LobbyManager.get_descriptor(bot, lobby_id)
+                ).add_field(
+                    name=member.display_name,
+                    value=UpdateEmbedMessage[embed_type.value].value +
+                    ' ' +
+                    LobbyManager.get_lobby_owner(bot, lobby_id).display_name,
+                )
+            elif embed_type == UpdateEmbedType.DESCRIPTION_CHANGE:
+                embed = discord.Embed(
+                    color=UpdateEmbedColour[embed_type.value].value,
+                ).add_field(
+                    name=member.display_name,
+                    value=UpdateEmbedMessage[embed_type.value].value +
+                    ' ' +
+                    LobbyManager.get_descriptor(bot, lobby_id),
+                )
+            elif embed_type == UpdateEmbedType.SIZE_CHANGE:
+                embed = discord.Embed(
+                    color=UpdateEmbedColour[embed_type.value].value,
+                    description=LobbyManager.get_descriptor(bot, lobby_id)
+                ).add_field(
+                    name=member.display_name,
+                    value=UpdateEmbedMessage[embed_type.value].value +
+                    ' ' +
+                    LobbyManager.get_gamesize(bot, lobby_id),
+                )
+            elif embed_type == UpdateEmbedType.GAME_CHANGE:
+                embed = discord.Embed(
+                    color=UpdateEmbedColour[embed_type.value].value,
+                    description=LobbyManager.get_descriptor(bot, lobby_id)
+                ).add_field(
+                    name=member.display_name,
+                    value=UpdateEmbedMessage[embed_type.value].value +
+                    ' ' +
+                    LobbyManager.get_gamecode(bot, lobby_id),
+                )
+            elif embed_type == UpdateEmbedType.DELETE:
+                embed = discord.Embed(
+                    color=UpdateEmbedColour[embed_type.value].value,
+                    description=LobbyManager.get_descriptor(bot, lobby_id)
+                ).add_field(
+                    name=member.display_name,
+                    value=UpdateEmbedMessage[embed_type.value].value,
+                ).set_footer(
+                    text=LobbyManager.get_session_time(bot, lobby_id)
+                )
+                return embed
+            else:
+                embed = discord.Embed(
+                    color=UpdateEmbedColour[embed_type.value].value,
+                    description=LobbyManager.get_descriptor(bot, lobby_id)
+                ).add_field(
+                    name=member.display_name,
+                    value=UpdateEmbedMessage[embed_type.value].value,
+                )
+            return _set_footer(embed)
 
-        def _get_new_owner_mention(bot: commands.Bot, lobby_id: int) -> str:
-            return f'<@{LobbyManager.get_lobby_owner(bot, lobby_id).id}>'
+        def _get_ping(lobby_id: int, bot: commands.Bot, embed_type: UpdateEmbedType) -> str | None:
+            if embed_type == UpdateEmbedType.LOCK:
+                return LobbyManager.get_ready_mentions(bot, lobby_id)
+            elif embed_type == UpdateEmbedType.OWNER_CHANGE:
+                return LobbyManager.get_new_owner_mention(bot, lobby_id)
+            elif embed_type == UpdateEmbedType.READY:
+                return (LobbyManager.get_unready_mentions(bot, lobby_id) +
+                        LobbyManager.get_new_owner_mention(bot, lobby_id))
+            else:
+                return None
 
-        if embed_type == UpdateMessageEmbedType.READY:
-            embed = discord.Embed(
-                color=UpdateMessageEmbedColour.READY.value,
-                description=LobbyManager.get_descriptor(bot, lobby_id)
-            ).add_field(
-                name=member.display_name,
-                value='is ready!'
-            )
-            return (_get_unready_mentions(bot, lobby_id), _set_footer(embed))
-        elif embed_type == UpdateMessageEmbedType.JOIN:
-            embed = discord.Embed(
-                color=UpdateMessageEmbedColour.JOIN.value,
-                description=LobbyManager.get_descriptor(bot, lobby_id)
-            ).add_field(
-                name=member.display_name,
-                value='has joined the lobby!'
-            )
-            return (None, _set_footer(embed))
-        elif embed_type == UpdateMessageEmbedType.LEAVE:
-            embed = discord.Embed(
-                color=UpdateMessageEmbedColour.LEAVE.value,
-                description=LobbyManager.get_descriptor(bot, lobby_id)
-            ).add_field(
-                name=member.display_name,
-                value='has left the lobby!'
-            )
-            return (None, _set_footer(embed))
-        elif embed_type == UpdateMessageEmbedType.DELETE:
-            embed = discord.Embed(
-                color=UpdateMessageEmbedColour.DELETE.value,
-                description=LobbyManager.get_descriptor(bot, lobby_id)
-            ).add_field(
-                name=member.display_name,
-                value='has shut the door behind them, lobby closed! 🛑'
-            ).set_footer(
-                text=f'Session Duration: {LobbyManager.get_session_time(bot, lobby_id)}'
-            )
-            return (None, embed)
-        elif embed_type == UpdateMessageEmbedType.GAME_CHANGE:
-            embed = discord.Embed(
-                color=UpdateMessageEmbedColour.GAME_CHANGE.value,
-                description=LobbyManager.get_descriptor(bot, lobby_id)
-            ).add_field(
-                name=member.display_name,
-                value=f'has changed the game to {LobbyManager.get_gamecode(bot, lobby_id)}!'
-            )
-            return (None, _set_footer(embed))
-        elif embed_type == UpdateMessageEmbedType.OWNER_CHANGE:
-            new_owner = LobbyManager.get_lobby_owner(bot, lobby_id).display_name
-            embed = discord.Embed(
-                color=UpdateMessageEmbedColour.OWNER_CHANGE.value,
-                description=LobbyManager.get_descriptor(bot, lobby_id)
-            ).add_field(
-                name=new_owner,
-                value='is now the new owner! 👑'
-            )
-            return (_get_new_owner_mention(bot, lobby_id), _set_footer(embed))
-        elif embed_type == UpdateMessageEmbedType.SIZE_CHANGE:
-            embed = discord.Embed(
-                color=UpdateMessageEmbedColour.SIZE_CHANGE.value,
-                description=LobbyManager.get_descriptor(bot, lobby_id)
-            ).add_field(
-                name=member.display_name,
-                value=f'has changed the size to {LobbyManager.get_gamesize(bot, lobby_id)}!'
-            )
-            return (None, _set_footer(embed))
-        elif embed_type == UpdateMessageEmbedType.DESCRIPTION_CHANGE:
-            new_description = LobbyManager.get_descriptor(bot, lobby_id)
-            embed = discord.Embed(
-                color=UpdateMessageEmbedColour.DESCRIPTION_CHANGE.value,
-            ).add_field(
-                name=member.display_name,
-                value=f'has changed the description to {new_description}!'
-            )
-            return (None, _set_footer(embed))
-        elif embed_type == UpdateMessageEmbedType.LOCK:
-            embed = discord.Embed(
-                color=UpdateMessageEmbedColour.LOCK.value,
-                description=LobbyManager.get_descriptor(bot, lobby_id)
-            ).add_field(
-                name=member.display_name,
-                value='has locked the lobby! 🔒'
-            )
-            return (_get_ready_mentions(bot, lobby_id), _set_footer(embed))
-        elif embed_type == UpdateMessageEmbedType.UNLOCKED:
-            embed = discord.Embed(
-                color=UpdateMessageEmbedColour.UNLOCKED.value,
-                description=LobbyManager.get_descriptor(bot, lobby_id)
-            ).add_field(
-                name=member.display_name,
-                value='has unlocked the lobby! 🔓'
-            )
-            return (None, _set_footer(embed))
+        return (_get_ping(lobby_id, bot, embed_type), _get_embed(lobby_id, bot, embed_type))

@@ -1,7 +1,7 @@
 import discord
 
 from model.lobby_model import LobbyManager, LobbyState, MemberState
-from view.lobby.embeds import UpdateEmbedManager, UpdateMessageEmbedType
+from view.lobby.embeds import UpdateEmbedManager, UpdateEmbedType
 
 
 class DescriptionModal(discord.ui.Modal, title='Edit Description'):
@@ -24,7 +24,7 @@ class DescriptionModal(discord.ui.Modal, title='Edit Description'):
         message_details = UpdateEmbedManager.get_message_details(
             bot=interaction.client,
             lobby_id=self.lobby_id,
-            embed_type=UpdateMessageEmbedType.DESCRIPTION_CHANGE,
+            embed_type=UpdateEmbedType.DESCRIPTION_CHANGE,
             member=interaction.user
         )
         await thread.send(
@@ -52,7 +52,7 @@ class ConfirmationModal(discord.ui.Modal, title='Are you sure? Reason optional.'
         message_details = UpdateEmbedManager.get_message_details(
             bot=interaction.client,
             lobby_id=self.lobby_id,
-            embed_type=UpdateMessageEmbedType.DELETE,
+            embed_type=UpdateEmbedType.DELETE,
             member=interaction.user,
         )
         await original_channel.send(
@@ -122,7 +122,7 @@ class OwnerSelectView(discord.ui.View):
                 bot=interaction.client,
                 lobby_id=self.lobby_id,
                 member=interaction.user,
-                embed_type=UpdateMessageEmbedType.OWNER_CHANGE
+                embed_type=UpdateEmbedType.OWNER_CHANGE
             )
             await original_channel.send(
                 content=message_details[0],
@@ -150,7 +150,7 @@ class ButtonView(discord.ui.View):
             bot=interaction.client,
             lobby_id=self.lobby_id,
             member=interaction.user,
-            embed_type=UpdateMessageEmbedType.JOIN
+            embed_type=UpdateEmbedType.JOIN
         )
         await thread.send(
             content=message_details[0],
@@ -177,7 +177,7 @@ class ButtonView(discord.ui.View):
         # Reject interaction if lobby is locked
         lobby_state = LobbyManager.get_lobby_lock(
             interaction.client, self.lobby_id)
-        if lobby_state == LobbyState.LOCKED:
+        if lobby_state == LobbyState.LOCK:
             # Defer interaction update
             await interaction.response.defer()
             return
@@ -205,7 +205,7 @@ class ButtonView(discord.ui.View):
             message_details = UpdateEmbedManager.get_message_details(
                 bot=interaction.client,
                 lobby_id=self.lobby_id,
-                embed_type=UpdateMessageEmbedType.READY,
+                embed_type=UpdateEmbedType.READY,
                 member=interaction.user
             )
             await thread.send(
@@ -232,7 +232,7 @@ class ButtonView(discord.ui.View):
             message_details = UpdateEmbedManager.get_message_details(
                 bot=interaction.client,
                 lobby_id=self.lobby_id,
-                embed_type=UpdateMessageEmbedType.DELETE,
+                embed_type=UpdateEmbedType.DELETE,
                 member=interaction.user
             )
             await LobbyManager.get_original_channel(interaction.client, self.lobby_id).send(
@@ -245,11 +245,11 @@ class ButtonView(discord.ui.View):
         elif interaction.user != lobby_owner:
             LobbyManager.remove_member(
                 interaction.client, self.lobby_id, interaction.user)
-            embed_type = UpdateMessageEmbedType.LEAVE
+            embed_type = UpdateEmbedType.LEAVE
         # Remove user and find new leader
         elif interaction.user == lobby_owner:
             LobbyManager.remove_owner(interaction.client, self.lobby_id)
-            embed_type = UpdateMessageEmbedType.OWNER_CHANGE
+            embed_type = UpdateEmbedType.OWNER_CHANGE
 
         # Update Ready button
         number_filled = len(LobbyManager.get_members_ready(interaction.client, self.lobby_id))
@@ -303,10 +303,10 @@ class ButtonView(discord.ui.View):
 
         embed_type = None
         # Send update message
-        if lobby_status == LobbyState.LOCKED:
-            embed_type = UpdateMessageEmbedType.LOCK
-        elif lobby_status == LobbyState.UNLOCKED:
-            embed_type = UpdateMessageEmbedType.UNLOCKED
+        if lobby_status == LobbyState.LOCK:
+            embed_type = UpdateEmbedType.LOCK
+        elif lobby_status == LobbyState.UNLOCK:
+            embed_type = UpdateEmbedType.UNLOCK
         # Update lobby embed
         interaction.client.dispatch('update_lobby_embed', self.lobby_id)
         # Send update message

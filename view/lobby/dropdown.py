@@ -8,7 +8,7 @@ from view.lobby.button_view import ButtonView
 from view.lobby.embeds import (
     LobbyEmbed,
     UpdateEmbedManager,
-    UpdateMessageEmbedType
+    UpdateEmbedType
 )
 
 
@@ -81,7 +81,7 @@ class GameDropdown(discord.ui.Select):
             message_details = UpdateEmbedManager.get_message_details(
                 bot=interaction.client,
                 lobby_id=self.lobby_id,
-                embed_type=UpdateMessageEmbedType.GAME_CHANGE,
+                embed_type=UpdateEmbedType.GAME_CHANGE,
                 member=interaction.user,
             )
             await thread.send(
@@ -163,7 +163,7 @@ class NumberDropdown(discord.ui.Select):
         message_details = UpdateEmbedManager.get_message_details(
             bot=interaction.client,
             lobby_id=self.lobby_id,
-            embed_type=UpdateMessageEmbedType.SIZE_CHANGE,
+            embed_type=UpdateEmbedType.SIZE_CHANGE,
             member=interaction.user
         )
         await thread.send(
