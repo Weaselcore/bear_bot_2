@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from time import gmtime, strftime
 from discord.ext import commands
@@ -15,8 +15,8 @@ class MemberState(Enum):
 
 
 class LobbyState(Enum):
-    LOCK = 'locked',
-    UNLOCK = 'unlocked',
+    LOCK = 'lock',
+    UNLOCK = 'unlock',
 
     def __str__(self):
         return f'{ self.value[0].upper()}'
@@ -50,6 +50,7 @@ class LobbyModel:
     game_code = 'gametype'
     game_size = 1
     last_promotion_message: discord.Message = None
+    last_promotion_datetime: datetime = None
     is_promoting = False
     members: list[MemberModel] = field(default_factory=list)
     thread: discord.Thread = None
@@ -327,6 +328,18 @@ class LobbyManager:
         return bot.lobby[lobby_id].last_promotion_message
 
     @staticmethod
+    def can_promote(bot: commands.Bot, lobby_id: int) -> datetime:
+        '''Check if last promotion message is older than 10 minutes'''
+        if bot.lobby[lobby_id].last_promotion_message is None:
+            return True
+        else:
+            last_promotion_datetime = bot.lobby[lobby_id].last_promotion_datetime
+            if datetime.now() - last_promotion_datetime > timedelta(minutes=10):
+                return True
+            else:
+                return False
+
+    @staticmethod
     def set_last_promotion_message(
         bot: commands.Bot,
         lobby_id: int,
@@ -334,16 +347,7 @@ class LobbyManager:
     ) -> None:
         '''Set the last promotion message'''
         bot.lobby[lobby_id].last_promotion_message = message
-
-    @staticmethod
-    def get_is_promoting(bot: commands.Bot, lobby_id: int) -> bool:
-        '''Get the is promoting state'''
-        return bot.lobby[lobby_id].is_promoting
-
-    @staticmethod
-    def set_is_promoting(bot: commands.Bot, lobby_id: int, state: bool) -> None:
-        '''Set the is promoting state'''
-        bot.lobby[lobby_id].is_promoting = state
+        bot.lobby[lobby_id].last_promotion_datetime = datetime.now()
 
     @staticmethod
     def get_unready_mentions(bot: commands.Bot, lobby_id: int) -> str:
