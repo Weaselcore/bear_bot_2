@@ -1,4 +1,5 @@
 import discord
+from cog.lobby import PromotionEmbed
 from model.lobby_model import LobbyManager
 
 

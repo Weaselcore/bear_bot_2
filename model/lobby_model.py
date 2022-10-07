@@ -336,7 +336,6 @@ class LobbyManager:
         '''Set the last promotion message'''
         bot.lobby[lobby_id].last_promotion_message = message
 
-
     @staticmethod
     def get_unready_mentions(bot: commands.Bot, lobby_id: int) -> str:
         members_to_ping = LobbyManager.get_members_not_ready(bot, lobby_id)
