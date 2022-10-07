@@ -1,6 +1,4 @@
 import asyncio
-from dataclasses import dataclass
-from datetime import datetime, timedelta
 from discord.ext import commands, tasks
 from discord import Interaction, app_commands
 import discord
@@ -10,42 +8,7 @@ from model.lobby_model import (
     LobbyManager,
     LobbyModel,
 )
-from model.game_model import GameManager, GameModel
-
-
-@dataclass
-class Promotion:
-    lobby_id: int
-    game: GameModel
-    original_channel: discord.TextChannel
-    date_time = datetime.now() + timedelta(minutes=10.0)
-    has_promoted = False
-
-    def update_date_time(self):
-        self.date_time = datetime.now() + timedelta(minutes=10.0)
-
-    def __repr__(self):
-        return f"Promotion: {self.lobby_id}, {self.game.game_code}, {str(self.date_time)}" \
-            + f", has_promoted: {self.has_promoted}"
-
-
-class PromotionEmbed(discord.Embed):
-    def __init__(self, bot: commands.Bot, promotion: Promotion):
-        super().__init__(
-            title=f'Sponsor Friendly Ad for {promotion.game.game_name}',
-            color=discord.Color.dark_orange(),
-        )
-        channel = LobbyManager.get_channel(bot, promotion.lobby_id)
-        self.description = f'Click on lobby <#{channel.id}> to join!'
-        self.set_author(name=bot.user.name, icon_url=bot.user.display_avatar.url)
-        lobby_size = LobbyManager.get_member_length(bot, promotion.lobby_id)
-        game_size = int(LobbyManager.get_gamesize(bot, promotion.lobby_id))
-        self.add_field(
-            name='Slots Left:',
-            value=f'R>{game_size - lobby_size}',
-        )
-        if promotion.game.icon_url:
-            self.set_thumbnail(url=promotion.game.icon_url)
+from model.game_model import GameManager
 
 
 class LobbyCog(commands.Cog):

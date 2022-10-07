@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from time import gmtime, strftime
 from discord.ext import commands
@@ -328,6 +328,18 @@ class LobbyManager:
         return bot.lobby[lobby_id].last_promotion_message
 
     @staticmethod
+    def can_promote(bot: commands.Bot, lobby_id: int) -> datetime:
+        '''Check if last promotion message is older than 10 minutes'''
+        if bot.lobby[lobby_id].last_promotion_message is None:
+            return True
+        else:
+            last_promotion_datetime = bot.lobby[lobby_id].last_promotion_datetime
+            if datetime.now() - last_promotion_datetime > timedelta(minutes=10):
+                return True
+            else:
+                return False
+
+    @staticmethod
     def set_last_promotion_message(
         bot: commands.Bot,
         lobby_id: int,
@@ -335,6 +347,7 @@ class LobbyManager:
     ) -> None:
         '''Set the last promotion message'''
         bot.lobby[lobby_id].last_promotion_message = message
+        bot.lobby[lobby_id].last_promotion_datetime = datetime.now()
 
     @staticmethod
     def get_unready_mentions(bot: commands.Bot, lobby_id: int) -> str:
