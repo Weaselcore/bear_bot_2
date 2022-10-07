@@ -50,7 +50,6 @@ class ConfirmationModal(discord.ui.Modal, title='Are you sure? Reason optional.'
         await interaction.response.defer()
         channel = LobbyManager.get_original_channel(
             interaction.client, self.lobby_id)
-        await LobbyManager.delete_lobby(interaction.client, self.lobby_id)
 
         message_details = UpdateEmbedManager.get_message_details(
             interaction.client,
@@ -68,6 +67,7 @@ class ConfirmationModal(discord.ui.Modal, title='Are you sure? Reason optional.'
                 inline=False
             )
 
+        await LobbyManager.delete_lobby(interaction.client, self.lobby_id)
         await channel.send(
             content=message_details[0],
             embed=embed
@@ -171,6 +171,7 @@ class ButtonView(discord.ui.View):
         )
 
         interaction.client.dispatch('update_lobby_embed', self.lobby_id)
+        await interaction.response.defer()
 
     @discord.ui.button(label="Ready", style=discord.ButtonStyle.green)
     async def ready(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -186,7 +187,7 @@ class ButtonView(discord.ui.View):
         # Reject interaction if lobby is locked
         lobby_state = LobbyManager.get_lobby_lock(
             interaction.client, self.lobby_id)
-        if lobby_state == LobbyState.LOCKED:
+        if lobby_state == LobbyState.LOCK:
             # Defer interaction update
             await interaction.response.defer()
             return
@@ -223,6 +224,7 @@ class ButtonView(discord.ui.View):
                 content=message_details[0],
                 embed=message_details[1]
             )
+        await interaction.response.defer()
 
     @discord.ui.button(label="Leave", style=discord.ButtonStyle.red)
     async def leave(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -314,10 +316,10 @@ class ButtonView(discord.ui.View):
 
         status = None
         # Send update message
-        if lobby_status == LobbyState.LOCKED:
+        if lobby_status == LobbyState.LOCK:
             status = UpdateEmbedType.LOCK
-        elif lobby_status == LobbyState.UNLOCKED:
-            status = UpdateEmbedType.UNLOCKED
+        elif lobby_status == LobbyState.UNLOCK:
+            status = UpdateEmbedType.UNLOCK
         # Update lobby embed
         interaction.client.dispatch('update_lobby_embed', self.lobby_id)
         # Send update message
@@ -379,20 +381,20 @@ class ButtonView(discord.ui.View):
     async def promote(self, interaction: discord.Interaction, button: discord.ui.Button):
 
         class PromotionEmbed(discord.Embed):
-            def __init__(self, game_model: GameModel):
+            def __init__(self, game_model: GameModel, lobby_id: int):
                 super().__init__(
                     title=f'Sponsor Friendly Ad for {game_model.game_name}',
                     color=discord.Color.dark_orange(),
                 )
-                channel = LobbyManager.get_channel(interaction.client, self.lobby_id)
+                channel = LobbyManager.get_channel(interaction.client, lobby_id)
                 self.description = f'Click on lobby <#{channel.id}> to join!'
-                lobby_size = LobbyManager.get_member_length(interaction.client, self.lobby_id)
-                game_size = int(LobbyManager.get_gamesize(interaction.client, self.lobby_id))
+                lobby_size = LobbyManager.get_member_length(interaction.client, lobby_id)
+                game_size = int(LobbyManager.get_gamesize(interaction.client, lobby_id))
                 self.add_field(
                     name='Slots Left:',
                     value=f'R>{game_size - lobby_size}',
                 )
-                if game_model. game.icon_url:
+                if game_model.icon_url:
                     self.set_thumbnail(url=game_model.icon_url)
 
         # If user is not lobby owner, defer interaction
@@ -415,15 +417,14 @@ class ButtonView(discord.ui.View):
                 interaction.client,
                 self.lobby_id
             )
-            message = await original_channel.send(
-                content=f'<@&{game_model.role}>',
-                embed=PromotionEmbed(game_model=game_model)
-            )
-            LobbyManager.set_last_promotion_message(interaction.client, self.lobby_id, message)
-
             last_message = LobbyManager.get_last_promotion_message(
                 interaction.client, self.lobby_id
             )
             # If there was an older promotion, delete it
             if last_message:
                 await last_message.delete()
+            message = await original_channel.send(
+                content=f'<@&{game_model.role}>',
+                embed=PromotionEmbed(game_model=game_model, lobby_id=self.lobby_id)
+            )
+            LobbyManager.set_last_promotion_message(interaction.client, self.lobby_id, message)

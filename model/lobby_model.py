@@ -15,8 +15,8 @@ class MemberState(Enum):
 
 
 class LobbyState(Enum):
-    LOCK = 'locked',
-    UNLOCK = 'unlocked',
+    LOCK = 'lock',
+    UNLOCK = 'unlock',
 
     def __str__(self):
         return f'{ self.value[0].upper()}'
