@@ -293,16 +293,6 @@ class ButtonView(discord.ui.View):
             await interaction.response.defer()
             return
 
-        # Reject interaction if all members are not ready
-        member_ready = len(LobbyManager.get_members_ready(
-            interaction.client, self.lobby_id))
-        game_size = int(LobbyManager.get_gamesize(
-            interaction.client, self.lobby_id))
-        if member_ready < game_size:
-            # Defer interaction update
-            await interaction.response.defer()
-            return
-
         # Update button
         if button.label == "Lock":
             button.label = "Unlock"
