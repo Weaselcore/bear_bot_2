@@ -224,7 +224,6 @@ class ButtonView(discord.ui.View):
                 content=message_details[0],
                 embed=message_details[1]
             )
-        await interaction.response.defer()
 
     @discord.ui.button(label="Leave", style=discord.ButtonStyle.red)
     async def leave(self, interaction: discord.Interaction, button: discord.ui.Button):
