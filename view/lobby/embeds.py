@@ -88,6 +88,33 @@ class LobbyEmbed(discord.Embed):
                 )
 
 
+class QueueEmbed(discord.Embed):
+    def __init__(self, bot: commands.Bot, lobby_id: int):
+        super().__init__(description='Members in queue')
+        self.bot = bot
+        self.lobby_id = lobby_id
+        self.color = discord.Color.yellow()
+
+    async def update(self):
+        # Reset embed
+        self.clear_fields()
+        # Populate embed
+        self._set_slots()
+        # Send embed
+        queue_embed_message = LobbyManager.get_queue_embed_message(self.bot, self.lobby_id)
+        if queue_embed_message is not None:
+            await queue_embed_message.edit(embed=self)
+
+    def _set_slots(self):
+        queued_members = LobbyManager.get_queue_members(self.bot, self.lobby_id)
+        for count, member_model in enumerate(queued_members):
+            self.add_field(
+                name=f'#{count}',
+                value=member_model.member.display_name,
+                inline=False
+            )
+
+
 class UpdateEmbedType(Enum):
     LEAVE = 'LEAVE'
     JOIN = 'JOIN'

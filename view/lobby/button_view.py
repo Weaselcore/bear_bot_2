@@ -154,9 +154,13 @@ class ButtonView(discord.ui.View):
             await interaction.response.defer()
             return
 
-        LobbyManager.add_member(
-            interaction.client, self.lobby_id, interaction.user)
-        thread = LobbyManager.get_thread(interaction.client, self.lobby_id)
+        # Check if the lobby is locked
+        if LobbyManager.get_lobby_lock(interaction.client, self.lobby_id) == LobbyState.LOCKED:
+            LobbyManager.add_member_queue(interaction.client, self.lobby_id, interaction.user)
+        else:
+            LobbyManager.add_member(
+                interaction.client, self.lobby_id, interaction.user)
+            thread = LobbyManager.get_thread(interaction.client, self.lobby_id)
 
         message_details = UpdateEmbedManager.get_message_details(
             interaction.client,
@@ -262,6 +266,9 @@ class ButtonView(discord.ui.View):
         elif interaction.user == lobby_owner:
             LobbyManager.remove_owner(interaction.client, self.lobby_id)
             embed_type = UpdateEmbedType.OWNER_CHANGE
+        
+        # Move member to queue when someone leaves
+        LobbyManager.move_queue_members(interaction.client, self.lobby_id)
 
         # Update Ready button
         number_filled = len(LobbyManager.get_members_ready(interaction.client, self.lobby_id))
@@ -293,22 +300,22 @@ class ButtonView(discord.ui.View):
             await interaction.response.defer()
             return
 
-        # Update button
-        if button.label == "Lock":
-            button.label = "Unlock"
-        else:
-            button.label = "Lock"
-        await interaction.response.edit_message(view=self)
-
         # Update lobby state
         lobby_status = LobbyManager.lock(interaction.client, self.lobby_id)
 
         status = None
         # Send update message
         if lobby_status == LobbyState.LOCK:
+            button.label = "Unlock"
             status = UpdateEmbedType.LOCK
         elif lobby_status == LobbyState.UNLOCK:
+            button.label = "Lock"
             status = UpdateEmbedType.UNLOCK
+            LobbyManager.move_queue_members(interaction.client, self.lobby_id)
+
+        # Update button label
+        await interaction.response.edit_message(view=self)
+
         # Update lobby embed
         interaction.client.dispatch('update_lobby_embed', self.lobby_id)
         # Send update message
