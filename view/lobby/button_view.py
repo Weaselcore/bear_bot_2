@@ -386,13 +386,12 @@ class ButtonView(discord.ui.View):
                 if game_model.icon_url:
                     self.set_thumbnail(url=game_model.icon_url)
 
+        await interaction.response.defer()
         # If user is not lobby owner, defer interaction
         if interaction.user != LobbyManager.get_lobby_owner(interaction.client, self.lobby_id):
-            await interaction.response.defer()
             return
         # If last promotion was older than 10 minutes, defer interaction
         if not LobbyManager.can_promote(interaction.client, self.lobby_id):
-            await interaction.response.defer()
             return
 
         is_full = LobbyManager.is_full(interaction.client, self.lobby_id)
