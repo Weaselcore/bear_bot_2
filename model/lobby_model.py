@@ -239,13 +239,18 @@ class LobbyManager:
         return False
 
     @staticmethod
-    def move_queue_members(bot: commands.Bot, lobby_id: int) -> None:
+    async def move_queue_members(bot: commands.Bot, lobby_id: int) -> None:
         members = bot.lobby[lobby_id].members
         members_queue = bot.lobby[lobby_id].members_queue
         members_length = len(members_queue)
         if members_length != 0:
             for _ in range(members_length):
                 members.append(members_queue.pop(0))
+        if len(members_queue) == 0:
+            # Remove this if there are too many updates.
+            bot.lobby[lobby_id].queue_embed = None
+            await LobbyManager.get_queue_embed_message(bot, lobby_id).delete()
+            bot.lobby[lobby_id].queue_message = None
 
     @staticmethod
     def update_member_state(

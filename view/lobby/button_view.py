@@ -293,7 +293,7 @@ class ButtonView(discord.ui.View):
             embed_type = UpdateEmbedType.OWNER_CHANGE
 
         # Move member to queue when someone leaves
-        LobbyManager.move_queue_members(interaction.client, self.lobby_id)
+        await LobbyManager.move_queue_members(interaction.client, self.lobby_id)
 
         # Update Ready button
         number_filled = len(LobbyManager.get_members_ready(interaction.client, self.lobby_id))
@@ -336,7 +336,7 @@ class ButtonView(discord.ui.View):
         elif lobby_status == LobbyState.UNLOCK:
             button.label = "Lock"
             status = UpdateEmbedType.UNLOCK
-            LobbyManager.move_queue_members(interaction.client, self.lobby_id)
+            await LobbyManager.move_queue_members(interaction.client, self.lobby_id)
 
         # Update button label
         await interaction.response.edit_message(view=self)
@@ -344,19 +344,18 @@ class ButtonView(discord.ui.View):
         # Update lobby embed
         interaction.client.dispatch('update_lobby_embed', self.lobby_id)
         # Send update message
-        if status:
-            original_channel = LobbyManager.get_original_channel(
-                interaction.client, self.lobby_id)
-            message_details = UpdateEmbedManager.get_message_details(
-                interaction.client,
-                self.lobby_id,
-                status,
-                interaction.user
-            )
-            await original_channel.send(
-                content=message_details[0],
-                embed=message_details[1]
-            )
+        original_channel = LobbyManager.get_original_channel(
+            interaction.client, self.lobby_id)
+        message_details = UpdateEmbedManager.get_message_details(
+            interaction.client,
+            self.lobby_id,
+            status,
+            interaction.user
+        )
+        await original_channel.send(
+            content=message_details[0],
+            embed=message_details[1]
+        )
 
     @discord.ui.button(label="Change Leader", style=discord.ButtonStyle.blurple)
     async def change_leader(self, interaction: discord.Interaction, button: discord.ui.Button):
