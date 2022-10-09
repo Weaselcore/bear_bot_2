@@ -24,9 +24,10 @@ class LobbyCog(commands.Cog):
     async def update_lobby_embed(self, lobby_id: int):
         """Updates the embed of the lobby message"""
         embed = LobbyManager.get_embed(self.bot, lobby_id)
-        queue_embed = LobbyManager.get_queue_embed_message(self.bot, lobby_id)
         await embed.update()
-        await queue_embed.update()
+        queue_embed = LobbyManager.get_queue_embed(self.bot, lobby_id)
+        if queue_embed:
+            await queue_embed.update()
 
     @update_lobby_embed.before_loop
     async def before_update_lobby_embed(self):

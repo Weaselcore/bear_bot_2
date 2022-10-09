@@ -170,8 +170,16 @@ class LobbyManager:
         bot.lobby[lobby_id].embed = embed
 
     @staticmethod
+    def get_queue_embed(bot: commands.Bot, lobby_id: int) -> discord.Embed | None:
+        return bot.lobby[lobby_id].queue_embed
+
+    @staticmethod
+    def set_queue_embed(bot: commands.Bot, lobby_id: int, queue_embed: discord.Embed) -> None:
+        bot.lobby[lobby_id].queue_embed = queue_embed
+
+    @staticmethod
     def get_members(bot: commands.Bot, lobby_id: int) -> list[MemberModel]:
-        return bot.lobby[lobby_id].members[:LobbyManager.get_gamesize(bot, lobby_id)]
+        return bot.lobby[lobby_id].members
 
     @staticmethod
     def get_queue_members(bot: commands.Bot, lobby_id: int) -> list[MemberModel]:
@@ -234,9 +242,10 @@ class LobbyManager:
     def move_queue_members(bot: commands.Bot, lobby_id: int) -> None:
         members = bot.lobby[lobby_id].members
         members_queue = bot.lobby[lobby_id].members_queue
-        game_size = bot.lobby[lobby_id].game_size
-        for _ in range(game_size - len(members)):
-            members.append(members_queue.pop(0))
+        members_length = len(members_queue)
+        if members_length != 0:
+            for _ in range(members_length):
+                members.append(members_queue.pop(0))
 
     @staticmethod
     def update_member_state(

@@ -2,7 +2,7 @@ import discord
 from model.game_model import GameManager, GameModel
 
 from model.lobby_model import LobbyManager, LobbyState, MemberState
-from view.lobby.embeds import UpdateEmbedManager, UpdateEmbedType
+from view.lobby.embeds import QueueEmbed, UpdateEmbedManager, UpdateEmbedType
 
 
 class DescriptionModal(discord.ui.Modal, title='Edit Description'):
@@ -161,12 +161,11 @@ class ButtonView(discord.ui.View):
         lobby_state = LobbyManager.get_lobby_lock(interaction.client, self.lobby_id)
 
         # Check if the lobby is locked
-        if lobby_state == LobbyState.LOCKED or is_full:
+        if lobby_state == LobbyState.LOCK or is_full:
             LobbyManager.add_member_queue(interaction.client, self.lobby_id, interaction.user)
         else:
             LobbyManager.add_member(
                 interaction.client, self.lobby_id, interaction.user)
-            thread = LobbyManager.get_thread(interaction.client, self.lobby_id)
 
         message_details = UpdateEmbedManager.get_message_details(
             interaction.client,
@@ -175,10 +174,30 @@ class ButtonView(discord.ui.View):
             interaction.user
         )
 
+        thread = LobbyManager.get_thread(interaction.client, self.lobby_id)
+
         await thread.send(
             content=message_details[0],
             embed=message_details[1]
         )
+
+        # Set up queue embed if there is a queue
+        channel = LobbyManager.get_channel(interaction.client, self.lobby_id)
+        queue_embed_message = LobbyManager.get_queue_embed_message(
+            interaction.client,
+            self.lobby_id
+        )
+        if not queue_embed_message:
+            queue_embed = QueueEmbed(interaction.client, self.lobby_id)
+            queue_embed_message = await channel.send(
+                embed=queue_embed
+            )
+            LobbyManager.set_queue_embed(interaction.client, self.lobby_id, queue_embed)
+            LobbyManager.set_queue_embed_message(
+                interaction.client,
+                self.lobby_id,
+                queue_embed_message
+            )
 
         interaction.client.dispatch('update_lobby_embed', self.lobby_id)
         await interaction.response.defer()
