@@ -109,7 +109,7 @@ class QueueEmbed(discord.Embed):
         queued_members = LobbyManager.get_queue_members(self.bot, self.lobby_id)
         for count, member_model in enumerate(queued_members):
             self.add_field(
-                name=f'#{count}',
+                name=f'#{count + 1}',
                 value=member_model.member.display_name,
                 inline=False
             )
