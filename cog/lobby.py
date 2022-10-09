@@ -205,7 +205,7 @@ class LobbyCog(commands.Cog):
                         f'User {user.display_name} already in the lobby!',
                         ephemeral=True
                     )
-                interaction.dispatch("update_lobby_embed", key)
+                interaction.client.dispatch("update_lobby_embed", key)
                 return
         else:
             # Send message to the user
@@ -247,7 +247,7 @@ class LobbyCog(commands.Cog):
                         f'User {user.display_name} not in the lobby!',
                         ephemeral=True
                     )
-                interaction.dispatch("update_lobby_embed", key)
+                interaction.client.dispatch("update_lobby_embed", key)
                 return
         else:
             # Send message to the user
