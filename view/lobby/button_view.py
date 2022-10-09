@@ -154,8 +154,14 @@ class ButtonView(discord.ui.View):
             await interaction.response.defer()
             return
 
+        # Check if lobby full
+        is_full = LobbyManager.is_full(interaction.client, self.lobby_id)
+
+        # Check if lobby is locked
+        lobby_state = LobbyManager.get_lobby_lock(interaction.client, self.lobby_id)
+
         # Check if the lobby is locked
-        if LobbyManager.get_lobby_lock(interaction.client, self.lobby_id) == LobbyState.LOCKED:
+        if lobby_state == LobbyState.LOCKED or is_full:
             LobbyManager.add_member_queue(interaction.client, self.lobby_id, interaction.user)
         else:
             LobbyManager.add_member(
@@ -266,7 +272,7 @@ class ButtonView(discord.ui.View):
         elif interaction.user == lobby_owner:
             LobbyManager.remove_owner(interaction.client, self.lobby_id)
             embed_type = UpdateEmbedType.OWNER_CHANGE
-        
+
         # Move member to queue when someone leaves
         LobbyManager.move_queue_members(interaction.client, self.lobby_id)
 
