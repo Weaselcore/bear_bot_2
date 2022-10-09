@@ -74,8 +74,6 @@ class GameDropdown(discord.ui.Select):
             )
             lobby_model = LobbyManager.get_lobby(
                 interaction.client, self.lobby_id)
-            # Edit game dropdown to reflect selected value
-            await lobby_model.control_panel.edit(content="", view=self.view)
             # Send update message
             thread = LobbyManager.get_thread(interaction.client, self.lobby_id)
             message_details = UpdateEmbedManager.get_message_details(
@@ -90,6 +88,8 @@ class GameDropdown(discord.ui.Select):
             )
         # Defer interaction update
         await interaction.response.defer()
+        # Edit game dropdown to reflect selected value
+        await lobby_model.control_panel.edit(content="", view=self.view)
 
 
 class NumberDropdown(discord.ui.Select):
