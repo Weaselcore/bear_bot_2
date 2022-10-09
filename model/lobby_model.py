@@ -47,12 +47,14 @@ class LobbyModel:
     description: str = None
     embed: discord.Embed = None
     embed_message: discord.Message = None
+    queue_message: discord.Message = None
     game_code = 'gametype'
     game_size = 1
     last_promotion_message: discord.Message = None
     last_promotion_datetime: datetime = None
     is_promoting = False
     members: list[MemberModel] = field(default_factory=list)
+    members_queue: list[MemberModel] = field(default_factory=list)
     thread: discord.Thread = None
     status = LobbyState.UNLOCK
 
@@ -148,6 +150,18 @@ class LobbyManager:
         bot.lobby[lobby_id].embed_message = embed_message
 
     @staticmethod
+    def get_queue_embed_message(bot: commands.Bot, lobby_id: int) -> None | discord.Embed:
+        return bot.lobby[lobby_id].queue_message
+
+    @staticmethod
+    def set_queue_embed_message(
+        bot: commands.Bot,
+        lobby_int: int,
+        queue_message: discord.Embed
+    ) -> None:
+        bot.lobby[lobby_int].queue_message = queue_message
+
+    @staticmethod
     def get_embed(bot: commands.Bot, lobby_id: int) -> discord.Embed | None:
         return bot.lobby[lobby_id].embed
 
@@ -156,8 +170,20 @@ class LobbyManager:
         bot.lobby[lobby_id].embed = embed
 
     @staticmethod
+    def get_queue_embed(bot: commands.Bot, lobby_id: int) -> discord.Embed | None:
+        return bot.lobby[lobby_id].queue_embed
+
+    @staticmethod
+    def set_queue_embed(bot: commands.Bot, lobby_id: int, queue_embed: discord.Embed) -> None:
+        bot.lobby[lobby_id].queue_embed = queue_embed
+
+    @staticmethod
     def get_members(bot: commands.Bot, lobby_id: int) -> list[MemberModel]:
         return bot.lobby[lobby_id].members
+
+    @staticmethod
+    def get_queue_members(bot: commands.Bot, lobby_id: int) -> list[MemberModel]:
+        return bot.lobby[lobby_id].members_queue
 
     @staticmethod
     def add_member(
@@ -175,18 +201,56 @@ class LobbyManager:
         return True
 
     @staticmethod
+    def add_member_queue(
+        bot: commands.Bot,
+        lobby_id: int,
+        member: discord.Member
+    ) -> bool:
+        members = bot.lobby[lobby_id].members
+        members_queue = bot.lobby[lobby_id].members_queue
+        # Check if member is in the lobby
+        for member_model in members:
+            if member_model.member == member:
+                return False
+        for member_model in members_queue:
+            if member_model.member == member:
+                return False
+        # Add member to the lobby
+        bot.lobby[lobby_id].members_queue.append(MemberModel(member))
+        return True
+
+    @staticmethod
     def remove_member(
         bot: commands.Bot,
         lobby_id: int,
         member: discord.Member
     ) -> bool:
         members = bot.lobby[lobby_id].members
+        members_queue = bot.lobby[lobby_id].members_queue
         # Check if member is in the lobby
         for member_model in members:
             if member_model.member.id == member.id:
                 members.remove(member_model)
                 return True
+        for member_model in members_queue:
+            if member_model.member.id == member.id:
+                members_queue.remove(member_model)
+                return True
         return False
+
+    @staticmethod
+    async def move_queue_members(bot: commands.Bot, lobby_id: int) -> None:
+        members = bot.lobby[lobby_id].members
+        members_queue = bot.lobby[lobby_id].members_queue
+        members_length = len(members_queue)
+        if members_length != 0:
+            for _ in range(members_length):
+                members.append(members_queue.pop(0))
+        if len(members_queue) == 0:
+            # Remove this if there are too many updates.
+            bot.lobby[lobby_id].queue_embed = None
+            await LobbyManager.get_queue_embed_message(bot, lobby_id).delete()
+            bot.lobby[lobby_id].queue_message = None
 
     @staticmethod
     def update_member_state(

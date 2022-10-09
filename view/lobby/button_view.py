@@ -2,7 +2,7 @@ import discord
 from model.game_model import GameManager, GameModel
 
 from model.lobby_model import LobbyManager, LobbyState, MemberState
-from view.lobby.embeds import UpdateEmbedManager, UpdateEmbedType
+from view.lobby.embeds import QueueEmbed, UpdateEmbedManager, UpdateEmbedType
 
 
 class DescriptionModal(discord.ui.Modal, title='Edit Description'):
@@ -154,9 +154,18 @@ class ButtonView(discord.ui.View):
             await interaction.response.defer()
             return
 
-        LobbyManager.add_member(
-            interaction.client, self.lobby_id, interaction.user)
-        thread = LobbyManager.get_thread(interaction.client, self.lobby_id)
+        # Check if lobby full
+        is_full = LobbyManager.is_full(interaction.client, self.lobby_id)
+
+        # Check if lobby is locked
+        lobby_state = LobbyManager.get_lobby_lock(interaction.client, self.lobby_id)
+
+        # Check if the lobby is locked
+        if lobby_state == LobbyState.LOCK or is_full:
+            LobbyManager.add_member_queue(interaction.client, self.lobby_id, interaction.user)
+        else:
+            LobbyManager.add_member(
+                interaction.client, self.lobby_id, interaction.user)
 
         message_details = UpdateEmbedManager.get_message_details(
             interaction.client,
@@ -165,10 +174,30 @@ class ButtonView(discord.ui.View):
             interaction.user
         )
 
+        thread = LobbyManager.get_thread(interaction.client, self.lobby_id)
+
         await thread.send(
             content=message_details[0],
             embed=message_details[1]
         )
+
+        # Set up queue embed if there is a queue
+        channel = LobbyManager.get_channel(interaction.client, self.lobby_id)
+        queue_embed_message = LobbyManager.get_queue_embed_message(
+            interaction.client,
+            self.lobby_id
+        )
+        if not queue_embed_message:
+            queue_embed = QueueEmbed(interaction.client, self.lobby_id)
+            queue_embed_message = await channel.send(
+                embed=queue_embed
+            )
+            LobbyManager.set_queue_embed(interaction.client, self.lobby_id, queue_embed)
+            LobbyManager.set_queue_embed_message(
+                interaction.client,
+                self.lobby_id,
+                queue_embed_message
+            )
 
         interaction.client.dispatch('update_lobby_embed', self.lobby_id)
         await interaction.response.defer()
@@ -263,6 +292,9 @@ class ButtonView(discord.ui.View):
             LobbyManager.remove_owner(interaction.client, self.lobby_id)
             embed_type = UpdateEmbedType.OWNER_CHANGE
 
+        # Move member to queue when someone leaves
+        await LobbyManager.move_queue_members(interaction.client, self.lobby_id)
+
         # Update Ready button
         number_filled = len(LobbyManager.get_members_ready(interaction.client, self.lobby_id))
         self.ready.label = f"Ready: {number_filled}"
@@ -293,48 +325,37 @@ class ButtonView(discord.ui.View):
             await interaction.response.defer()
             return
 
-        # Reject interaction if all members are not ready
-        member_ready = len(LobbyManager.get_members_ready(
-            interaction.client, self.lobby_id))
-        game_size = int(LobbyManager.get_gamesize(
-            interaction.client, self.lobby_id))
-        if member_ready < game_size:
-            # Defer interaction update
-            await interaction.response.defer()
-            return
-
-        # Update button
-        if button.label == "Lock":
-            button.label = "Unlock"
-        else:
-            button.label = "Lock"
-        await interaction.response.edit_message(view=self)
-
         # Update lobby state
         lobby_status = LobbyManager.lock(interaction.client, self.lobby_id)
 
         status = None
         # Send update message
         if lobby_status == LobbyState.LOCK:
+            button.label = "Unlock"
             status = UpdateEmbedType.LOCK
         elif lobby_status == LobbyState.UNLOCK:
+            button.label = "Lock"
             status = UpdateEmbedType.UNLOCK
+            await LobbyManager.move_queue_members(interaction.client, self.lobby_id)
+
+        # Update button label
+        await interaction.response.edit_message(view=self)
+
         # Update lobby embed
         interaction.client.dispatch('update_lobby_embed', self.lobby_id)
         # Send update message
-        if status:
-            original_channel = LobbyManager.get_original_channel(
-                interaction.client, self.lobby_id)
-            message_details = UpdateEmbedManager.get_message_details(
-                interaction.client,
-                self.lobby_id,
-                status,
-                interaction.user
-            )
-            await original_channel.send(
-                content=message_details[0],
-                embed=message_details[1]
-            )
+        original_channel = LobbyManager.get_original_channel(
+            interaction.client, self.lobby_id)
+        message_details = UpdateEmbedManager.get_message_details(
+            interaction.client,
+            self.lobby_id,
+            status,
+            interaction.user
+        )
+        await original_channel.send(
+            content=message_details[0],
+            embed=message_details[1]
+        )
 
     @discord.ui.button(label="Change Leader", style=discord.ButtonStyle.blurple)
     async def change_leader(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -396,13 +417,12 @@ class ButtonView(discord.ui.View):
                 if game_model.icon_url:
                     self.set_thumbnail(url=game_model.icon_url)
 
+        await interaction.response.defer()
         # If user is not lobby owner, defer interaction
         if interaction.user != LobbyManager.get_lobby_owner(interaction.client, self.lobby_id):
-            await interaction.response.defer()
             return
         # If last promotion was older than 10 minutes, defer interaction
         if not LobbyManager.can_promote(interaction.client, self.lobby_id):
-            await interaction.response.defer()
             return
 
         is_full = LobbyManager.is_full(interaction.client, self.lobby_id)
