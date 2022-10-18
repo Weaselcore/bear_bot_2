@@ -1,22 +1,25 @@
+from typing import Any, cast
 import discord
-from model.game_model import GameManager, GameModel
+from model.lobby.game_model import GameManager, GameModel
+from discord.ui import Button, View, Modal, TextInput, Select
+from discord import Interaction, SelectOption
 
-from model.lobby_model import LobbyManager, LobbyState, MemberState
+from model.lobby.lobby_model import LobbyManager, LobbyState, MemberState
 from view.lobby.embeds import UpdateEmbedManager, UpdateEmbedType
 
 
-class DescriptionModal(discord.ui.Modal, title='Edit Description'):
-    def __init__(self, lobby_id):
-        super().__init__()
+class DescriptionModal(Modal):
+    def __init__(self, lobby_id: int):
+        super().__init__(title='Edit Description')
         self.lobby_id = lobby_id
 
-    answer = discord.ui.TextInput(
+    answer: TextInput[Any] = TextInput(
         label='Edit Description',
         style=discord.TextStyle.paragraph,
         max_length=50
     )
 
-    async def on_submit(self, interaction: discord.Interaction):
+    async def on_submit(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer()
         LobbyManager.set_descriptor(
             interaction.client, self.lobby_id, self.answer.value)
@@ -35,18 +38,18 @@ class DescriptionModal(discord.ui.Modal, title='Edit Description'):
         interaction.client.dispatch('update_lobby_embed', self.lobby_id)
 
 
-class ConfirmationModal(discord.ui.Modal, title='Are you sure? Reason optional.'):
-    def __init__(self, lobby_id):
-        super().__init__()
+class ConfirmationModal(discord.ui.Modal):
+    def __init__(self, lobby_id: int):
+        super().__init__(title='Are you sure? Reason optional.')
         self.lobby_id = lobby_id
 
-    reason = discord.ui.TextInput(
+    reason: TextInput[Any] = TextInput(
         label='Reason',
         max_length=150,
         required=False
     )
 
-    async def on_submit(self, interaction: discord.Interaction):
+    async def on_submit(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer()
         channel = LobbyManager.get_original_channel(
             interaction.client, self.lobby_id)
@@ -74,7 +77,7 @@ class ConfirmationModal(discord.ui.Modal, title='Are you sure? Reason optional.'
         )
 
 
-class OwnerSelectView(discord.ui.View):
+class OwnerSelectView(View):
     def __init__(
         self,
         lobby_id: int,
@@ -86,7 +89,7 @@ class OwnerSelectView(discord.ui.View):
             self.OwnerDropdown(lobby_id, list_of_users)
         )
 
-    class OwnerDropdown(discord.ui.Select):
+    class OwnerDropdown(Select[Any]):
         def __init__(
             self,
             lobby_id: int,
@@ -95,9 +98,9 @@ class OwnerSelectView(discord.ui.View):
             options = []
 
             for user in list_of_users:
-                options.append(discord.SelectOption(
+                options.append(SelectOption(
                     label=user[0],
-                    value=user[1]
+                    value=str(user[1])
                 ))
 
             super().__init__(
@@ -108,10 +111,12 @@ class OwnerSelectView(discord.ui.View):
             )
             self.lobby_id = lobby_id
 
-        async def callback(self, interaction: discord.Interaction):
+        async def callback(self, interaction: Interaction) -> None:
             lobby_owner = LobbyManager.get_lobby_owner(
                 interaction.client, self.lobby_id)
             if interaction.user == lobby_owner:
+                if interaction.guild is None:
+                    raise Exception('Guild is None')
                 member = interaction.guild.get_member(int(self.values[0]))
                 LobbyManager.switch_owner(
                     interaction.client,
@@ -124,7 +129,8 @@ class OwnerSelectView(discord.ui.View):
             original_channel = LobbyManager.get_original_channel(
                 interaction.client, self.lobby_id)
             # Disable view after selection
-            await self.view.stop()
+            view = cast(OwnerSelectView, self.view)
+            view.stop()
 
             message_detail = UpdateEmbedManager.get_message_details(
                 interaction.client,
@@ -148,7 +154,7 @@ class ButtonView(discord.ui.View):
         self.lobby_id = lobby_id
 
     @discord.ui.button(label='Join', style=discord.ButtonStyle.green)
-    async def join_button(self, interaction: discord.Interaction, button: discord.ui.Button,):
+    async def join_button(self, interaction: Interaction, _: Button[Any]) -> None:
         # Check if the member has already joined
         if LobbyManager.has_joined(interaction.client, self.lobby_id, interaction.user):
             await interaction.response.defer()
@@ -174,7 +180,7 @@ class ButtonView(discord.ui.View):
         await interaction.response.defer()
 
     @discord.ui.button(label="Ready", style=discord.ButtonStyle.green)
-    async def ready(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def ready(self, interaction: Interaction, button: Button[Any]) -> None:
 
         # Reject interaction if user is not in lobby
         has_joined = LobbyManager.has_joined(
@@ -227,7 +233,7 @@ class ButtonView(discord.ui.View):
         await interaction.response.defer()
 
     @discord.ui.button(label="Leave", style=discord.ButtonStyle.red)
-    async def leave(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def leave(self, interaction: discord.Interaction, _: Button[Any]) -> None:
         # Check if user is in lobby
         if not LobbyManager.has_joined(interaction.client, self.lobby_id, interaction.user):
             await interaction.response.defer()
@@ -284,7 +290,7 @@ class ButtonView(discord.ui.View):
         interaction.client.dispatch('update_lobby_embed', self.lobby_id)
 
     @discord.ui.button(label="Lock", style=discord.ButtonStyle.danger)
-    async def lock(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def lock(self, interaction: Interaction, button: Button[Any]) -> None:
 
         # Reject interaction if user is not lobby owner
         lobby_owner = LobbyManager.get_lobby_owner(
@@ -338,7 +344,7 @@ class ButtonView(discord.ui.View):
             )
 
     @discord.ui.button(label="Change Leader", style=discord.ButtonStyle.blurple)
-    async def change_leader(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def change_leader(self, interaction: Interaction, _: Button[Any]) -> None:
         lobby_owner = LobbyManager.get_lobby_owner(
             interaction.client, self.lobby_id)
         if interaction.user != lobby_owner:
@@ -360,7 +366,7 @@ class ButtonView(discord.ui.View):
             )
 
     @discord.ui.button(label="Edit Descr.", style=discord.ButtonStyle.blurple)
-    async def edit_description(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def edit_description(self, interaction: Interaction, _: Button[Any]) -> None:
         if interaction.user != LobbyManager.get_lobby_owner(interaction.client, self.lobby_id):
             await interaction.response.defer()
         else:
@@ -369,7 +375,7 @@ class ButtonView(discord.ui.View):
             )
 
     @discord.ui.button(label="Disband", style=discord.ButtonStyle.blurple)
-    async def disband(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def disband(self, interaction: Interaction, _: Button[Any]) -> None:
         if interaction.user == LobbyManager.get_lobby_owner(interaction.client, self.lobby_id):
             await interaction.response.send_modal(
                 ConfirmationModal(self.lobby_id)
@@ -378,12 +384,12 @@ class ButtonView(discord.ui.View):
             await interaction.response.defer()
 
     @discord.ui.button(label="Promote", style=discord.ButtonStyle.blurple)
-    async def promote(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def promote(self, interaction: Interaction, _: Button[Any]) -> None:
 
         class PromotionEmbed(discord.Embed):
-            def __init__(self, game_model: GameModel, lobby_id: int):
+            def __init__(self, game_model_inner: GameModel, lobby_id: int):
                 super().__init__(
-                    title=f'Sponsor Friendly Ad for {game_model.game_name}',
+                    title=f'Sponsor Friendly Ad for {game_model_inner.game_name}',
                     color=discord.Color.dark_orange(),
                 )
                 channel = LobbyManager.get_channel(interaction.client, lobby_id)
@@ -394,8 +400,8 @@ class ButtonView(discord.ui.View):
                     name='Slots Left:',
                     value=f'R>{game_size - lobby_size}',
                 )
-                if game_model.icon_url:
-                    self.set_thumbnail(url=game_model.icon_url)
+                if game_model_inner.icon_url:
+                    self.set_thumbnail(url=game_model_inner.icon_url)
 
         # If user is not lobby owner, defer interaction
         if interaction.user != LobbyManager.get_lobby_owner(interaction.client, self.lobby_id):
@@ -425,6 +431,6 @@ class ButtonView(discord.ui.View):
                 await last_message.delete()
             message = await original_channel.send(
                 content=f'<@&{game_model.role}>',
-                embed=PromotionEmbed(game_model=game_model, lobby_id=self.lobby_id)
+                embed=PromotionEmbed(game_model_inner=game_model, lobby_id=self.lobby_id)
             )
             LobbyManager.set_last_promotion_message(interaction.client, self.lobby_id, message)

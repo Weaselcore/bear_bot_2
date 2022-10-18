@@ -1,30 +1,32 @@
 from datetime import timedelta
 import time
+from typing import Any
 import aiohttp
 import aiofiles
 import os
 import ffmpeg
-import discord
 from discord.ext import commands
+from discord.ui import TextInput, Modal
+from discord import Interaction
 
 
-class StreamableSubmission(discord.ui.Modal, title="Soundboard Submission"):
+class StreamableSubmission(Modal):
     def __init__(self, bot: commands.Bot, video_url: str, file_name: str):
-        super().__init__()
+        super().__init__(title="Soundboard Submission")
         self.bot = bot
         self.video_url = video_url
         self.file_name = file_name
         self.bite_file_path = "data/sound_bites/"
         self.temp_file_path = "data/temp/"
 
-    name_input = discord.ui.TextInput(
+    name_input: TextInput[Any] = TextInput(
         label="File Name:",
         placeholder="Enter a name for the soundbite file",
         max_length=15,
         min_length=1
     )
 
-    start_trim_input = discord.ui.TextInput(
+    start_trim_input: TextInput[Any] = TextInput(
         label="Start Time:",
         default="00:00",
         placeholder="Start = 00:00, MM:SS",
@@ -32,7 +34,7 @@ class StreamableSubmission(discord.ui.Modal, title="Soundboard Submission"):
         min_length=5
     )
 
-    end_trim_input = discord.ui.TextInput(
+    end_trim_input: TextInput[Any] = TextInput(
         label="End Time:",
         default="00:00",
         placeholder="End = 00:00, MM:SS",
@@ -40,7 +42,7 @@ class StreamableSubmission(discord.ui.Modal, title="Soundboard Submission"):
         min_length=5
     )
 
-    async def on_submit(self, interaction: discord.Interaction):
+    async def on_submit(self, interaction: Interaction) -> None:
         name_input = self.name_input.value.lower()
         output = self.bite_file_path + name_input + ".mp3"
         temp_output = f"{self.temp_file_path}/{self.file_name}"
@@ -78,7 +80,7 @@ class StreamableSubmission(discord.ui.Modal, title="Soundboard Submission"):
                         data = await resp.read()
                         await file_handler.write(data)
 
-        def dl_convert():
+        def dl_convert() -> None:
             # Turn MP4 file into MP3
             input_file = ffmpeg.input(temp_output)
             output_file = ffmpeg.output(
@@ -99,6 +101,7 @@ class StreamableSubmission(discord.ui.Modal, title="Soundboard Submission"):
             # Clean up directories
             os.remove(temp_output)
             os.remove(temp_second)
+
         if not self.file_name.endswith(".mp3"):
             # https://stackoverflow.com/questions/46778936/how-to-catch-exceptions-in-a-python-run-in-executor-method-call
             # If we need to catch exceptions

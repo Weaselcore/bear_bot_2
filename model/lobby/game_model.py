@@ -1,7 +1,7 @@
-
 from dataclasses import dataclass
 import pathlib
 import json
+from typing import Any, Optional
 
 
 @dataclass
@@ -10,13 +10,13 @@ class GameModel:
     game_name: str
     max_size: int
     role: int
-    icon_url: str = None
+    icon_url: Optional[str] = None
 
     def to_json(self) -> None:
         """ Serialize object into json """
-        return json.dumps(self, default=lambda o: o.__dict__, sort_keys=True, indent=4)
+        json.dumps(self, default=lambda o: o.__dict__, sort_keys=True, indent=4)
 
-    def to_object(self, data):
+    def to_object(self, data: str) -> Any:
         """ Deserialize json into object """
         return json.loads(data, object_hook=lambda d: GameModel(**d))
 
@@ -59,14 +59,16 @@ class GameManager:
                 self.games.remove(game)
                 self.save_games()
 
-    def get_max_size(self, game_code: str) -> int:
+    def get_max_size(self, game_code: str) -> Optional[int]:
         """ Get max size of game """
         for game in self.games:
             if game.game_code == game_code:
                 return game.max_size
+        return None
 
-    def get_game(self, game_code: str) -> GameModel:
+    def get_game(self, game_code: str) -> Optional[GameModel]:
         """ Get game from list """
         for game in self.games:
             if game.game_code == game_code:
                 return game
+        return None

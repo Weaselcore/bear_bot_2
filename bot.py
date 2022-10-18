@@ -1,18 +1,21 @@
 import asyncio
 import os
-from typing import List
-import discord
 import logging
 import logging.handlers
-from discord.ext import commands
+from typing import Optional
+from discord.ext.commands import Bot  # type: ignore
+from discord import Object, Intents, Interaction
+from discord.app_commands import AppCommand
 
-GUILD = discord.Object(id=299536709778014210)
-TEST_GUILD = discord.Object(id=613605418882564096)
-DEV = False
+from stubs.lobby_types import LobbyModel
+
+GUILD = Object(id=299536709778014210)
+TEST_GUILD = Object(id=613605418882564096)
+DEV = True
 
 
-class MyClient(commands.Bot):
-    def __init__(self, *, intents: discord.Intents):
+class MyClient(Bot):  # type: ignore
+    def __init__(self, *, intents: Intents):
         super().__init__(command_prefix="/", intents=intents)
         # A CommandTree is a special type that holds all the application command
         # state required to make it work. This is a separate class because it
@@ -26,18 +29,25 @@ class MyClient(commands.Bot):
     # In this basic example, we just synchronize the app commands to one guild.
     # Instead of specifying a guild to every command, we copy over our global commands instead.
     # By doing so, we don't have to wait up to an hour until they are shown to the end-user.
+    # noinspection PyAttributeOutsideInit
     async def setup_hook(self) -> None:
-        await self.load_extension('cog.lobby')
-        await self.load_extension('cog.soundboard')
+        # await self.load_extension('cog.lobby')
+        # await self.load_extension('cog.soundboard')
         await self.load_extension('cog.battleship')
-        # self.tree.copy_global_to(guild=MY_GUILD)
-        # await self.tree.sync(guild=MY_GUILD)
+        if DEV:
+            guild_to_sync = TEST_GUILD
+        else:
+            guild_to_sync = GUILD
+        self.tree.copy_global_to(guild=guild_to_sync)
+        await self.tree.sync(
+            guild=guild_to_sync
+        )
         # TODO: Persistent?
-        self.lobby = {}
+        self.lobby: dict[int, LobbyModel] = {}
         # Any database would be initialised here.
 
 
-async def main():
+async def main() -> None:
     logger = logging.getLogger('discord')
     logger.setLevel(logging.INFO)
 
@@ -55,33 +65,35 @@ async def main():
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
-    async with MyClient(intents=discord.Intents.all()) as bot:
+    async with MyClient(intents=Intents.all()) as bot:
 
         # Register the commands.
-        @bot.event
-        async def on_ready():
+        @bot.event  # type: ignore
+        async def on_ready() -> None:
             print(f'Logged in as {bot.user} (ID: {bot.user.id})')
             print('------')
 
-        @bot.tree.command(name="hi")
-        async def hi(interaction: discord.Interaction):
+        @bot.tree.command(name="hi")  # type: ignore
+        async def hi(interaction: Interaction) -> None:
             await interaction.response.send_message(f'Hi, {interaction.user.mention}')
 
-        @bot.tree.command(name="sync")
-        async def sync(interaction: discord.Interaction):
+        @bot.tree.command(name="sync")  # type: ignore
+        async def sync(interaction: Interaction) -> None:
+            if interaction.guild is None:
+                return await interaction.response.send_message(
+                    "This command can only be used in a guild.",
+                    ephemeral=True
+                )
             if interaction.user == interaction.guild.owner:
                 # This copies the global commands over to your guild.
-                guild_to_sync = None
-                synced_commands = None
                 if DEV:
                     guild_to_sync = TEST_GUILD
                 else:
                     guild_to_sync = GUILD
-                if guild_to_sync:
-                    bot.tree.copy_global_to(guild=guild_to_sync)
-                    synced_commands: List[discord.AppCommand] | None = await bot.tree.sync(
-                        guild=guild_to_sync
-                    )
+                bot.tree.copy_global_to(guild=guild_to_sync)
+                synced_commands: Optional[list[AppCommand]] = await bot.tree.sync(
+                    guild=guild_to_sync
+                )
                 if synced_commands is None:
                     await interaction.response.send_message(
                         content="No commands to sync"
@@ -95,4 +107,6 @@ async def main():
 
         # Start the bot.
         await bot.start(os.environ['TOKEN'])
+
+
 asyncio.run(main())

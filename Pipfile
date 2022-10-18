@@ -9,6 +9,8 @@ ffmpeg-python = "*"
 aiofiles = "*"
 perflint = "*"
 pytz = "*"
+mypy = "*"
+pipenv = "*"
 
 [dev-packages]
 autopep8 = "*"

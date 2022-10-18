@@ -1,10 +1,14 @@
 import os
+from pathlib import Path
+from typing import Any
 import ffmpeg
 import discord
 from discord.ext import commands
+from discord.ui import TextInput, Modal
+from discord import Interaction
 
 
-class UploadSubmission(discord.ui.Modal, title="Soundboard Submission"):
+class UploadSubmission(Modal, title="Soundboard Submission"):
     def __init__(self, bot: commands.Bot, file: discord.Attachment):
         super().__init__()
         self.bot = bot
@@ -12,19 +16,19 @@ class UploadSubmission(discord.ui.Modal, title="Soundboard Submission"):
         self.bite_file_path = "data/sound_bites/"
         self.temp_file_path = "data/temp/"
 
-    name_input = discord.ui.TextInput(
+    name_input: TextInput[Any] = TextInput(
         label="File Name:",
         placeholder="Enter a name for the soundbite file",
         max_length=15,
         min_length=1
     )
 
-    async def on_submit(self, interaction: discord.Interaction):
+    async def on_submit(self, interaction: Interaction) -> None:
         name_input = self.name_input.value.lower()
-        output = self.bite_file_path + name_input + ".mp3"
-        temp_output = f"{self.temp_file_path} + {self.file.filename}"
+        output = Path(self.bite_file_path + name_input + ".mp3")
+        temp_output = Path(f"{self.temp_file_path} + {self.file.filename}")
 
-        def convert():
+        def convert() -> None:
             stream = ffmpeg.input(temp_output, vn=None)
             stream = ffmpeg.output(stream, output, vn=None)
             ffmpeg.run(stream)

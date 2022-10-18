@@ -1,9 +1,13 @@
+from typing import Any, cast
 import discord
-from discord.ext import commands
-from model.game_model import GameManager
+from discord import Interaction
+from discord.ui import View, Select
 
-from model.lobby_model import LobbyManager
-from view.lobby.button_view import ButtonView
+from stubs import Client
+from model.lobby.game_model import GameManager
+
+from model.lobby.lobby_model import LobbyManager
+from view.lobby.l_button_view import ButtonView
 
 from view.lobby.embeds import (
     LobbyEmbed,
@@ -12,11 +16,11 @@ from view.lobby.embeds import (
 )
 
 
-class DropdownView(discord.ui.View):
+class DropdownView(View):
     def __init__(
-        self,
-        lobby_id: int,
-        game_manager: GameManager,
+            self,
+            lobby_id: int,
+            game_manager: GameManager,
     ):
         super().__init__(timeout=None)
 
@@ -29,10 +33,10 @@ class DropdownView(discord.ui.View):
         )
 
 
-class GameDropdown(discord.ui.Select):
+class GameDropdown(Select[Any]):
     """A select dropdown for a list of games."""
 
-    def __init__(self, lobby_id: str, game_manager: GameManager):
+    def __init__(self, lobby_id: int, game_manager: GameManager):
         # Set the options that will be presented inside the dropdown
         self.game_manager = game_manager
         options = []
@@ -49,23 +53,29 @@ class GameDropdown(discord.ui.Select):
                          min_values=1, max_values=1, options=options)
         self.lobby_id = lobby_id
 
-    async def callback(self, interaction: discord.Interaction):
+    async def callback(self, interaction: Interaction) -> None:
         if interaction.user == LobbyManager.get_lobby_owner(interaction.client, self.lobby_id):
             # Save selected game code in state.
             lobby_model = LobbyManager.set_gamecode(
                 interaction.client,
                 self.lobby_id,
-                interaction.data['values'][0]
+                interaction.data['values'][0]  # type: ignore
             )
             # Get max number from stored [GameModel] object.
             number = self.game_manager.get_max_size(lobby_model.game_code)
 
             # If the view already has a NumberDropdown for an updated one
-            if (len(self.view.children) != 1):
-                self.view.remove_item(self.view.children[1])
+            if interaction.message is None:
+                raise ValueError('Message is None')
 
-            self.view.children[0].placeholder = lobby_model.game_code
-            self.view.add_item(
+            view = cast(DropdownView, self.view)
+            if len(view.children) != 1:
+                view.remove_item(view.children[1])
+
+            children = cast(list[GameDropdown], view.children)
+
+            children[0].placeholder = lobby_model.game_code
+            view.add_item(
                 NumberDropdown(
                     lobby_id=self.lobby_id,
                     bot=interaction.client,
@@ -92,13 +102,13 @@ class GameDropdown(discord.ui.Select):
         await interaction.response.defer()
 
 
-class NumberDropdown(discord.ui.Select):
+class NumberDropdown(Select[Any]):
     # A select dropdown for a list of numbers.
     def __init__(
-        self,
-        lobby_id: int,
-        bot: commands.Bot,
-        number: int,
+            self,
+            lobby_id: int,
+            bot: Client,
+            number: int,
     ):
         # Set the options that will be presented inside the dropdown
         options = [
@@ -114,7 +124,7 @@ class NumberDropdown(discord.ui.Select):
         self.lobby_id = lobby_id
         self.bot = bot
 
-    async def callback(self, interaction: discord.Interaction):
+    async def callback(self, interaction: Interaction) -> None:
 
         await interaction.response.defer()
         # Reject interaction if user is not lobby owner
@@ -124,11 +134,18 @@ class NumberDropdown(discord.ui.Select):
         lobby_model = LobbyManager.set_gamesize(
             self.bot,
             self.lobby_id,
-            interaction.data['values'][0]
+            interaction.data['values'][0]  # type: ignore
         )
 
+        view = cast(DropdownView, self.view)
+        if len(view.children) != 1:
+            view.remove_item(view.children[1])
+
+        children = cast(list[GameDropdown], view.children)
+        children[0].placeholder = lobby_model.game_code
+
         # Set placeholder of dropdown to reflect selected value
-        self.view.children[1].placeholder = interaction.data['values'][0]
+        self.placeholder = interaction.data['values'][0]  # type: ignore
 
         if lobby_model.embed_message is None:
             await lobby_model.control_panel.edit(

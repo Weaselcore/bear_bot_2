@@ -1,10 +1,17 @@
-
 from dataclasses import dataclass
 from enum import Enum
+from typing import cast, Any
 
+from discord import Message, ButtonStyle, TextChannel, User
 from discord.ui import View, Button
-from discord import Message, Member, ButtonStyle, TextChannel
-from discord.ext import commands
+
+from stubs.battleship_types import (
+    BattleShipGameGridView,
+    DoneButton,
+    BattleShipStatusView,
+    BattleshipSetupGridView,
+    Client
+)
 
 
 class BattleShipGameStatus(Enum):
@@ -37,8 +44,8 @@ class Ship:
 
     def __init__(self, length: int):
         self.length: int = length
-        self.origin: tuple[int, int] = None
-        self._xy: list[tuple] = []
+        self.origin: tuple[int, int] | None = None
+        self._xy: list[tuple[int, int]] = []
         self._orientation: list[ShipOrientation] = [
             ShipOrientation.EAST,
             ShipOrientation.SOUTH,
@@ -48,11 +55,11 @@ class Ship:
         ]
         self._current_orientation: int = 0
 
-    def get_co_ord(self) -> list[tuple]:
+    def get_co_ord(self) -> list[tuple[int, int]]:
         """ Get co-ordinates of ship """
         return self._xy
 
-    def set_co_ord(self, co_ord: list[tuple]) -> None:
+    def set_co_ord(self, co_ord: list[tuple[int, int]]) -> None:
         """ Add co-ordinate to ship """
         self._xy = co_ord
         self.origin = (self._xy[0][0], self._xy[0][1])
@@ -73,7 +80,7 @@ class Ship:
         """ Get orientation of ship """
         return self._orientation[self._current_orientation]
 
-    def get_origin(self) -> tuple[int, int]:
+    def get_origin(self) -> tuple[int, int] | None:
         """ Get origin of ship """
         return self.origin
 
@@ -87,6 +94,7 @@ class Ship:
 @dataclass
 class BattleShipGrid:
     """ BattleShipGrid object """
+
     def __init__(self) -> None:
         self.grid = [[BattleShipCellStatus.EMPTY for _ in range(5)] for _ in range(5)]
         patrol_boat = Ship(1)
@@ -94,19 +102,19 @@ class BattleShipGrid:
         destroyer = Ship(3)
         battleship = Ship(4)
         self.ship_setup = (patrol_boat, submarine, destroyer, battleship)
-        self.current_ship = patrol_boat
+        self.current_ship: Ship | None = patrol_boat
         self.status = BattleShipGameStatus.SETUP
         self.hits = 0
 
     def _calculate_co_ord(self, x: int, y: int, ship: Ship) -> bool:
         """ Calculate co-ordinates of ship """
-        new_co_ords: list[tuple] = []
+        new_co_ords: list[tuple[int, int]] = []
         vector = ship.get_orientation().value
         if vector is None:
             return False
         for number in range(ship.length):
-            i = x + (number * vector[1])
-            j = y + (number * vector[0])
+            i: int = x + (number * vector[1])
+            j: int = y + (number * vector[0])
             if i < 0 or i > 4 or j < 0 or j > 4:
                 return False
             result = self.grid[i][j]
@@ -117,21 +125,20 @@ class BattleShipGrid:
         else:
             for count, co_ord in enumerate(new_co_ords):
                 if count == 0:
-                    self.grid[co_ord[0]][co_ord[1]
-                                         ] = BattleShipCellStatus.SHIP_ORIGIN
+                    self.grid[co_ord[0]][co_ord[1]] = BattleShipCellStatus.SHIP_ORIGIN
                 else:
                     self.grid[co_ord[0]][co_ord[1]] = BattleShipCellStatus.SHIP
             ship.set_co_ord(new_co_ords)
             return True
 
-    def get_next_ship(self) -> Ship:
+    def get_next_ship(self) -> Ship | None:
         """ Get next ship """
         for ship in self.ship_setup:
             if len(ship.get_co_ord()) == 0:
                 return ship
         return None
 
-    def get_ship_from_origin(self, co_ord: tuple[int, int]) -> Ship:
+    def get_ship_from_origin(self, co_ord: tuple[int, int]) -> Ship | None:
         """ Get ship from origin """
         for ship in self.ship_setup:
             if ship.get_origin() == co_ord:
@@ -183,8 +190,7 @@ class BattleShipGrid:
         ship_co_ord = ship.get_co_ord()
         if len(ship_co_ord) != 0:
             for cell in range(ship.length - 1, -1, -1):
-                self.grid[ship_co_ord[cell][0]][ship_co_ord[cell]
-                                                [1]] = BattleShipCellStatus.EMPTY
+                self.grid[ship_co_ord[cell][0]][ship_co_ord[cell][1]] = BattleShipCellStatus.EMPTY
 
     def get_cell_status(self, co_ord: tuple[int, int]) -> BattleShipCellStatus:
         """ Get cell status """
@@ -199,33 +205,44 @@ class BattleShipGrid:
         else:
             return False
 
+    def game_over(self) -> list[tuple[int, int]]:
+        """ Return list of ship cords """
+        ship_cords = []
+        for ship in self.ship_setup:
+            ship_cords.extend(ship.get_co_ord())
+        return ship_cords
+
 
 @dataclass
 class BattleShipGameModel:
     original_channel: TextChannel
-    player_one: Member = None
-    player_two: Member = None
-    turn: Member = None
 
-    player_one_setup_message: Message = None
-    player_one_setup_view: View = None
-    player_one_done: Button = None
+    player_one: User
+    player_one_setup_view: BattleshipSetupGridView
+    player_one_grid: BattleShipGrid
+    player_one_setup_message: Message
+    player_one_game_message: Message
+    player_one_status_message: Message
+    player_one_game_view: BattleShipGameGridView
+
+    player_two: User
+    player_two_setup_view: BattleshipSetupGridView
+    player_two_grid: BattleShipGrid
+    player_two_setup_message: Message
+    player_two_game_message: Message
+    player_two_status_message: Message
+    player_two_game_view: BattleShipGameGridView
+
+    turn: User
+
+    player_one_status_view: BattleShipStatusView | None = None
+    player_two_status_view: BattleShipStatusView | None = None
+    player_one_done: DoneButton | None = None
     player_one_finish_setup: bool = False
-    player_one_game_view: View = None
 
-    player_two_setup_message: Message = None
-    player_two_setup_view: View = None
-    player_two_done: Button = None
+    player_two_done: DoneButton | None = None
     player_two_finish_setup: bool = False
-    player_two_game_view: View = None
 
-    player_one_grid: BattleShipGrid = None
-    player_two_grid: BattleShipGrid = None
-
-    game_view: View = None
-    game_message: Message = None
-    game_status_view: View = None
-    game_status_message: Message = None
     status: BattleShipGameStatus = BattleShipGameStatus.SETUP
     lock: bool = False
 
@@ -234,387 +251,397 @@ class BattleShipGameManager:
 
     @staticmethod
     def set_game(
-        bot: commands.Bot,
-        lobby_id: int,
-        battle_ship_game_model: BattleShipGameModel
+            bot: Client,
+            lobby_id: int,
+            battle_ship_game_model: BattleShipGameModel
     ) -> None:
         bot.battleship_games[lobby_id] = battle_ship_game_model
 
     @staticmethod
-    def get_game(bot: commands.Bot, lobby_id: int) -> BattleShipGameModel:
-        return bot.battleship_games[lobby_id]
+    def get_game(bot: Client, lobby_id: int) -> BattleShipGameModel:
+        lobbies: dict[int, BattleShipGameModel] = bot.battleship_games
+        exists = lobbies.get(lobby_id)
+        if exists is not None:
+            return exists
+        else:
+            raise ValueError(f"Lobby with ID: {lobby_id} does not exist")
 
     @staticmethod
     def add_ship(
-        bot: commands.Bot,
-        lobby_id: int,
-        co_ord: tuple[int, int],
-        member: Member
+            bot: Client,
+            lobby_id: int,
+            co_ord: tuple[int, int],
+            user: User
     ) -> None:
         """ Add ship to grid """
         game_model = BattleShipGameManager.get_game(bot, lobby_id)
-        if game_model.player_one == member:
+        if game_model is None:
+            return
+        if game_model.player_one.id == user.id:
             game_model.player_one_grid.add_ship(co_ord)
         else:
             game_model.player_two_grid.add_ship(co_ord)
 
     @staticmethod
     def get_cell_status(
-        bot: commands.Bot,
-        lobby_id: int,
-        co_ord: tuple[int, int],
-        member: Member
-    ) -> BattleShipCellStatus:
+            bot: Client,
+            lobby_id: int,
+            co_ord: tuple[int, int],
+            user: User
+    ) -> BattleShipCellStatus | None:
         """ Get cell status """
-        game = BattleShipGameManager.get_game(bot, lobby_id)
-        if member == game.player_one:
-            return game.player_one_grid.get_cell_status(co_ord)
+        game_model = BattleShipGameManager.get_game(bot, lobby_id)
+        if game_model is None:
+            return None
+        if user.id == game_model.player_one.id:
+            return game_model.player_one_grid.get_cell_status(co_ord)
         else:
-            return game.player_two_grid.get_cell_status(co_ord)
+            return game_model.player_two_grid.get_cell_status(co_ord)
 
     @staticmethod
     def get_player_view_message(
-        bot: commands.Bot,
-        lobby_id: int,
-        player: Member
-    ) -> View:
+            bot: Client,
+            lobby_id: int,
+            user: User
+    ) -> Message | None:
         """ Get player board """
-        game = BattleShipGameManager.get_game(bot, lobby_id)
-        if player == game.player_one:
-            return game.player_one_setup_message
+        game_model = BattleShipGameManager.get_game(bot, lobby_id)
+        if game_model is None:
+            return None
+        if user.id == game_model.player_one.id:
+            return game_model.player_one_game_message
         else:
-            return game.player_two_setup_message
+            return game_model.player_two_game_message
 
     @staticmethod
     def get_player_setup_view(
-        bot: commands.Bot,
-        lobby_id: int,
-        player: Member
-    ) -> View:
+            bot: Client,
+            lobby_id: int,
+            user: User
+    ) -> BattleshipSetupGridView:
         """ Get player board """
-        game = BattleShipGameManager.get_game(bot, lobby_id)
-        if player == game.player_one:
-            return game.player_one_setup_view
+        game_model = BattleShipGameManager.get_game(bot, lobby_id)
+        if user.id == game_model.player_one.id:
+            return game_model.player_one_setup_view
         else:
-            return game.player_two_setup_view
+            return game_model.player_two_setup_view
 
     @staticmethod
-    def set_player_game_view(
-        bot: commands.Bot,
-        lobby_id: int,
-        player: Member,
-        view: View
-    ) -> Button:
+    def get_player_setup_message(
+            bot: Client,
+            lobby_id: int,
+            user: User
+    ) -> Message:
         """ Get player board """
-        game = BattleShipGameManager.get_game(bot, lobby_id)
-        if player == game.player_one:
-            bot.battleship_games[lobby_id].player_one_game_view = view
+        game_model = BattleShipGameManager.get_game(bot, lobby_id)
+        if user.id == game_model.player_one.id:
+            return game_model.player_one_setup_message
         else:
-            bot.battleship_games[lobby_id].player_two_game_view = view
+            return game_model.player_two_setup_message
 
     @staticmethod
     def get_player_game_view(
-        bot: commands.Bot,
-        lobby_id: int,
-    ) -> View:
+            bot: Client,
+            lobby_id: int,
+            user: User
+    ) -> BattleShipGameGridView:
         """ Get player board """
-        game = BattleShipGameManager.get_game(bot, lobby_id)
-        member = game.turn
-        if member == game.player_one:
-            return game.player_one_game_view
+        game_model = BattleShipGameManager.get_game(bot, lobby_id)
+        if user.id == game_model.player_one.id:
+            view = game_model.player_one_game_view
         else:
-            return game.player_two_game_view
+            view = game_model.player_two_game_view
+        if view is None:
+            raise Exception("View was not assigned")
+        return view
 
     @staticmethod
     def toggle_player_done(
-        bot: commands.Bot,
-        lobby_id: int,
-        player: Member,
+            bot: Client,
+            lobby_id: int,
+            user: User,
     ) -> bool:
         """ Set player done view """
-        game = BattleShipGameManager.get_game(bot, lobby_id)
-        if player == game.player_one:
-            bot.battleship_games[lobby_id].player_one_done = (
-                not bot.battleship_games[lobby_id].player_one_done
+        game_model = BattleShipGameManager.get_game(bot, lobby_id)
+        if user.id == game_model.player_one.id:
+            game_model.player_one_finish_setup = (
+                not game_model.player_one_finish_setup
             )
-            return bot.battleship_games[lobby_id].player_one_done
+            return game_model.player_one_finish_setup
         else:
-            bot.battleship_games[lobby_id].player_two_done = (
-                not bot.battleship_games[lobby_id].player_two_done
+            game_model.player_two_finish_setup = (
+                not game_model.player_two_finish_setup
             )
-            return bot.battleship_games[lobby_id].player_two_done
+            return game_model.player_two_finish_setup
 
     @staticmethod
     def set_game_status(
-        bot: commands.Bot,
-        lobby_id: int,
-        status: BattleShipGameStatus
+            bot: Client,
+            lobby_id: int,
+            status: BattleShipGameStatus
     ) -> None:
         """ Set game status """
-        bot.battleship_games[lobby_id].status = status
+        game_model = BattleShipGameManager.get_game(bot, lobby_id)
+        game_model.status = status
 
     @staticmethod
-    def set_game_status_view(
-        bot: commands.Bot,
-        lobby_id: int,
-        view: View
-    ) -> None:
-        """ Set game status """
-        bot.battleship_games[lobby_id].game_status_view = view
+    def set_player_status_view(bot: Client, lobby_id: int, user: User, status_view: BattleShipStatusView) -> None:
+        game_model = BattleShipGameManager.get_game(bot, lobby_id)
+        if user.id == game_model.player_one.id:
+            game_model.player_one_status_view = status_view
+        else:
+            game_model.player_two_status_view = status_view
 
     @staticmethod
-    def get_game_status(bot: commands.Bot, lobby_id: int) -> BattleShipGameStatus:
+    def get_player_status_message(bot: Client, lobby_id: int, user: User) -> Message:
+        game_model = BattleShipGameManager.get_game(bot, lobby_id)
+        if user.id == game_model.player_one.id:
+            return game_model.player_one_status_message
+        else:
+            return game_model.player_two_status_message
+
+    @staticmethod
+    def get_game_status(bot: Client, lobby_id: int) -> BattleShipGameStatus:
         """ Get game status """
-        return bot.battleship_games[lobby_id].status
+        game_model = BattleShipGameManager.get_game(bot, lobby_id)
+        return game_model.status
 
     @staticmethod
     def get_player_grid(
-        bot: commands.Bot,
-        lobby_id: int,
-        player: Member
+            bot: Client,
+            lobby_id: int,
+            user: User
     ) -> BattleShipGrid:
         """ Get player grid """
-        game = BattleShipGameManager.get_game(bot, lobby_id)
-        if player == game.player_one:
-            return game.player_one_grid
+        game_model = BattleShipGameManager.get_game(bot, lobby_id)
+        if user.id == game_model.player_one.id:
+            return game_model.player_one_grid
         else:
-            return game.player_two_grid
+            return game_model.player_two_grid
 
     @staticmethod
     def get_opponent_grid(
-        bot: commands.Bot,
-        lobby_id: int,
-        player: Member
+            bot: Client,
+            lobby_id: int,
+            user: User
     ) -> BattleShipGrid:
         """ Get opponent grid """
-        game = BattleShipGameManager.get_game(bot, lobby_id)
-        if player == game.player_one:
-            return game.player_two_grid
+        game_model = BattleShipGameManager.get_game(bot, lobby_id)
+        if user.id == game_model.player_one.id:
+            return game_model.player_two_grid
         else:
-            return game.player_one_grid
+            return game_model.player_one_grid
 
     @staticmethod
     def set_player_done_button(
-        bot: commands.Bot,
-        lobby_id: int,
-        player: Member,
-        button: Button
+            bot: Client,
+            lobby_id: int,
+            user: User,
+            button: Button[Any]
     ) -> None:
         """ Set player one view """
-        game = BattleShipGameManager.get_game(bot, lobby_id)
-        if player == game.player_one:
-            bot.battleship_games[lobby_id].player_one_done = button
+        game_model = BattleShipGameManager.get_game(bot, lobby_id)
+        if user.id == game_model.player_one.id:
+            game_model.player_one_done = button
         else:
-            bot.battleship_games[lobby_id].player_two_done = button
+            game_model.player_two_done = button
 
     @staticmethod
     def get_player_done_button(
-        bot: commands.Bot,
-        lobby_id: int,
-        player: Member
-    ) -> Button:
+            bot: Client,
+            lobby_id: int,
+            user: User
+    ) -> DoneButton | None:
         """ Get player one view """
-        game = BattleShipGameManager.get_game(bot, lobby_id)
-        if player == game.player_one:
-            return game.player_one_done
+        game_model = BattleShipGameManager.get_game(bot, lobby_id)
+        if user.id == game_model.player_one.id:
+            return game_model.player_one_done
         else:
-            return game.player_two_done
+            return game_model.player_two_done
 
     @staticmethod
     def get_original_channel(
-        bot: commands.Bot,
-        lobby_id: int
+            bot: Client,
+            lobby_id: int
     ) -> TextChannel:
         """ Get original channel """
-        return bot.battleship_games[lobby_id].original_channel
+        game_model = BattleShipGameManager.get_game(bot, lobby_id)
+        return game_model.original_channel
 
     @staticmethod
     def get_turn(
-        bot: commands.Bot,
-        lobby_id: int
-    ) -> Member:
+            bot: Client,
+            lobby_id: int
+    ) -> User:
         """ Get turn """
-        return bot.battleship_games[lobby_id].turn
+        game_model = BattleShipGameManager.get_game(bot, lobby_id)
+        return game_model.turn
 
     @staticmethod
-    def set_turn(
-        bot: commands.Bot,
-        lobby_id: int,
+    async def set_turn(
+            bot: Client,
+            lobby_id: int,
     ) -> None:
         """ Set turn """
-        if bot.battleship_games[lobby_id].turn == bot.battleship_games[lobby_id].player_one:
-            bot.battleship_games[lobby_id].turn = bot.battleship_games[lobby_id].player_two
+        game_model = BattleShipGameManager.get_game(bot, lobby_id)
+        if game_model.turn.id == game_model.player_one.id:
+            game_model.turn = game_model.player_two
         else:
-            bot.battleship_games[lobby_id].turn = bot.battleship_games[lobby_id].player_one
+            game_model.turn = game_model.player_one
 
     @staticmethod
     async def start(
-        bot: commands.Bot,
-        lobby_id: int,
-        game_status_message: Message,
-        game_message: Message,
-        game_grid_view1: View,
-        game_grid_view2: View,
+            bot: Client,
+            lobby_id: int
     ) -> None:
         """ Start game """
-        bot.battleship_games[lobby_id].player_one_game_view = game_grid_view1
-        bot.battleship_games[lobby_id].player_two_game_view = game_grid_view2
-        bot.battleship_games[lobby_id].game_status_message = game_status_message
-        bot.battleship_games[lobby_id].game_message = game_message
-        await game_message.edit(
-            view=BattleShipGameManager.get_player_game_view(bot, lobby_id)
-        )
+        game_model = BattleShipGameManager.get_game(bot, lobby_id)
+        if game_model.player_one_finish_setup and game_model.player_two_finish_setup:
+            # Enable game grids
+            game_model.player_one_game_view.enable()
+            await BattleShipGameManager.get_player_view_message(
+                bot,
+                lobby_id,
+                game_model.player_one
+            ).edit(
+                view=cast(View, game_model.player_one_game_view)
+            )
+            # Assign player one to turn
+            game_model.turn = game_model.player_one
+            await BattleShipGameManager.update_status_message(
+                bot,
+                lobby_id
+            )
 
     @staticmethod
-    async def update_game_message(
-        bot: commands.Bot,
-        lobby_id: int,
-    ) -> None:
-        """ Update game message """
-        game = BattleShipGameManager.get_game(bot, lobby_id)
-        view = None
-        if game.turn == game.player_one:
-            view = game.player_one_game_view
-        else:
-            view = game.player_two_game_view
-        await bot.battleship_games[lobby_id].game_message.edit(
+    async def update_status_message(bot: Client, lobby_id: int) -> None:
+        """Update both player status views"""
+        game_model = BattleShipGameManager.get_game(bot, lobby_id)
+        game_model.player_one_status_view.update()
+        game_model.player_two_status_view.update()
+        await game_model.player_one_status_message.edit(
             content=None,
-            view=view
+            view=game_model.player_one_status_view
         )
-
-    @staticmethod
-    def get_game_status_message(
-        bot: commands.Bot,
-        lobby_id: int,
-    ) -> Message:
-        """ Get game status message """
-        return bot.battleship_games[lobby_id].game_status_message
-
-    @staticmethod
-    def set_game_status_message(
-        bot: commands.Bot,
-        lobby_id: int,
-        message: Message
-    ) -> None:
-        """ Set game status message """
-        bot.battleship_games[lobby_id].game_status_message = message
+        await game_model.player_two_status_message.edit(
+            content=None,
+            view=game_model.player_two_status_view
+        )
 
     @staticmethod
     def set_setup_done(
-        bot: commands.Bot,
-        lobby_id: int,
-        player: Member,
+            bot: Client,
+            lobby_id: int,
+            user: User,
     ) -> None:
         """ Set setup done """
-        game = BattleShipGameManager.get_game(bot, lobby_id)
-        if player == game.player_one:
-            bot.battleship_games[lobby_id].player_one_finish_setup = True
+        game_model = BattleShipGameManager.get_game(bot, lobby_id)
+        if user.id == game_model.player_one.id:
+            game_model.player_one_finish_setup = True
         else:
-            bot.battleship_games[lobby_id].player_two_finish_setup = True
+            game_model.player_two_finish_setup = True
 
     @staticmethod
     def get_setup_done(
-        bot: commands.Bot,
-        lobby_id: int,
+            bot: Client,
+            lobby_id: int,
     ) -> bool:
         """ Get setup done """
         game = BattleShipGameManager.get_game(bot, lobby_id)
         return game.player_one_finish_setup and game.player_two_finish_setup
 
     @staticmethod
-    def get_game_message(
-        bot: commands.Bot,
-        lobby_id: int,
-    ) -> Message:
-        """ Get game message """
-        return bot.battleship_games[lobby_id].game_message
-
-    @staticmethod
-    def set_game_message(
-        bot: commands.Bot,
-        lobby_id: int,
-        message: Message,
-    ) -> None:
-        """ Set game message """
-        bot.battleship_games[lobby_id].game_message = message
-
-    @staticmethod
     def get_hits(
-        bot: commands.Bot,
-        lobby_id: int,
+            bot: Client,
+            lobby_id: int,
+            user: User
     ) -> int:
         """ Get hits """
-        game = BattleShipGameManager.get_game(bot, lobby_id)
-        if game.turn == game.player_one:
-            return game.player_two_grid.hits
+        game_model = BattleShipGameManager.get_game(bot, lobby_id)
+        if user.id == game_model.player_one.id:
+            return game_model.player_two_grid.hits
         else:
-            return game.player_one_grid.hits
+            return game_model.player_one_grid.hits
 
     @staticmethod
-    def get_status(
-        bot: commands.Bot,
-        lobby_id: int,
-    ) -> tuple:
+    def get_status_hits(
+            bot: Client,
+            lobby_id: int,
+            user: User
+    ) -> int:
         """ Return status """
-        game = BattleShipGameManager.get_game(bot, lobby_id)
-        return (
-            game.player_one.display_name,
-            game.player_two_grid.hits,
-            game.player_two.display_name,
-            game.player_one_grid.hits
-        )
+        game_model = BattleShipGameManager.get_game(bot, lobby_id)
+        if user.id == game_model.player_one.id:
+            return game_model.player_two_grid.hits
+        else:
+            return game_model.player_one_grid.hits
 
     @staticmethod
     def is_game_over(
-        bot: commands.Bot,
-        lobby_id: int,
+            bot: Client,
+            lobby_id: int,
     ) -> bool:
         """ Is game over """
-        game = BattleShipGameManager.get_game(bot, lobby_id)
-        if game.player_one_grid.hits == 10 or game.player_two_grid.hits == 10:
+        game_model = BattleShipGameManager.get_game(bot, lobby_id)
+        if game_model.player_one_grid.hits == 10 or game_model.player_two_grid.hits == 10:
             # Create new winner button to replace status.
-            game.status = BattleShipGameStatus.FINISHED
+            game_model.status = BattleShipGameStatus.FINISHED
             return True
         else:
             return False
 
     @staticmethod
-    def game_over(bot: commands.Bot, lobby_id: int) -> str:
-        game = BattleShipGameManager.get_game(bot, lobby_id)
-        if game.player_one_grid.hits == 10:
-            winner = game.player_two.display_name
-        elif game.player_two_grid.hits == 10:
-            winner = game.player_one.display_name
+    async def game_over(bot: Client, lobby_id: int) -> None:
+        game_model = BattleShipGameManager.get_game(bot, lobby_id)
+        winner_id = BattleShipGameManager.get_winner(bot, lobby_id)
+        # If finished get the other view and update it with ships not hit
+        if winner_id != game_model.player_one.id:
+            loser_view = game_model.player_one_game_view
+            loser_message = game_model.player_one_game_message
+        else:
+            loser_view = game_model.player_two_game_view
+            loser_message = game_model.player_two_game_message
 
+        await BattleShipGameManager.update_status_message(bot, lobby_id)
+
+        loser_view.set_loser_board()
+        await loser_message.edit(
+            content=None,
+            view=cast(View, loser_view)
+        )
         # Stop all views
-        game.game_status_view.stop()
-        game.player_one_game_view.stop()
-        game.player_two_game_view.stop()
+        if game_model.player_one_game_view:
+            game_model.player_one_game_view.stop()
+        if game_model.player_two_game_view:
+            game_model.player_two_game_view.stop()
+        if game_model.player_one_status_view:
+            game_model.player_one_status_view.stop()
+        if game_model.player_two_status_view:
+            game_model.player_two_status_view.stop()
         # Delete lobby
-        bot.battleship_games.pop(lobby_id)
-
-        return winner
-
-    @staticmethod
-    def set_lock(
-        bot: commands.Bot,
-        lobby_id: int
-    ) -> None:
-        """ Set lock """
-        bot.battleship_games[lobby_id].lock = True
+        lobbies: dict[int, BattleShipGameModel] = bot.battleship_games
+        lobbies.pop(lobby_id)
 
     @staticmethod
-    def release_lock(
-        bot: commands.Bot,
-        lobby_id: int
-    ) -> None:
-        """ Release lock """
-        bot.battleship_games[lobby_id].lock = False
+    def get_winner(bot: Client, lobby_id: int) -> int:
+        game_model = BattleShipGameManager.get_game(bot, lobby_id)
+        winner_id = None
+        if game_model.player_one_grid.hits == 10:
+            winner_id = game_model.player_two.id
+        elif game_model.player_two_grid.hits == 10:
+            winner_id = game_model.player_one.id
+        return winner_id
 
     @staticmethod
-    def get_lock(
-        bot: commands.Bot,
-        lobby_id: int
-    ) -> None:
-        """ Set lock """
-        return bot.battleship_games[lobby_id].lock
+    def get_loser_ship_co_ords(bot: Client, lobby_id: int) -> list[tuple[int, int]]:
+        """ Get player ship ords """
+        game_model = BattleShipGameManager.get_game(bot, lobby_id)
+        loser_grid = None
+        if game_model.player_one_grid.hits == 10:
+            loser_grid = game_model.player_two_grid
+        elif game_model.player_two_grid.hits == 10:
+            loser_grid = game_model.player_one_grid
+        if loser_grid:
+            return loser_grid.game_over()
+        else:
+            raise ValueError("Loser Grid not found.")
