@@ -3,10 +3,10 @@ import discord
 from discord import Interaction
 from discord.ui import View, Select
 
-from stubs import Client
 from model.lobby.game_model import GameManager
 
 from model.lobby.lobby_model import LobbyManager
+from stubs.lobby_types import Client
 from view.lobby.l_button_view import ButtonView
 
 from view.lobby.embeds import (

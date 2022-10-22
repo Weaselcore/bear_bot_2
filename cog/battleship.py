@@ -3,6 +3,8 @@ from typing import cast
 from discord import Interaction, app_commands, User, TextChannel
 from discord.ext.commands import Bot, Cog
 
+from database.connection import MongoManager
+from mongodb_stubs.battleship_mongodb_types import MongoLobbyModel
 from stubs.battleship_types import Channel, Client
 from model.battleships.battleships_model import (
     BattleShipGameManager,
@@ -70,8 +72,10 @@ class BattleshipCog(Cog):  # type: ignore
         player_two_game_message = await interaction.channel.send(
             view=player_two_game_view
         )
+        guild_id = interaction.guild_id
         # Initialise battleship game model
         game_model = BattleShipGameModel(
+            guild_id=guild_id,
             original_channel=interaction.channel,
             player_one=interaction.user,
             player_one_setup_view=view1,

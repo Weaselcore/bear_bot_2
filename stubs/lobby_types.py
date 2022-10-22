@@ -12,18 +12,10 @@ class Channel(Protocol):
         ...
 
 
-class LobbyState(Protocol):
-    ...
-
-
-class MemberState(Protocol):
-    ...
-
-
 class MemberModel(Protocol):
     member: Member
     join_datetime: datetime
-    state: MemberState
+    is_ready: bool
     user: User
 
 
@@ -36,7 +28,6 @@ class LobbyEmbed(Protocol):
 class LobbyModel(Protocol):
     embed: LobbyEmbed
     members: list[MemberModel]
-    status: LobbyState
     last_promotion_message: Message
     last_promotion_datetime: datetime
     owner: User
@@ -44,6 +35,7 @@ class LobbyModel(Protocol):
     description: str
     game_size: int
     created_datetime: datetime
+    is_locked: bool
     ...
 
 

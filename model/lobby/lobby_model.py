@@ -1,70 +1,17 @@
-from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from enum import Enum
 from time import gmtime, strftime
 from typing import Optional, cast
 from discord import Message, User, TextChannel, Embed, Thread, Member
 
+from mongodb_stubs.battleship_mongodb_types import MongoLobbyModel
 from stubs.lobby_types import Client, LobbyEmbed
-
-
-class MemberState(Enum):
-    NOT_READY = 'Not Ready',
-    READY = 'Ready',
-
-    def __str__(self) -> str:
-        return f'{ self.value[0].upper()}'
-
-
-class LobbyState(Enum):
-    LOCK = 'lock',
-    UNLOCK = 'unlock',
-
-    def __str__(self) -> str:
-        return f'{ self.value[0].upper()}'
-
-
-@dataclass
-class MemberModel:
-    member: User
-    join_datetime = datetime.now()
-    state = MemberState.NOT_READY
-
-    def update(self) -> MemberState:
-        if self.state == MemberState.READY:
-            self.state = MemberState.NOT_READY
-        else:
-            self.state = MemberState.READY
-        return self.state
-
-
-@dataclass
-class LobbyModel:
-    # Use the message id as the lobby id
-    control_panel: Message
-    lobby_channel: TextChannel
-    original_channel: TextChannel
-    owner: User
-    created_datetime = datetime.now()
-    description: Optional[str] = None
-    embed: Optional[Embed] = None
-    embed_message: Optional[Message] = None
-    game_code = 'gametype'
-    game_size = 1
-    last_promotion_message: Optional[Message] = None
-    last_promotion_datetime: Optional[datetime] = None
-    is_promoting = False
-    members: list[MemberModel] = field(default_factory=list)
-    thread: Optional[Thread] = None
-    status = LobbyState.UNLOCK
 
 
 class LobbyManager:
 
     @staticmethod
-    def get_lobby(bot: Client, lobby_id: int) -> LobbyModel:
-        lobby_dict: dict[int, LobbyModel] = bot.lobby
-        lobby_model = lobby_dict[lobby_id]
+    def get_lobby(bot: Client, lobby_id: int) -> MongoLobbyModel:
+        MongoLobbyModel.
         if lobby_model is None:
             raise ValueError('Lobby not found')
         return lobby_model
@@ -122,18 +69,18 @@ class LobbyManager:
         return lobby_model.owner
 
     @staticmethod
-    def get_lobby_status(bot: Client, lobby_id: int) -> LobbyState:
+    def get_lobby_is_locked(bot: Client, lobby_id: int) -> bool:
         lobby_model = LobbyManager.get_lobby(bot, lobby_id)
-        return lobby_model.status
+        return lobby_model.is_locked
 
     @staticmethod
-    def update_lobby_status(bot: Client, lobby_id: int) -> None:
+    def update_lobby_is_locked(bot: Client, lobby_id: int) -> None:
         lobby_model = LobbyManager.get_lobby(bot, lobby_id)
 
-        if lobby_model.status == LobbyState.UNLOCK:
-            lobby_model.status = LobbyState.LOCK
+        if lobby_model.is_locked is False:
+            lobby_model.is_locked = True
         else:
-            lobby_model.status = LobbyState.UNLOCK
+            lobby_model.is_locked = False
 
     @staticmethod
     def get_channel(bot: Client, lobby_id: int) -> TextChannel:
@@ -203,7 +150,7 @@ class LobbyManager:
         bot: Client,
         lobby_id: int,
         member: User
-    ) -> MemberState | None:
+    ) -> bool | None:
         lobby_model = LobbyManager.get_lobby(bot, lobby_id)
         for member_model in lobby_model.members:
             if member_model.member == member:
@@ -212,14 +159,14 @@ class LobbyManager:
         return None
 
     @staticmethod
-    def lock(bot: Client, lobby_id: int) -> LobbyState:
+    def lock(bot: Client, lobby_id: int) -> bool:
         new_status = None
-        if bot.lobby[lobby_id].status == LobbyState.UNLOCK:
-            new_status = LobbyState.LOCK
-        elif bot.lobby[lobby_id].status == LobbyState.LOCK:
-            new_status = LobbyState.UNLOCK
+        if bot.lobby[lobby_id].is_locked is False:
+            new_status = True
+        elif bot.lobby[lobby_id].is_locked is True:
+            new_status = False
         if new_status is not None:
-            bot.lobby[lobby_id].status = new_status
+            bot.lobby[lobby_id].is_locked = new_status
         else:
             raise ValueError("Invalid lobbystate found.")
         return new_status
@@ -288,21 +235,21 @@ class LobbyManager:
     def get_members_ready(bot: Client, lobby_id: int) -> list[User]:
         """Get the number of members that are ready"""
         members = [member_model.user for member_model in bot.lobby[lobby_id]
-                   .members if member_model.state == MemberState.READY]
+                   .members if member_model.is_ready is True]
         return members
 
     @staticmethod
     def get_members_not_ready(bot: Client, lobby_id: int) -> list[User]:
         """Get the number of members that are not ready"""
         members = [member_model.user for member_model in bot.lobby[lobby_id].members
-                   if member_model.state == MemberState.NOT_READY]
+                   if member_model.is_ready is False]
         return members
 
     @staticmethod
-    def get_lobby_lock(bot: Client, lobby_id: int) -> LobbyState:
+    def get_lobby_lock(bot: Client, lobby_id: int) -> bool:
         """Get the lock state of the lobby"""
         lobby_model = LobbyManager.get_lobby(bot, lobby_id)
-        return lobby_model.status
+        return lobby_model.is_locked
 
     @staticmethod
     async def delete_lobby(bot: Client, lobby_id: int) -> None:

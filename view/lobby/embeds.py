@@ -5,8 +5,8 @@ import discord
 import pytz
 from discord import Color
 
-from stubs import Client
-from model.lobby.lobby_model import LobbyManager, LobbyState
+from model.lobby.lobby_model import LobbyManager
+from stubs.lobby_types import Client
 
 
 class LobbyEmbed(discord.Embed):
@@ -50,8 +50,8 @@ class LobbyEmbed(discord.Embed):
             self.description = 'No description set'
 
     def _set_colour(self) -> None:
-        lobby_state = LobbyManager.get_lobby_status(self.bot, self.lobby_id)
-        if lobby_state == LobbyState.LOCK:
+        is_locked = LobbyManager.get_lobby_is_locked(self.bot, self.lobby_id)
+        if is_locked is True:
             self.color = discord.Color.yellow()
         elif LobbyManager.is_full(self.bot, self.lobby_id):
             self.color = discord.Color.green()
@@ -72,7 +72,7 @@ class LobbyEmbed(discord.Embed):
         for member_model in members:
             self.add_field(
                 name=member_model.member.display_name,
-                value=f'Status: {member_model.state.value[0]}',
+                value=f'Ready: {member_model.is_ready}',
                 inline=False
             )
 

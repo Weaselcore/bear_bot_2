@@ -3,6 +3,8 @@ import os
 import logging
 import logging.handlers
 from typing import Optional
+
+import dotenv
 from discord.ext.commands import Bot  # type: ignore
 from discord import Object, Intents, Interaction
 from discord.app_commands import AppCommand
@@ -13,6 +15,7 @@ GUILD = Object(id=299536709778014210)
 TEST_GUILD = Object(id=613605418882564096)
 DEV = True
 
+dotenv.load_dotenv()
 
 class MyClient(Bot):  # type: ignore
     def __init__(self, *, intents: Intents):
@@ -31,8 +34,8 @@ class MyClient(Bot):  # type: ignore
     # By doing so, we don't have to wait up to an hour until they are shown to the end-user.
     # noinspection PyAttributeOutsideInit
     async def setup_hook(self) -> None:
-        # await self.load_extension('cog.lobby')
-        # await self.load_extension('cog.soundboard')
+        await self.load_extension('cog.lobby')
+        await self.load_extension('cog.soundboard')
         await self.load_extension('cog.battleship')
         if DEV:
             guild_to_sync = TEST_GUILD
@@ -106,7 +109,7 @@ async def main() -> None:
                 await interaction.response.send_message(content="You are not the guild owner")
 
         # Start the bot.
-        await bot.start(os.environ['TOKEN'])
+        await bot.start(os.getenv('TOKEN'))
 
 
 asyncio.run(main())

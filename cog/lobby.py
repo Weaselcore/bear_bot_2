@@ -5,6 +5,10 @@ from discord import Interaction, app_commands, TextChannel
 import discord
 from typing import cast
 
+from pymongo.collection import Collection
+
+from database.connection import MongoManager
+from mongodb_stubs.battleship_mongodb_types import MongoLobbyModel
 from stubs.lobby_types import Client
 from view.lobby.dropdown import DropdownView
 from model.lobby.lobby_model import (
@@ -77,20 +81,29 @@ class LobbyCog(Cog):  # type: ignore
 
         control_panel = await channel.send('Initialising lobby...')
 
-        # Create a new lobby model
-        lobby_model = LobbyModel(
-            control_panel=control_panel,
-            owner=interaction.user,
-            original_channel=cast(TextChannel, interaction.channel),
-            lobby_channel=channel
-        )
-        LobbyManager.set_lobby(self.bot, interaction.user.id, lobby_model)
+        guild_id = interaction.guild.id
+
         # Create thread for logging
         thread_message = await channel.send("Creating thread...")
         thread = await channel.create_thread(
             name="History Log Thread",
             message=thread_message
         )
+
+        mongo_lobby_model = MongoLobbyModel(
+            guild_id=guild_id,
+            control_message_id=control_panel.id,
+            owner_id=interaction.user.id,
+            original_channel_id=interaction.channel.id,
+            lobby_channel_id=channel.id,
+            thread_id=thread.id
+        )
+        client = MongoManager().getInstance()
+        collection: Collection = client.lobbies[f'{guild_id}']
+        new_lobby = collection.insert_one(mongo_lobby_model.dict())
+        print(new_lobby)
+
+        LobbyManager.set_lobby(self.bot, interaction.user.id, lobby_model)
         LobbyManager.set_thread(self.bot, interaction.user.id, thread)
         # Add owner to the lobby
         LobbyManager.add_member(interaction.client, interaction.user.id, interaction.user),

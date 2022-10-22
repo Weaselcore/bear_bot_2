@@ -4,7 +4,7 @@ from model.lobby.game_model import GameManager, GameModel
 from discord.ui import Button, View, Modal, TextInput, Select
 from discord import Interaction, SelectOption
 
-from model.lobby.lobby_model import LobbyManager, LobbyState, MemberState
+from model.lobby.lobby_model import LobbyManager
 from view.lobby.embeds import UpdateEmbedManager, UpdateEmbedType
 
 
@@ -191,15 +191,15 @@ class ButtonView(discord.ui.View):
             return
 
         # Reject interaction if lobby is locked
-        lobby_state = LobbyManager.get_lobby_lock(
+        is_locked = LobbyManager.get_lobby_lock(
             interaction.client, self.lobby_id)
-        if lobby_state == LobbyState.LOCK:
+        if is_locked is True:
             # Defer interaction update
             await interaction.response.defer()
             return
 
         # Update member state
-        member_state = LobbyManager.update_member_state(
+        is_ready = LobbyManager.update_member_state(
             interaction.client,
             self.lobby_id,
             interaction.user
@@ -218,7 +218,7 @@ class ButtonView(discord.ui.View):
         thread = LobbyManager.get_thread(interaction.client, self.lobby_id)
 
         # Send update message when member readies up
-        if member_state == MemberState.READY:
+        if is_ready is True:
             message_details = UpdateEmbedManager.get_message_details(
                 interaction.client,
                 self.lobby_id,
@@ -318,13 +318,13 @@ class ButtonView(discord.ui.View):
         await interaction.response.edit_message(view=self)
 
         # Update lobby state
-        lobby_status = LobbyManager.lock(interaction.client, self.lobby_id)
+        is_locked = LobbyManager.lock(interaction.client, self.lobby_id)
 
         status = None
         # Send update message
-        if lobby_status == LobbyState.LOCK:
+        if is_locked is True:
             status = UpdateEmbedType.LOCK
-        elif lobby_status == LobbyState.UNLOCK:
+        elif is_locked is False:
             status = UpdateEmbedType.UNLOCK
         # Update lobby embed
         interaction.client.dispatch('update_lobby_embed', self.lobby_id)

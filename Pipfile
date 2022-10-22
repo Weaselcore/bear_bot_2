@@ -11,6 +11,9 @@ perflint = "*"
 pytz = "*"
 mypy = "*"
 pipenv = "*"
+pydantic = "*"
+pymongo = {extras = ["srv"], version = "*"}
+python-dotenv = "*"
 
 [dev-packages]
 autopep8 = "*"

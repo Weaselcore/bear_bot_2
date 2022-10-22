@@ -215,6 +215,7 @@ class BattleShipGrid:
 
 @dataclass
 class BattleShipGameModel:
+    guild_id: int
     original_channel: TextChannel
 
     player_one: User
