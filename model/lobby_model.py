@@ -150,7 +150,7 @@ class LobbyManager:
         bot.lobby[lobby_id].embed_message = embed_message
 
     @staticmethod
-    def get_queue_embed_message(bot: commands.Bot, lobby_id: int) -> None | discord.Embed:
+    def get_queue_embed_message(bot: commands.Bot, lobby_id: int) -> None | discord.Message:
         return bot.lobby[lobby_id].queue_message
 
     @staticmethod
@@ -249,8 +249,10 @@ class LobbyManager:
         if len(members_queue) == 0:
             # Remove this if there are too many updates.
             bot.lobby[lobby_id].queue_embed = None
-            await LobbyManager.get_queue_embed_message(bot, lobby_id).delete()
-            bot.lobby[lobby_id].queue_message = None
+            queue_message = LobbyManager.get_queue_embed_message(bot, lobby_id)
+            if queue_message is not None:
+                await queue_message.delete()
+                bot.lobby[lobby_id].queue_message = None
 
     @staticmethod
     def update_member_state(
