@@ -43,7 +43,7 @@ class AiCog(commands.Cog):
             await interaction.response.defer()
             response = await asyncio.to_thread(wait_for_response, response_query=query)
             text: str = response["choices"][0]["text"]
-            text_to_send = text.strip().replace('\n', '')
+            text_to_send = text.strip().replace('\n', ' ')
 
             model: str = response["model"]
             embed = discord.Embed(
