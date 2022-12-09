@@ -7,7 +7,7 @@ from discord.ext import commands
 import openai
 
 TITLE_FIELD_NAME_LIMIT=256
-DESCRIPTION_LIMIT=1500
+DESCRIPTION_LIMIT=2048
 FIELD_VALUE_LIMIT= 1024
 
 
