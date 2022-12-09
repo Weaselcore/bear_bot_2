@@ -29,6 +29,7 @@ class MyClient(commands.Bot):
     async def setup_hook(self) -> None:
         await self.load_extension('cog.lobby')
         await self.load_extension('cog.soundboard')
+        await self.load_extension('cog.ai')
         # self.tree.copy_global_to(guild=MY_GUILD)
         # await self.tree.sync(guild=MY_GUILD)
         # TODO: Persistent?
