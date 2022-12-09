@@ -7,7 +7,7 @@ from discord.ext import commands
 import openai
 
 TITLE_FIELD_NAME_LIMIT=256
-DESCRIPTION_LIMIT=2048
+DESCRIPTION_LIMIT=4096
 FIELD_VALUE_LIMIT= 1024
 
 
@@ -24,20 +24,18 @@ class AiCog(commands.Cog):
             else:
                 return string
 
-
         def wait_for_response(response_query: str):
             response_to_wait = openai.Completion.create(
                 model="text-davinci-003",
                 prompt=response_query,
                 temperature=0.6,
-                max_tokens=1500-len(response_query),
+                max_tokens=1028-len(response_query),
             )
 
             while not response_to_wait:
                 time.sleep(1)
 
             return response_to_wait
-
 
         try:
             await interaction.response.defer()
@@ -50,7 +48,7 @@ class AiCog(commands.Cog):
                 title=truncate(query, TITLE_FIELD_NAME_LIMIT),
                 description=truncate(text_to_send, DESCRIPTION_LIMIT),
                 colour=discord.Colour.dark_gold(),
-            ).set_footer(text="💾 AI-MODEL:" + model)
+            ).set_footer(text="💾 AI-MODEL: " + model)
             await interaction.followup.send(embed=embed)
         except Exception as e:
             print(e)
