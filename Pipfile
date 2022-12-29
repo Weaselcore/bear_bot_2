@@ -14,6 +14,7 @@ openai = "*"
 [dev-packages]
 autopep8 = "*"
 pylama = "*"
+mypy = "*"
 
 [requires]
 python_version = "3.10"

@@ -5,10 +5,13 @@ import discord
 import logging
 import logging.handlers
 from discord.ext import commands
+from dotenv import load_dotenv
 
 GUILD = discord.Object(id=299536709778014210)
 TEST_GUILD = discord.Object(id=613605418882564096)
-DEV = False
+FAM_GUILD = discord.Object(id=1058008950131392542)
+DEV = True
+FAM = True
 
 
 class MyClient(commands.Bot):
@@ -30,10 +33,12 @@ class MyClient(commands.Bot):
         await self.load_extension('cog.lobby')
         await self.load_extension('cog.soundboard')
         await self.load_extension('cog.ai')
-        # self.tree.copy_global_to(guild=MY_GUILD)
-        # await self.tree.sync(guild=MY_GUILD)
-        # TODO: Persistent?
-        self.lobby = {}
+        await self.load_extension('cog.quiz')
+        # TODO: Please make this dynamic. This is getting silly now.
+        self.tree.copy_global_to(guild=FAM_GUILD)
+        await self.tree.sync(guild=FAM_GUILD)
+        # TODO: Persistent? Repository Pattern?
+        self.lobby = {} # type: ignore
         # Any database would be initialised here.
 
 
@@ -55,6 +60,9 @@ async def main():
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
+    load_dotenv()
+    print("Retrieving token...")
+
     async with MyClient(intents=discord.Intents.all()) as bot:
 
         # Register the commands.
@@ -69,7 +77,7 @@ async def main():
 
         @bot.tree.command(name="sync")
         async def sync(interaction: discord.Interaction):
-            if interaction.user == interaction.guild.owner:
+            if interaction.user == interaction.guild.owner: # type: ignore
                 # This copies the global commands over to your guild.
                 guild_to_sync = None
                 synced_commands = None
@@ -79,7 +87,7 @@ async def main():
                     guild_to_sync = GUILD
                 if guild_to_sync:
                     bot.tree.copy_global_to(guild=guild_to_sync)
-                    synced_commands: List[discord.AppCommand] | None = await bot.tree.sync(
+                    synced_commands: List[discord.AppCommand] | None = await bot.tree.sync(  # type: ignore
                         guild=guild_to_sync
                     )
                 if synced_commands is None:
