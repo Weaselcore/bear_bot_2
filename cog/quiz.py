@@ -1,10 +1,12 @@
+from copy import copy
 from dataclasses import dataclass
 import datetime
 import html
 import random
+from typing import Generator, Iterator
 from dataclasses_json import dataclass_json
 from discord.ext import commands
-from discord import ButtonStyle, Member, User, app_commands, Interaction, Embed
+from discord import ButtonStyle, Member, Message, User, app_commands, Interaction, Embed
 from discord.ui import View, Button
 import aiohttp
 import json
@@ -12,11 +14,11 @@ import json
 MAX_AMOUNT = 50
 
 DIFFICULTY = [
-        ("Any", "None"),
-        ("Easy", "easy"),
-        ("Medium", "medium"),
-        ("Hard", "hard")
-    ]
+    ("Any", "None"),
+    ("Easy", "easy"),
+    ("Medium", "medium"),
+    ("Hard", "hard")
+]
 
 TYPE = [
     # There is an any type, but might lower complexity by giving a binary option.
@@ -64,30 +66,34 @@ class Question:
     correct_answer: str
     incorrect_answers: list[str]
 
-    def validate(self, answer: str) -> bool:
-        if answer.lower() == self.correct_answer.lower():
-            return True
-        else:
-            return False
+
+@dataclass
+class UserStat:
+    user: Member | User
+    correct: int
+    wrong: int
+    unanswered: int
 
 
 class QuestionEmbed(Embed):
-    def __init__(self, question: Question):
-        self.question = question
+    def __init__(self, question_gen: Iterator[Question]):
+        question = next(question_gen)
         super().__init__(
             title=html.unescape(question.question),
             timestamp=datetime.datetime.now(),
             description="Click buttons to answer question."
         )
 
+
 class QuizAnswerButton(Button):
     def __init__(self,
-        answer: str,
-        correct_answer: str,
-        click_whitelist: list[Member | User],
-        parent_view: View,
-        style: ButtonStyle = ButtonStyle.secondary,
-    ):
+                 answer: str,
+                 correct_answer: str,
+                 click_whitelist: list[Member | User],
+                 # Wrapping type in string quotes allows for linting to be delayed avoiding definition errors.
+                 parent_view: "QuizButtonView",
+                 style: ButtonStyle = ButtonStyle.secondary,
+                 ):
         super().__init__(style=style)
         self.correct_answer = correct_answer.lower()
         self.label = answer.upper()
@@ -100,7 +106,7 @@ class QuizAnswerButton(Button):
     def on_wrong(self) -> None:
         self.style = ButtonStyle.red
         child: QuizAnswerButton
-        for child in self.parent_view.children: # type: ignore
+        for child in self.parent_view.children:  # type: ignore
             if not child.label:
                 raise ValueError("Button label cannot be None")
             else:
@@ -113,7 +119,6 @@ class QuizAnswerButton(Button):
         else:
             raise ValueError("Label has no string, cannot validate answer.")
 
-
     async def callback(self, interaction: Interaction):
         await interaction.response.defer()
         if interaction.user not in self.click_whitelist:
@@ -123,21 +128,30 @@ class QuizAnswerButton(Button):
         else:
             self.on_wrong()
 
-        item: Button
-        for item in self.parent_view.children: # type: ignore
+        item: QuizAnswerButton
+        for item in self.parent_view.children:  # type: ignore
             item.disabled = True
         if self.view:
             # Remember, you need to respond to the interaction before this works.
             await interaction.edit_original_response(view=self.view)
+        await self.parent_view.send_next()
 
 
 class QuizButtonView(View):
-    def __init__(self, question: Question, click_whitelist: list[Member | User], timeout: float | None = 180):
+    def __init__(
+        self,
+        question_gen: Iterator[Question],
+        click_whitelist: list[Member | User],
+        timeout: float | None = 180
+    ):
         super().__init__(timeout=timeout)
-        self.question = question
+        self.click_whitelist = click_whitelist
+        self.question_gen = question_gen
+        self.next_question()
+        self.message: Message
 
-        if question.type == "multiple":
-            answers = self.shuffle_answers(question)
+        if self.question.type == "multiple":
+            answers = self.shuffle_answers(self.question)
         else:
             answers = ['TRUE', 'FALSE']
 
@@ -145,7 +159,7 @@ class QuizButtonView(View):
             self.add_item(
                 QuizAnswerButton(
                     answer=html.unescape(answer),
-                    correct_answer=html.unescape(question.correct_answer),
+                    correct_answer=html.unescape(self.question.correct_answer),
                     click_whitelist=click_whitelist,
                     parent_view=self,
                 )
@@ -157,12 +171,31 @@ class QuizButtonView(View):
         random.shuffle(answer_copy)
         return answer_copy
 
-    async def on_timeout(self) -> None:
-        await super().on_timeout()
-        item: Button
-        for item in self.children: # type: ignore
-            item.disabled = False
+    def next_question(self) -> None:
+        try:
+            self.question = next(self.question_gen)
+        except StopIteration:
+            print("Ran out of questions.")
 
+    async def send_next(self):
+        # Not best practices, probably better to use a parent class.
+        channel = self.message.channel
+        if channel:
+            new_view = QuizButtonView(
+                question_gen=copy(self.question_gen),
+                click_whitelist=self.click_whitelist,
+            )
+            new_embed = QuestionEmbed(
+                question_gen=copy(self.question_gen)
+            )
+            new_view.message = await channel.send(embed=new_embed, view=new_view)
+
+    async def on_timeout(self) -> None:
+        item: QuizAnswerButton
+        for item in self.children: # type: ignore
+            item.disabled = True
+        if self.message:
+            await self.message.edit(view=self)
     # TODO: Write a manager or function within view to spawn another question.
 
 
@@ -173,9 +206,9 @@ def get_url(amount: int, difficulty: str, q_type: str, category: str) -> str:
 
     ROOT_URL = "https://opentdb.com/api.php?"
     DIFFICULTY_PREFIX = "&difficulty="
-    Q_TYPE_PREFIX  = "&type="
+    Q_TYPE_PREFIX = "&type="
     CATEGORY_PREFIX = "&category="
-    
+
     if difficulty == "None":
         difficulty_url = ""
     else:
@@ -191,6 +224,9 @@ def get_url(amount: int, difficulty: str, q_type: str, category: str) -> str:
 
 
 class QuizCog(commands.Cog):
+    def __init__(self, bot: commands.Bot):
+        self.bot = bot
+        self.bot.quiz_lobby = {}  # type: ignore
 
     async def amount_autocomplete(self, interaction: Interaction, current: str) -> list[app_commands.Choice[str]]:
         return [app_commands.Choice(name=str(number), value=str(number)) for number in AMOUNT if current in AMOUNT]
@@ -203,17 +239,16 @@ class QuizCog(commands.Cog):
 
     async def genre_autocomplete(self, interaction: Interaction, current: str) -> list[app_commands.Choice[str]]:
         return [app_commands.Choice(name=category[0], value=str(category[1])) for category in CATEGORY if current.lower() in category[0].lower()]
-    
+
     @app_commands.command(description="Ask for any difficulty/genre question", name="trivia_any")
-    async def any_trivia(self, interaction: Interaction):
+    async def any_trivia(self, interaction: Interaction, amount: int = 5):
         await interaction.response.defer()
         async with aiohttp.ClientSession() as session:
 
-            value = random.random()
             q_type_choices = ["multiple", "boolean"]
             q_type = random.choice(q_type_choices)
 
-            async with session.get(get_url(amount=1, difficulty="None", q_type=q_type, category="None")) as response:
+            async with session.get(get_url(amount=amount, difficulty="None", q_type=q_type, category="None")) as response:
 
                 print(response.status)
 
@@ -221,28 +256,37 @@ class QuizCog(commands.Cog):
                     json_body = await response.text()
                     json_to_dict = json.loads(json_body)
                     print(json_to_dict)
-                    questions = [Question.from_dict(question) for question in json_to_dict["results"]] # type: ignore
+                    questions: list[Question] = [Question.from_dict(  # type: ignore
+                        question) for question in json_to_dict["results"]]
+
                     if json_to_dict["response_code"] == 0:
-                        # await interaction.response.send_message(embed=QuestionEmbed(question=questions[0]))
-                        await interaction.followup.send(
-                            embed=QuestionEmbed(
-                                    question=questions[0]
-                                ),
-                                view=QuizButtonView(
-                                    question=questions[0],
-                                click_whitelist=[interaction.user],
-                            ),
+                        view = QuizButtonView(
+                            question_gen=iter(tuple(questions)),
+                            click_whitelist=[interaction.user],
                         )
-                        # await interaction.channel.send(view=QuizButtonView(question=questions[0]))
+                        # Remember this line, gamechanger.
+                        view.message = await interaction.followup.send(
+                            embed=QuestionEmbed(
+                                question_gen=iter(tuple(questions))
+                            ),
+                            view=view,
+                            # This parameter makes the command wait, so a message it collected/returned when coro is complete.
+                            wait=True
+                        )
                     else:
                         await interaction.followup.send("Server could not complete request.")
-                else: 
+                else:
                     await interaction.followup.send("Server could not complete request.")
 
-
     @app_commands.command(description="Ask for trivia questions", name="trivia")
-    @app_commands.autocomplete(amount=amount_autocomplete, difficulty=difficulty_autocomplete, type=type_autocomplete, category=genre_autocomplete)
+    @app_commands.autocomplete(
+        amount=amount_autocomplete,
+        difficulty=difficulty_autocomplete,
+        type=type_autocomplete,
+        category=genre_autocomplete
+    )
     async def trivia(self, interaction: Interaction, amount: str, difficulty: str, type: str, category: str):
+        await interaction.response.defer()
 
         async with aiohttp.ClientSession() as session:
             async with session.get(get_url(int(amount), difficulty, type, category)) as response:
@@ -253,16 +297,22 @@ class QuizCog(commands.Cog):
                     json_body = await response.text()
                     json_to_dict = json.loads(json_body)
                     print(json_to_dict)
-                    questions = [Question.from_dict(question) for question in json_to_dict["results"]] # type: ignore
+                    questions = [Question.from_dict(  # type: ignore
+                        question) for question in json_to_dict["results"]]
                     if json_to_dict["response_code"] == 0:
-                        # await interaction.response.send_message(embed=QuestionEmbed(question=questions[0]))
-                        await interaction.response.send_message(embed=QuestionEmbed(question=questions[0]), view=QuizButtonView(question=questions[0], click_whitelist=[interaction.user]))
-                        # await interaction.channel.send(view=QuizButtonView(question=questions[0]))
+                        view = QuizButtonView(
+                                question_gen=iter(tuple(questions)),
+                                click_whitelist=[interaction.user]
+                            )
+                        view.message = await interaction.followup.send(
+                            embed=QuestionEmbed(question_gen=iter(tuple(questions))),
+                            view=view,
+                            wait=True
+                        )
                     else:
                         await interaction.response.send_message(f"Server could not complete request. {get_url(int(amount), difficulty, type, category)}")
-                else: 
+                else:
                     await interaction.response.send_message(f"Server could not complete request. {get_url(int(amount), difficulty, type, category)}")
-
 
 
 async def setup(bot):

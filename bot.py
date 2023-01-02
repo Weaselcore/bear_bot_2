@@ -35,8 +35,8 @@ class MyClient(commands.Bot):
         await self.load_extension('cog.ai')
         await self.load_extension('cog.quiz')
         # TODO: Please make this dynamic. This is getting silly now.
-        self.tree.copy_global_to(guild=FAM_GUILD)
-        await self.tree.sync(guild=FAM_GUILD)
+        # self.tree.copy_global_to(guild=FAM_GUILD)
+        # await self.tree.sync(guild=FAM_GUILD)
         # TODO: Persistent? Repository Pattern?
         self.lobby = {} # type: ignore
         # Any database would be initialised here.
