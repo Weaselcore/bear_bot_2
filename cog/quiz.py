@@ -1,4 +1,3 @@
-from copy import copy
 from dataclasses import dataclass, field
 import datetime
 from enum import Enum
@@ -132,7 +131,7 @@ class QuizSession:
     def get_index(self) -> int:
         return self._index + 1
 
-    # TODO: Refactor these three functions below, too much repetition.
+    # TODO: Refactor these 2 functions below, too much repetition.
     def user_correct(self, user: User | Member):
         self.user_answered.add(user.id)
         if not user.id in self.user_statistics.keys():
@@ -177,8 +176,11 @@ class QuestionEmbed(Embed):
         super().__init__(
             title=html.unescape(quiz_manager.current_question.question),
             timestamp=datetime.datetime.now(),
-            description=f"Click buttons to answer question within {quiz_manager.timeout} seconds.",
+            description=f"👇 Select a button to answer question within {quiz_manager.timeout} seconds.",
+            colour=Colour.random()
         )
+        self.add_field(name="Category:", value=quiz_manager.current_question.category)
+        self.add_field(name="Difficulty:", value=quiz_manager.current_question.difficulty.capitalize())
         self.set_footer(text=f"📝 {quiz_manager.get_index()} out of {quiz_manager.max_questions} questions")
 
 
@@ -195,12 +197,12 @@ class ProgressButton(Button):
         self.label =  new_label
 
 
-class QuizAnswerButton(Button):
+class AnswerButton(Button):
     def __init__(self,
                  answer: str,
                  quiz_manager: QuizSession,
                  # Wrapping type in string quotes allows for linting to be delayed avoiding definition errors.
-                 parent_view: "QuizButtonView",
+                 parent_view: "QuestionButtonView",
                  style: ButtonStyle = ButtonStyle.secondary,
                  ):
         super().__init__(style=style)
@@ -233,15 +235,17 @@ class QuizAnswerButton(Button):
         await interaction.response.defer()
         if self.quiz_manager.click_whitelist:
             # If there is a whitelist and user is not in it, do nothing.
-            if interaction.user not in self.quiz_manager.click_whitelist or interaction.user.id in self.quiz_manager.user_answered:
+            if interaction.user not in self.quiz_manager.click_whitelist:
                 return
+        if interaction.user.id in self.quiz_manager.user_answered:
+            return
         if self.is_correct():
             await self.on_correct(interaction.user)
         else:
             await self.on_wrong(interaction.user)
 
         if self.quiz_manager.are_users_done():
-            item: QuizAnswerButton
+            item: AnswerButton
             for item in self.parent_view.children:  # type: ignore
                 item.disabled = True
             await self.parent_view.send_next()
@@ -250,7 +254,7 @@ class QuizAnswerButton(Button):
             await interaction.edit_original_response(view=self.view)
             
 
-class QuizButtonView(View):
+class QuestionButtonView(View):
     def __init__(
         self,
         bot: commands.Bot,
@@ -274,7 +278,7 @@ class QuizButtonView(View):
 
         for answer in answers:
             self.add_item(
-                QuizAnswerButton(
+                AnswerButton(
                     quiz_manager=self.quiz_manager,
                     answer=html.unescape(answer),
                     parent_view=self,
@@ -311,7 +315,7 @@ class QuizButtonView(View):
 
             channel = self.message.channel
             if channel:
-                new_view = QuizButtonView(
+                new_view = QuestionButtonView(
                     quiz_manager=self.quiz_manager,
                     bot=self.bot,
                     timeout=self.timeout
@@ -329,33 +333,32 @@ class QuizButtonView(View):
     async def on_timeout(self) -> None:
         if not self.finished:
             self.on_user_unanswer()
-            self.show_correct_answer()
+            await self.show_correct_answer()
             if self.message:
                 await self.message.edit(view=self)
             await self.send_next()
 
     async def show_correct_answer(self):
         for item in self.children:
-            if isinstance(item, QuizAnswerButton) and item.label:
+            if isinstance(item, AnswerButton) and item.label:
                 if item.correct_answer.lower() == item.label.lower():
                     await item.on_correct()
             item.disabled = True
+        await self.message.edit(view=self)
 
     def on_user_correct(self, user: Member | User):
-        self.quiz_manager.user_correct(user)
         if self.progress_button:
             self.progress_button.update_label(self.quiz_manager.get_progress_label())
+        self.quiz_manager.user_correct(user)
 
     def on_user_wrong(self, user: Member | User):
-        self.quiz_manager.user_wrong(user)
         if self.progress_button:
             self.progress_button.update_label(self.quiz_manager.get_progress_label())
+        self.quiz_manager.user_wrong(user)
 
     def on_user_unanswer(self):
         self.quiz_manager.user_unanswer()
-    
-    def add_progress_button(self):
-        self.add_item()
+
 
 # Construct API Url from parameters
 def get_url(amount: int, difficulty: str, q_type: str, category: str) -> str:
@@ -441,7 +444,7 @@ class QuizCog(commands.Cog):
                             mode=Mode.from_str(mode),
                             timeout=timeout
                         )
-                        view = QuizButtonView(
+                        view = QuestionButtonView(
                             quiz_manager=quiz_manager,
                             bot=self.bot,
                             timeout=timeout
@@ -487,7 +490,7 @@ class QuizCog(commands.Cog):
                             mode=Mode.from_str(mode),
                             timeout=timeout
                         )
-                        view = QuizButtonView(
+                        view = QuestionButtonView(
                             quiz_manager=quiz_manager,
                             bot=self.bot
                         )
@@ -499,9 +502,9 @@ class QuizCog(commands.Cog):
                             wait=True,
                         )
                     else:
-                        await interaction.response.send_message(f"Server could not complete request. {get_url(int(amount), difficulty, type, category)}")
+                        await interaction.edit_original_response(content=f"Server could not complete request. {get_url(int(amount), difficulty, type, category)}")
                 else:
-                    await interaction.response.send_message(f"Server could not complete request. {get_url(int(amount), difficulty, type, category)}")
+                    await interaction.edit_original_response(content=f"Server could not complete request. {get_url(int(amount), difficulty, type, category)}")
 
 
 async def setup(bot):
