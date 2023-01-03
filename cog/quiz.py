@@ -156,10 +156,9 @@ class QuizSession:
 
     def user_unanswer(self):
         for user_id, user_stat in self.user_statistics.items():
-            if user_id in self.user_answered:
-                continue
-            user_stat.unanswered += 1
-            self.user_statistics[user_id] = user_stat
+            if not user_id in self.user_answered:
+                user_stat.unanswered += 1
+                self.user_statistics[user_id] = user_stat
     
     def are_users_done(self) -> bool:
         if len(self.user_answered) == len(self.user_statistics):
