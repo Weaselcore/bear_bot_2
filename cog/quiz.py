@@ -1,6 +1,7 @@
 from copy import copy
 from dataclasses import dataclass, field
 import datetime
+from enum import Enum
 import html
 import random
 from dataclasses_json import dataclass_json
@@ -52,7 +53,31 @@ CATEGORY = [
     ("Anime & Manga", 31),
     ("Cartoons & Animation", 32)
 ]
+
 AMOUNT = [str(x) for x in range(1, 11)]
+
+MODE = [
+    ("SOLO", "Solo"),
+    ("FREE-FOR-ALL", "Free-For-All"),
+    ("TEAM", "Team"),
+]
+
+class Mode(Enum):
+    SOLO = "Solo"
+    FREE_FOR_ALL = "Free-For-All"
+    TEAM = "Team"
+
+    @staticmethod
+    def from_str(option: str):
+        value = option.lower()
+        if value in ('solo'):
+            return Mode.SOLO
+        elif value in ('free-for-all'):
+            return Mode.FREE_FOR_ALL
+        elif value in ('team'):
+            return Mode.TEAM
+        else:
+            raise NotImplementedError
 
 
 @dataclass_json
@@ -78,7 +103,9 @@ class UserStat:
 class QuizSession:
     owner: User | Member
     questions: list[Question]
-    click_whitelist: list[User | Member]
+    mode: Mode
+    timeout: int
+    click_whitelist: list[User | Member] | None = field(init=False)
     user_statistics: dict[int, UserStat] = field(default_factory=dict)
     current_question: Question = field(init=False)
     max_questions: int = field(init=False)
@@ -90,6 +117,12 @@ class QuizSession:
         self.current_question = self.questions[self._index]
         # Always has someone initialised in stats.
         self.user_statistics[self.owner.id] = UserStat(self.owner)
+        if self.mode == Mode.SOLO:
+            self.click_whitelist = [self.owner]
+        elif self.mode == Mode.FREE_FOR_ALL:
+            self.click_whitelist = None
+        else:
+            raise NotImplementedError("Teams have not been implemented.")
 
     def next_question(self) -> None:
         self._index += 1
@@ -101,6 +134,7 @@ class QuizSession:
 
     # TODO: Refactor these three functions below, too much repetition.
     def user_correct(self, user: User | Member):
+        self.user_answered.add(user.id)
         if not user.id in self.user_statistics.keys():
             new_stat = UserStat(user=user)
             new_stat.correct += 1
@@ -109,9 +143,9 @@ class QuizSession:
             user_stat = self.user_statistics[user.id]
             user_stat.correct += 1
             self.user_statistics[user.id] = user_stat
-        self.user_answered.add(user.id)
-    
+
     def user_wrong(self, user: User | Member):
+        self.user_answered.add(user.id)
         if not user.id in self.user_statistics.keys():
             new_stat = UserStat(user=user)
             new_stat.wrong += 1
@@ -120,7 +154,6 @@ class QuizSession:
             user_stat = self.user_statistics[user.id]
             user_stat.wrong += 1
             self.user_statistics[user.id] = user_stat
-        self.user_answered.add(user.id)
 
     def user_unanswer(self):
         for user_id, user_stat in self.user_statistics.items():
@@ -128,6 +161,15 @@ class QuizSession:
                 continue
             user_stat.unanswered += 1
             self.user_statistics[user_id] = user_stat
+    
+    def are_users_done(self) -> bool:
+        if len(self.user_answered) == len(self.user_statistics):
+            return True
+        else:
+            return False
+
+    def get_progress_label(self) -> str:
+        return f"☑️ {len(self.user_answered)}/{len(self.user_statistics)}"
 
 
 class QuestionEmbed(Embed):
@@ -135,8 +177,22 @@ class QuestionEmbed(Embed):
         super().__init__(
             title=html.unescape(quiz_manager.current_question.question),
             timestamp=datetime.datetime.now(),
-            description="Click buttons to answer question."
+            description=f"Click buttons to answer question within {quiz_manager.timeout} seconds.",
         )
+        self.set_footer(text=f"📝 {quiz_manager.get_index()} out of {quiz_manager.max_questions} questions")
+
+
+class ProgressButton(Button):
+    def __init__(
+        self,
+        label: str,
+        style: ButtonStyle = ButtonStyle.blurple
+    ):
+        super().__init__(style=style)
+        self.label = label
+
+    def update_label(self, new_label: str):
+        self.label =  new_label
 
 
 class QuizAnswerButton(Button):
@@ -150,26 +206,21 @@ class QuizAnswerButton(Button):
         super().__init__(style=style)
         self.quiz_manager = quiz_manager
         self.correct_answer = html.unescape(quiz_manager.current_question.correct_answer.lower())
+        self.answer = answer
         self.label = answer.upper()
-        self.click_whitelist = quiz_manager.click_whitelist
         self.parent_view = parent_view
 
-    def on_correct(self, user: User | Member | None = None) -> None:
-        self.style = ButtonStyle.green
+    async def on_correct(self, user: User | Member | None = None) -> None:
+        if self.quiz_manager.are_users_done():
+            self.style = ButtonStyle.green
         if not user:
             return
         self.parent_view.on_user_correct(user)
 
-
-    def on_wrong(self, user: User | Member) -> None:
-        self.style = ButtonStyle.red
-        child: QuizAnswerButton
-        for child in self.parent_view.children:  # type: ignore
-            if not child.label:
-                raise ValueError("Button label cannot be None")
-            else:
-                if child.label.lower() == self.correct_answer:
-                    child.on_correct()
+    async def on_wrong(self, user: User | Member) -> None:
+        if self.quiz_manager.mode == Mode.SOLO:
+            self.style = ButtonStyle.red
+            await self.parent_view.show_correct_answer()
         self.parent_view.on_user_wrong(user)
 
     def is_correct(self) -> bool:
@@ -180,22 +231,24 @@ class QuizAnswerButton(Button):
 
     async def callback(self, interaction: Interaction):
         await interaction.response.defer()
-        if interaction.user not in self.click_whitelist:
-            return
+        if self.quiz_manager.click_whitelist:
+            # If there is a whitelist and user is not in it, do nothing.
+            if interaction.user not in self.quiz_manager.click_whitelist or interaction.user.id in self.quiz_manager.user_answered:
+                return
         if self.is_correct():
-            self.on_correct(interaction.user)
+            await self.on_correct(interaction.user)
         else:
-            self.on_wrong(interaction.user)
+            await self.on_wrong(interaction.user)
 
-        item: QuizAnswerButton
-        for item in self.parent_view.children:  # type: ignore
-            item.disabled = True
+        if self.quiz_manager.are_users_done():
+            item: QuizAnswerButton
+            for item in self.parent_view.children:  # type: ignore
+                item.disabled = True
+            await self.parent_view.send_next()
         if self.view:
             # Remember, you need to respond to the interaction before this works.
             await interaction.edit_original_response(view=self.view)
-
-        await self.parent_view.send_next()
-
+            
 
 class QuizButtonView(View):
     def __init__(
@@ -208,6 +261,9 @@ class QuizButtonView(View):
         self.quiz_manager = quiz_manager
         self._message: Message | None = None
         self.bot = bot
+        # Flag to stop infinite loop when on timeout handler.
+        self.finished = False
+        self.progress_button: ProgressButton | None = None
 
         current_question = self.quiz_manager.current_question
 
@@ -224,6 +280,9 @@ class QuizButtonView(View):
                     parent_view=self,
                 )
             )
+        if not quiz_manager.mode == Mode.SOLO:
+            self.progress_button = ProgressButton(label=quiz_manager.get_progress_label())
+            self.add_item(self.progress_button)
 
     @property
     def message(self):
@@ -247,39 +306,56 @@ class QuizButtonView(View):
 
     async def send_next(self):
         try:
+            await self.show_correct_answer()
             self.next_question()
 
             channel = self.message.channel
             if channel:
                 new_view = QuizButtonView(
                     quiz_manager=self.quiz_manager,
-                    bot=self.bot
+                    bot=self.bot,
+                    timeout=self.timeout
                 )
                 new_embed = QuestionEmbed(
                     quiz_manager=self.quiz_manager
                 )
                 new_view.message = await channel.send(embed=new_embed, view=new_view)
+                self.finished = True
         except IndexError:
             if self.message:
                 self.bot.dispatch("quiz_finish", self.message.channel, self.quiz_manager.user_statistics, self.quiz_manager.max_questions)
+                self.finished = True
 
     async def on_timeout(self) -> None:
-        self.on_user_unanswer()
-        item: QuizAnswerButton
-        for item in self.children:  # type: ignore
+        if not self.finished:
+            self.on_user_unanswer()
+            self.show_correct_answer()
+            if self.message:
+                await self.message.edit(view=self)
+            await self.send_next()
+
+    async def show_correct_answer(self):
+        for item in self.children:
+            if isinstance(item, QuizAnswerButton) and item.label:
+                if item.correct_answer.lower() == item.label.lower():
+                    await item.on_correct()
             item.disabled = True
-        if self.message:
-            await self.message.edit(view=self)
-        await self.send_next()
 
     def on_user_correct(self, user: Member | User):
         self.quiz_manager.user_correct(user)
+        if self.progress_button:
+            self.progress_button.update_label(self.quiz_manager.get_progress_label())
 
     def on_user_wrong(self, user: Member | User):
         self.quiz_manager.user_wrong(user)
+        if self.progress_button:
+            self.progress_button.update_label(self.quiz_manager.get_progress_label())
 
     def on_user_unanswer(self):
         self.quiz_manager.user_unanswer()
+    
+    def add_progress_button(self):
+        self.add_item()
 
 # Construct API Url from parameters
 def get_url(amount: int, difficulty: str, q_type: str, category: str) -> str:
@@ -317,7 +393,10 @@ class QuizCog(commands.Cog):
             colour=Colour.blue(),
         )
         for _, user_stat in user_stats.items():
-            embed.add_field(name=user_stat.user.name, value=f"Correct: {user_stat.correct} | Wrong: {user_stat.wrong} | Unanswered: {user_stat.unanswered}")
+            embed.add_field(
+                name=user_stat.user.display_name, value=f"Correct: {user_stat.correct} | Wrong: {user_stat.wrong} | Unanswered: {user_stat.unanswered}",
+                inline=False
+            )
         await channel.send(embed=embed)
 
     async def amount_autocomplete(self, interaction: Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -332,8 +411,15 @@ class QuizCog(commands.Cog):
     async def genre_autocomplete(self, interaction: Interaction, current: str) -> list[app_commands.Choice[str]]:
         return [app_commands.Choice(name=category[0], value=str(category[1])) for category in CATEGORY if current.lower() in category[0].lower()]
 
+    async def mode_autocomplete(self, interaction: Interaction, current: str) -> list[app_commands.Choice[str]]:
+        return [app_commands.Choice(name=mode[0], value=mode[1]) for mode in MODE if current.lower() in mode[0].lower()]
+
     @app_commands.command(description="Ask for any difficulty/genre question", name="trivia_any")
-    async def any_trivia(self, interaction: Interaction, amount: int = 5):
+    @app_commands.autocomplete(
+        amount=amount_autocomplete,
+        mode=mode_autocomplete
+    )
+    async def any_trivia(self, interaction: Interaction, amount: int = 5, mode: str = Mode.FREE_FOR_ALL.value, timeout: int = 15):
         await interaction.response.defer()
         async with aiohttp.ClientSession() as session:
 
@@ -352,12 +438,13 @@ class QuizCog(commands.Cog):
                         quiz_manager = QuizSession(
                             owner=interaction.user,
                             questions=questions,
-                            # TODO: Make clickwhitelist dynamic depending on modes.
-                            click_whitelist=[interaction.user]
+                            mode=Mode.from_str(mode),
+                            timeout=timeout
                         )
                         view = QuizButtonView(
                             quiz_manager=quiz_manager,
-                            bot=self.bot
+                            bot=self.bot,
+                            timeout=timeout
                         )
                         # Remember this line, gamechanger.
                         view.message = await interaction.followup.send(
@@ -378,9 +465,10 @@ class QuizCog(commands.Cog):
         amount=amount_autocomplete,
         difficulty=difficulty_autocomplete,
         type=type_autocomplete,
-        category=genre_autocomplete
+        category=genre_autocomplete,
+        mode=mode_autocomplete
     )
-    async def trivia(self, interaction: Interaction, amount: str, difficulty: str, type: str, category: str):
+    async def trivia(self, interaction: Interaction, amount: str, difficulty: str, type: str, category: str, mode: str = Mode.FREE_FOR_ALL.value, timeout: int = 15):
         await interaction.response.defer()
 
         async with aiohttp.ClientSession() as session:
@@ -396,7 +484,8 @@ class QuizCog(commands.Cog):
                         quiz_manager = QuizSession(
                             owner=interaction.user,
                             questions=questions,
-                            click_whitelist=[interaction.user]
+                            mode=Mode.from_str(mode),
+                            timeout=timeout
                         )
                         view = QuizButtonView(
                             quiz_manager=quiz_manager,
