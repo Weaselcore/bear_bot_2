@@ -137,6 +137,8 @@ class QuizSession:
         if not user.id in self.user_statistics.keys():
             new_stat = UserStat(user=user)
             new_stat.correct += 1
+            if self._index > 0:
+                new_stat.unanswered = self._index
             self.user_statistics[user.id] = new_stat
         else:
             user_stat = self.user_statistics[user.id]
@@ -148,6 +150,8 @@ class QuizSession:
         if not user.id in self.user_statistics.keys():
             new_stat = UserStat(user=user)
             new_stat.wrong += 1
+            if self._index > 0:
+                new_stat.unanswered = self._index
             self.user_statistics[user.id] = new_stat
         else:
             user_stat = self.user_statistics[user.id]
@@ -235,8 +239,11 @@ class AnswerButton(Button):
         if self.quiz_manager.click_whitelist:
             # If there is a whitelist and user is not in it, do nothing.
             if interaction.user not in self.quiz_manager.click_whitelist:
+                print("User is not in the whitelist.")
                 return
+        # Check if user has answered before
         if interaction.user.id in self.quiz_manager.user_answered:
+            print("User is in answered list.")
             return
         if self.is_correct():
             await self.on_correct(interaction.user)
@@ -244,6 +251,7 @@ class AnswerButton(Button):
             await self.on_wrong(interaction.user)
 
         if self.quiz_manager.are_users_done():
+            self.parent_view.active = True
             item: AnswerButton
             for item in self.parent_view.children:  # type: ignore
                 item.disabled = True
@@ -265,7 +273,7 @@ class QuestionButtonView(View):
         self._message: Message | None = None
         self.bot = bot
         # Flag to stop infinite loop when on timeout handler.
-        self.finished = False
+        self.active = False
         self.progress_button: ProgressButton | None = None
 
         current_question = self.quiz_manager.current_question
@@ -323,14 +331,14 @@ class QuestionButtonView(View):
                     quiz_manager=self.quiz_manager
                 )
                 new_view.message = await channel.send(embed=new_embed, view=new_view)
-                self.finished = True
+                self.active = True
         except IndexError:
             if self.message:
                 self.bot.dispatch("quiz_finish", self.message.channel, self.quiz_manager.user_statistics, self.quiz_manager.max_questions)
-                self.finished = True
+                self.active = True
 
     async def on_timeout(self) -> None:
-        if not self.finished:
+        if not self.active:
             self.on_user_unanswer()
             await self.show_correct_answer()
             if self.message:
@@ -343,20 +351,23 @@ class QuestionButtonView(View):
                 if item.correct_answer.lower() == item.label.lower():
                     await item.on_correct()
             item.disabled = True
+        self.progress_button.update_label(self.quiz_manager.get_progress_label())
         await self.message.edit(view=self)
 
     def on_user_correct(self, user: Member | User):
+        self.quiz_manager.user_correct(user)
         if self.progress_button:
             self.progress_button.update_label(self.quiz_manager.get_progress_label())
-        self.quiz_manager.user_correct(user)
 
     def on_user_wrong(self, user: Member | User):
+        self.quiz_manager.user_wrong(user)
         if self.progress_button:
             self.progress_button.update_label(self.quiz_manager.get_progress_label())
-        self.quiz_manager.user_wrong(user)
 
     def on_user_unanswer(self):
         self.quiz_manager.user_unanswer()
+        if self.progress_button:
+            self.progress_button.update_label(self.quiz_manager.get_progress_label())
 
 
 # Construct API Url from parameters
@@ -391,15 +402,18 @@ class QuizCog(commands.Cog):
     async def on_quiz_finish(self, channel: TextChannel, user_stats: dict[int, UserStat], max_question: int):
         embed = Embed(
             title="Quiz Statistics",
-            description=f"There were {max_question} questions for this session.",
+            description=f"There were {max_question} questions for this session.", 
             colour=Colour.blue(),
         )
         for _, user_stat in user_stats.items():
             embed.add_field(
-                name=user_stat.user.display_name, value=f"Correct: {user_stat.correct} | Wrong: {user_stat.wrong} | Unanswered: {user_stat.unanswered}",
-                inline=False
+                name=user_stat.user.display_name,
+                value=f"Correct: {user_stat.correct} | Incorrect: {user_stat.wrong} | Unanswered: {user_stat.unanswered}",
+                inline=False,
             )
+            embed.set_thumbnail(url="https://png.pngtree.com/png-clipart/20190705/original/pngtree-vector-information-icon-png-image_4225166.jpg")
         await channel.send(embed=embed)
+
 
     async def amount_autocomplete(self, interaction: Interaction, current: str) -> list[app_commands.Choice[str]]:
         return [app_commands.Choice(name=str(number), value=str(number)) for number in AMOUNT if current in AMOUNT]
