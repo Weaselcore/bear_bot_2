@@ -1,19 +1,17 @@
 import asyncio
 import os
-from typing import List
+from typing import List, Literal
 import discord
 import logging
 import logging.handlers
 from discord.ext import commands
-
-GUILD = discord.Object(id=299536709778014210)
-TEST_GUILD = discord.Object(id=613605418882564096)
-DEV = False
+from dotenv import load_dotenv
+from discord.ext.commands import Context, Greedy
 
 
 class MyClient(commands.Bot):
     def __init__(self, *, intents: discord.Intents):
-        super().__init__(command_prefix="/", intents=intents)
+        super().__init__(command_prefix="/", intents=intents, help_command=None)
         # A CommandTree is a special type that holds all the application command
         # state required to make it work. This is a separate class because it
         # allows all the extra state to be opt-in.
@@ -30,10 +28,8 @@ class MyClient(commands.Bot):
         await self.load_extension('cog.lobby')
         await self.load_extension('cog.soundboard')
         await self.load_extension('cog.ai')
-        # self.tree.copy_global_to(guild=MY_GUILD)
-        # await self.tree.sync(guild=MY_GUILD)
-        # TODO: Persistent?
-        self.lobby = {}
+        # await self.load_extension('cog.quiz')
+        self.lobby = {} # type: ignore
         # Any database would be initialised here.
 
 
@@ -55,6 +51,9 @@ async def main():
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
+    load_dotenv()
+    print("Retrieving token...")
+
     async with MyClient(intents=discord.Intents.all()) as bot:
 
         # Register the commands.
@@ -67,31 +66,41 @@ async def main():
         async def hi(interaction: discord.Interaction):
             await interaction.response.send_message(f'Hi, {interaction.user.mention}')
 
-        @bot.tree.command(name="sync")
-        async def sync(interaction: discord.Interaction):
-            if interaction.user == interaction.guild.owner:
-                # This copies the global commands over to your guild.
-                guild_to_sync = None
-                synced_commands = None
-                if DEV:
-                    guild_to_sync = TEST_GUILD
+
+        @bot.command()
+        @commands.guild_only()
+        @commands.is_owner()
+        async def sync(
+        ctx: Context, guilds: Greedy[discord.Object], option: Literal["~", "*", "^"] | None = None) -> None:
+            if not guilds:
+                if option == "~":
+                    synced = await ctx.bot.tree.sync(guild=ctx.guild)
+                elif option == "*":
+                    ctx.bot.tree.copy_global_to(guild=ctx.guild)
+                    synced = await ctx.bot.tree.sync(guild=ctx.guild)
+                elif option == "^":
+                    ctx.bot.tree.clear_commands(guild=ctx.guild)
+                    await ctx.bot.tree.sync(guild=ctx.guild)
+                    synced = []
                 else:
-                    guild_to_sync = GUILD
-                if guild_to_sync:
-                    bot.tree.copy_global_to(guild=guild_to_sync)
-                    synced_commands: List[discord.AppCommand] | None = await bot.tree.sync(
-                        guild=guild_to_sync
-                    )
-                if synced_commands is None:
-                    await interaction.response.send_message(
-                        content="No commands to sync"
-                    )
+                    synced = await ctx.bot.tree.sync()
+
+                await ctx.send(
+                    f"Synced {len(synced)} commands {'globally' if option is None else 'to the current guild.'}"
+                )
+                return
+
+            returned = 0
+            for guild in guilds:
+                try:
+                    await ctx.bot.tree.sync(guild=guild)
+                except discord.HTTPException:
+                    pass
                 else:
-                    await interaction.response.send_message(
-                        content=f'Synced {len(synced_commands)} commands'
-                    )
-            else:
-                await interaction.response.send_message(content="You are not the guild owner")
+                    returned += 1
+
+            await ctx.send(f"Synced the tree to {returned}/{len(guilds)}.")
+
 
         # Start the bot.
         await bot.start(os.environ['TOKEN'])
