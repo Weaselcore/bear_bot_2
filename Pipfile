@@ -10,10 +10,12 @@ aiofiles = "*"
 perflint = "*"
 pytz = "*"
 openai = "*"
+aiofile = "*"
 
 [dev-packages]
 autopep8 = "*"
 pylama = "*"
+types-aiofiles = "*"
 
 [requires]
 python_version = "3.10"
