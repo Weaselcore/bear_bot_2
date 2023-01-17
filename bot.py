@@ -1,6 +1,6 @@
 import asyncio
 import os
-from typing import List, Literal
+from typing import Literal
 import discord
 import logging
 import logging.handlers
@@ -66,11 +66,15 @@ async def main():
         async def hi(interaction: discord.Interaction):
             await interaction.response.send_message(f'Hi, {interaction.user.mention}')
 
+        @bot.tree.command(name="ping")
+        async def ping(interaction: discord.Interaction):
+            await interaction.response.send_message(f'Pong! {bot.latency * 1000:.2f}ms')
+
 
         @bot.command()
         @commands.guild_only()
         @commands.is_owner()
-        async def sync(
+        async def nsync(
         ctx: Context, guilds: Greedy[discord.Object], option: Literal["~", "*", "^"] | None = None) -> None:
             if not guilds:
                 if option == "~":
