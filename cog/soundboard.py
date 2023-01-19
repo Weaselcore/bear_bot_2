@@ -190,7 +190,7 @@ class SoundBoardCog(commands.Cog):
             )
 
 
-    @app_commands.command(description="Stop voice client", name='stop')
+    @app_commands.command(description="Stops and disconnects voice client", name='stop')
     async def stop(self, interaction: Interaction):
 
         if not interaction.guild:
