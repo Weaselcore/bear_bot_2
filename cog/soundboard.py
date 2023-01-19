@@ -1,4 +1,3 @@
-import asyncio
 import aiohttp
 from pathlib import Path
 from discord.ext import commands
