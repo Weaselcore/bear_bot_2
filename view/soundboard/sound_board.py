@@ -15,7 +15,8 @@ class SoundButton(discord.ui.Button):
         self.label = file_path
         self.style = discord.ButtonStyle.blurple
 
-    def callback(self, interaction: discord.Interaction) -> None:
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         self.bot.dispatch("play", interaction, self.custom_id)
 
 
