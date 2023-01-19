@@ -19,7 +19,7 @@ class SoundBoardCog(commands.Cog):
 
 
     @commands.Cog.listener()
-    async def on_voice_state_update(self, member: Member, before: VoiceState, after: VoiceState):
+    async def on_voice_state_update(self, _: Member, before: VoiceState, after: VoiceState):
         if not after.channel == before.channel:
             if(len(before.channel.members) == 1 and self.bot.user in before.channel.members): # type: ignore
                 voice_client: VoiceClient = before.channel.guild.voice_client # type: ignore
@@ -56,18 +56,8 @@ class SoundBoardCog(commands.Cog):
             volume=0.55
         )
 
-        # Create callback co-routine to disconnect after playing
-        # def after_playing(error, voice_client: discord.VoiceProtocol):
-        #     coroutine = voice_client.disconnect(force=False)
-        #     future = asyncio.run_coroutine_threadsafe(coroutine, self.bot.loop)
-        #     try:
-        #         future.result()
-        #     except Exception:
-        #         print(error)
-
         voice_client.play( # type: ignore
             source=source,
-            # after=lambda error: after_playing(error, voice_client)
         )
 
     @commands.Cog.listener()
@@ -126,6 +116,7 @@ class SoundBoardCog(commands.Cog):
                     ephemeral=True
                 )
 
+
     @app_commands.command(
         description="Server boost: T1 - 8mb, T2 - 50mb, T3 - 100mb", name='upload'
     )
@@ -134,6 +125,7 @@ class SoundBoardCog(commands.Cog):
         await interaction.response.send_modal(
             UploadSubmission(self.bot, file),
         )
+
 
     @app_commands.command(description="Manually update soundboard", name='update')
     async def update(self, interaction: Interaction):
@@ -161,10 +153,12 @@ class SoundBoardCog(commands.Cog):
                     break
         return list_of_files
 
+
     @app_commands.command(description="Play soundbite", name='play')
     @app_commands.autocomplete(name=file_search)
     async def play(self, interaction: Interaction, name: str):
         self.bot.dispatch("play", interaction, name)
+
 
     @app_commands.command(description="Delete soundbite", name='delete')
     @app_commands.autocomplete(name=file_search)
@@ -177,6 +171,7 @@ class SoundBoardCog(commands.Cog):
             await interaction.response.send_message(
                 content=f"{name}.mp3 does not exist. Please report this."
             )
+
 
     @app_commands.command(description="Stop voice client", name='stop')
     async def stop(self, interaction: Interaction):
@@ -207,6 +202,7 @@ class SoundBoardCog(commands.Cog):
                 ephemeral=True
             )
 
+
     @app_commands.command(
         description="Create soundbite from Streamable URL",
         name='streamable'
@@ -233,12 +229,14 @@ class SoundBoardCog(commands.Cog):
                 StreamableSubmission(self.bot, video_url, file_name),
             )
 
+
     @app_commands.command(
         description="Initialise soundboard channel for guild.",
         name='createsoundboardchannel',
     )
     async def create_soundboard_channel(self, interaction: Interaction):
         self.bot.dispatch("soundboard_update", interaction)
+
 
     async def cog_unload(self):
         if self.soundboard_channel is not None:
