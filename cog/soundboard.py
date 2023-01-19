@@ -15,6 +15,13 @@ class SoundBoardCog(commands.Cog):
         self.bot: commands.Bot = bot
         self.soundboard_channel: discord.TextChannel | None = None
         self.ffmpeg_path = Path("ffmpeg.exe")
+
+        # Creates persistent view when cog is loaded
+        for view in self.create_soundboard_view():
+            # Will only add view if it already exist
+            # TODO: Use db to store differences to determine if view needs to be updated.
+            self.bot.add_view(view=view)
+
         print('SoundBoardCog loaded')
 
 
@@ -60,6 +67,27 @@ class SoundBoardCog(commands.Cog):
             source=source,
         )
 
+    
+    def create_soundboard_view(self) -> list[SoundBoardView]:
+
+        soundboard_view_list = []
+        view = SoundBoardView()
+        count = 1
+        file_iterator = Path("data/sound_bites").iterdir()
+
+        for file in file_iterator:
+            view.add_item(SoundButton(self.bot, file.stem))
+            count += 1
+            # If there are more than 25 buttons, create a new view
+            if count == 25:
+                soundboard_view_list.append(view)
+                view = SoundBoardView()
+        else:  # Send the last view
+            soundboard_view_list.append(view)
+        return soundboard_view_list
+        
+
+
     @commands.Cog.listener()
     async def on_soundboard_update(self, interaction: Interaction):
         if not interaction.guild:
@@ -90,20 +118,9 @@ class SoundBoardCog(commands.Cog):
             new_channel = await channel.clone()
             await channel.delete()
 
-        view = SoundBoardView()
-        # Create persistent soundboard views
-        count = 1
-        file_iterator = Path("data/sound_bites").iterdir()
-        for file in file_iterator:
-            view.add_item(SoundButton(self.bot, file.stem))
-            count += 1
-            # If there are more than 25 buttons, create a new view
-            if count == 25:
-                await new_channel.send(
-                    view=view,
-                )
-                view = SoundBoardView()
-        else:  # Send the last view
+        soundboard_view_list = self.create_soundboard_view()
+
+        for view in soundboard_view_list:
             await new_channel.send(
                 view=view,
             )
