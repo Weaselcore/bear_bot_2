@@ -54,6 +54,9 @@ class SoundBoardCog(commands.Cog):
         if not voice_client:
             return ValueError("Voice client could not be connected.")
 
+        if voice_client.is_playing(): # type: ignore
+            voice_client.stop() # type: ignore
+
         # Prepare audio source
         file_path = Path(f"data/sound_bites/{custom_id}.mp3")
         source = discord.PCMVolumeTransformer(
