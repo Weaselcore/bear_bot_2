@@ -6,7 +6,6 @@ from discord.ext import commands
 
 from model.lobby_model import LobbyManager, LobbyState
 
-
 class LobbyEmbed(discord.Embed):
     def __init__(
         self,
@@ -17,7 +16,7 @@ class LobbyEmbed(discord.Embed):
         super().__init__(description='No description set')
         self.lobby_id = lobby_id
         self.bot = bot
-        self.color = discord.Color.red()
+        self.color = discord.Color.red() # type: ignore
         self.type
 
     async def update(self):
