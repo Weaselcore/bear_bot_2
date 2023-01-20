@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 from time import gmtime, strftime
-from typing import Protocol
+from typing import Any, Protocol
 import discord
 
 from view.lobby.embeds import LobbyEmbed, QueueEmbed
@@ -48,6 +48,7 @@ class LobbyModel:
     created_datetime = datetime.now()
     description: str | None = None
     embed: LobbyEmbed | None = None
+    queue_embed: QueueEmbed | None = None
     embed_message: discord.Message | None = None
     queue_message: discord.Message | None = None
     game_code = 'gametype'
@@ -61,70 +62,66 @@ class LobbyModel:
     status = LobbyState.UNLOCK
 
 
-class LobbyBot(Protocol):
-    lobby: dict[int, LobbyModel]
-
-
 class LobbyManager:
 
     @classmethod
-    def get_lobby(cls, bot: LobbyBot, lobby_id: int) -> LobbyModel:
+    def get_lobby(cls, bot: Any, lobby_id: int) -> LobbyModel:
         try:
             return bot.lobby[lobby_id]
         except KeyError:
             raise KeyError(f'Lobby {lobby_id} does not exist.')
 
     @classmethod
-    def set_lobby(cls, bot: LobbyBot, lobby_id: int, lobby: LobbyModel) -> None:
+    def set_lobby(cls, bot: Any, lobby_id: int, lobby: LobbyModel) -> None:
         bot.lobby[lobby_id] = lobby
 
     @classmethod
-    def get_thread(cls, bot: LobbyBot, lobby_id: int) -> discord.Thread | None:
+    def get_thread(cls, bot: Any, lobby_id: int) -> discord.Thread | None:
         return cls.get_lobby(bot, lobby_id).thread
 
     @classmethod
-    def set_thread(cls, bot: LobbyBot, lobby_id: int, thread: discord.Thread) -> None:
+    def set_thread(cls, bot: Any, lobby_id: int, thread: discord.Thread) -> None:
         cls.get_lobby(bot, lobby_id).thread = thread
 
     @classmethod
-    def get_gamecode(cls, bot: LobbyBot, lobby_id: int) -> str:
+    def get_gamecode(cls, bot: Any, lobby_id: int) -> str:
         return cls.get_lobby(bot, lobby_id).game_code
 
     @classmethod
-    def set_gamecode(cls, bot: LobbyBot, lobby_id: int, game_code: str) -> None:
+    def set_gamecode(cls, bot: Any, lobby_id: int, game_code: str) -> None:
         cls.get_lobby(bot, lobby_id).game_code = game_code
 
     @classmethod
-    def get_gamesize(cls, bot: LobbyBot, lobby_id: int) -> int:
+    def get_gamesize(cls, bot: Any, lobby_id: int) -> int:
         return cls.get_lobby(bot, lobby_id).game_size
 
     @classmethod
-    def set_gamesize(cls, bot: LobbyBot, lobby_id: int, game_size: int) -> None:
+    def set_gamesize(cls, bot: Any, lobby_id: int, game_size: int) -> None:
         cls.get_lobby(bot, lobby_id).game_size = game_size
 
     @classmethod
-    def get_lobby_name(cls, bot: LobbyBot) -> str:
+    def get_lobby_name(cls, bot: Any) -> str:
         lobby_number = len(bot.lobby)
         return f'Lobby {lobby_number}'
 
     @classmethod
-    def get_lobby_id(cls, bot: LobbyBot, lobby_id: int) -> discord.TextChannel:
+    def get_lobby_id(cls, bot: Any, lobby_id: int) -> discord.TextChannel:
         return cls.get_lobby(bot, lobby_id).lobby_channel
 
     @classmethod
-    def get_lobby_owner(cls, bot: LobbyBot, lobby_id: int) -> discord.Member:
+    def get_lobby_owner(cls, bot: Any, lobby_id: int) -> discord.Member:
         return cls.get_lobby(bot, lobby_id).owner
 
     @classmethod
-    def print_lobby(cls, bot: LobbyBot, lobby_id: int) -> None:
+    def print_lobby(cls, bot: Any, lobby_id: int) -> None:
         print(cls.get_lobby(bot, lobby_id))
 
     @classmethod
-    def get_lobby_status(cls, bot: LobbyBot, lobby_id: int) -> LobbyState:
+    def get_lobby_status(cls, bot: Any, lobby_id: int) -> LobbyState:
         return cls.get_lobby(bot, lobby_id).status
 
     @classmethod
-    def update_lobby_status(cls, bot: LobbyBot, lobby_id: int) -> None:
+    def update_lobby_status(cls, bot: Any, lobby_id: int) -> None:
         lobby_model = cls.get_lobby(bot, lobby_id)
 
         if lobby_model.status == LobbyState.UNLOCK:
@@ -133,68 +130,68 @@ class LobbyManager:
             lobby_model.status = LobbyState.UNLOCK
 
     @classmethod
-    def get_channel(cls, bot: LobbyBot, lobby_id: int) -> discord.TextChannel:
+    def get_channel(cls, bot: Any, lobby_id: int) -> discord.TextChannel:
         return cls.get_lobby(bot, lobby_id).lobby_channel
 
     @classmethod
-    def get_original_channel(cls, bot: LobbyBot, lobby_id: int) -> discord.TextChannel:
+    def get_original_channel(cls, bot: Any, lobby_id: int) -> discord.TextChannel:
         return cls.get_lobby(bot, lobby_id).original_channel
 
     @classmethod
-    def get_control_panel(cls, bot: LobbyBot, lobby_id: int) -> discord.Message:
+    def get_control_panel(cls, bot: Any, lobby_id: int) -> discord.Message:
         return cls.get_lobby(bot, lobby_id).control_panel
 
     @classmethod
-    def get_embed_message(cls, bot: LobbyBot, lobby_id: int) -> discord.Message | None:
+    def get_embed_message(cls, bot: Any, lobby_id: int) -> discord.Message | None:
         return cls.get_lobby(bot, lobby_id).embed_message
 
     @classmethod
-    def set_embed_message(cls, bot: LobbyBot, lobby_id: int, embed_message: discord.Message) -> None:
+    def set_embed_message(cls, bot: Any, lobby_id: int, embed_message: discord.Message) -> None:
         cls.get_lobby(bot, lobby_id).embed_message = embed_message
 
     @classmethod
-    def get_queue_embed_message(cls, bot: LobbyBot, lobby_id: int) -> None | discord.Message:
+    def get_queue_embed_message(cls, bot: Any, lobby_id: int) -> None | discord.Message:
         return cls.get_lobby(bot, lobby_id).queue_message
 
     @classmethod
     def set_queue_embed_message(
         cls,
-        bot: LobbyBot,
+        bot: Any,
         lobby_id: int,
         queue_message: discord.Message
     ) -> None:
         cls.get_lobby(bot, lobby_id).queue_message = queue_message
 
     @classmethod
-    def get_embed(cls, bot: LobbyBot, lobby_id: int) -> LobbyEmbed | None:
+    def get_embed(cls, bot: Any, lobby_id: int) -> LobbyEmbed | None:
         return cls.get_lobby(bot, lobby_id).embed
 
     @classmethod
-    def set_embed(cls, bot: LobbyBot, lobby_id: int, embed: LobbyEmbed) -> None:
+    def set_embed(cls, bot: Any, lobby_id: int, embed: LobbyEmbed) -> None:
         cls.get_lobby(bot, lobby_id).embed = embed
 
     @classmethod
-    def get_queue_embed(cls, bot: LobbyBot, lobby_id: int) -> QueueEmbed | None:
+    def get_queue_embed(cls, bot: Any, lobby_id: int) -> QueueEmbed | None:
         return cls.get_lobby(bot, lobby_id).queue_embed
 
     @classmethod
-    def set_queue_embed(cls, bot: LobbyBot, lobby_id: int, queue_embed: QueueEmbed) -> None:
+    def set_queue_embed(cls, bot: Any, lobby_id: int, queue_embed: QueueEmbed) -> None:
         cls.get_lobby(bot, lobby_id).queue_embed = queue_embed
 
     @classmethod
-    def get_members(cls, bot: LobbyBot, lobby_id: int) -> list[MemberModel]:
+    def get_members(cls, bot: Any, lobby_id: int) -> list[MemberModel]:
         return cls.get_lobby(bot, lobby_id).members
 
     @classmethod
-    def get_queue_members(cls, bot: LobbyBot, lobby_id: int) -> list[MemberModel]:
+    def get_queue_members(cls, bot: Any, lobby_id: int) -> list[MemberModel]:
         return cls.get_lobby(bot, lobby_id).members_queue
 
     @classmethod
     def add_member(
         cls,
-        bot: LobbyBot,
+        bot: Any,
         lobby_id: int,
-        member: discord.Member
+        member: discord.Member | discord.User
     ) -> bool:
         lobby = cls.get_lobby(bot, lobby_id)
         members = lobby.members
@@ -209,9 +206,9 @@ class LobbyManager:
     @classmethod
     def add_member_queue(
         cls,
-        bot: LobbyBot,
+        bot: Any,
         lobby_id: int,
-        member: discord.Member
+        member: discord.Member | discord.User
     ) -> bool:
         lobby = cls.get_lobby(bot, lobby_id)
         members = lobby.members
@@ -230,9 +227,9 @@ class LobbyManager:
     @classmethod
     def remove_member(
         cls,
-        bot: LobbyBot,
+        bot: Any,
         lobby_id: int,
-        member: discord.Member
+        member: discord.Member | discord.User
     ) -> bool:
         lobby = cls.get_lobby(bot, lobby_id)
         members = lobby.members
@@ -249,7 +246,7 @@ class LobbyManager:
         return False
 
     @classmethod
-    async def move_queue_members(cls, bot: LobbyBot, lobby_id: int) -> None:
+    async def move_queue_members(cls, bot: Any, lobby_id: int) -> None:
         lobby = cls.get_lobby(bot, lobby_id)
         members = lobby.members
         members_queue = lobby.members_queue
@@ -260,7 +257,7 @@ class LobbyManager:
         if len(members_queue) == 0:
             # Remove this if there are too many updates.
             lobby.queue_embed = None
-            queue_message = LobbyManager.get_queue_embed_message(bot, lobby_id)
+            queue_message = cls.get_queue_embed_message(bot, lobby_id)
             if queue_message is not None:
                 await queue_message.delete()
                 lobby.queue_message = None
@@ -268,9 +265,9 @@ class LobbyManager:
     @classmethod
     def update_member_state(
         cls,
-        bot: LobbyBot,
+        bot: Any,
         lobby_id: int,
-        member: discord.Member
+        member: discord.Member | discord.User
     ) -> MemberState:
         for member_model in cls.get_lobby( bot, lobby_id).members:
             if member_model.member == member:
@@ -278,7 +275,7 @@ class LobbyManager:
                 return member_state
 
     @classmethod
-    def lock(cls, bot: LobbyBot, lobby_id: int) -> LobbyState:
+    def lock(cls, bot: Any, lobby_id: int) -> LobbyState:
         lobby = cls.get_lobby(bot, lobby_id)
         status = lobby.status
 
@@ -290,7 +287,7 @@ class LobbyManager:
         return new_status
 
     @classmethod
-    def has_joined(cls, bot: LobbyBot, lobby_id: int, member: discord.Member) -> bool:
+    def has_joined(cls, bot: Any, lobby_id: int, member: discord.Member | discord.User) -> bool:
         for member_model in cls.get_lobby(bot, lobby_id).members:
             if member_model.member.id == member.id:
                 return True
@@ -299,7 +296,7 @@ class LobbyManager:
     @classmethod
     def switch_owner(
         cls,
-        bot: LobbyBot,
+        bot: Any,
         lobby_id: int,
         member: discord.Member
     ) -> None:
@@ -320,7 +317,7 @@ class LobbyManager:
                     break
 
     @classmethod
-    def search_new_owner(cls, bot: LobbyBot, lobby_id: int) -> bool:
+    def search_new_owner(cls, bot: Any, lobby_id: int) -> bool:
         '''Choose the next owner in lobby and move next owner up to first slot'''
 
         lobby = cls.get_lobby(bot, lobby_id)
@@ -336,7 +333,7 @@ class LobbyManager:
         return True
 
     @classmethod
-    def remove_owner(cls, bot: LobbyBot, lobby_id: int) -> None:
+    def remove_owner(cls, bot: Any, lobby_id: int) -> None:
         # Check if there is no other member in the lobby
         lobby = cls.get_lobby(bot, lobby_id)
         if len(lobby.members) == 1:
@@ -349,31 +346,31 @@ class LobbyManager:
         return True
 
     @classmethod
-    def get_member_length(cls, bot: LobbyBot, lobby_id: int) -> int:
+    def get_member_length(cls, bot: Any, lobby_id: int) -> int:
         '''Get the number of members in the lobby'''
         return len(cls.get_lobby(bot, lobby_id).members)
 
     @classmethod
-    def get_members_ready(cls, bot: LobbyBot, lobby_id: int) -> list[discord.Member]:
+    def get_members_ready(cls, bot: Any, lobby_id: int) -> list[discord.Member]:
         '''Get the number of members that are ready'''
         members = [member_model.member for member_model in cls.get_lobby(bot, lobby_id)
                    .members if member_model.state == MemberState.READY]
         return members
 
     @classmethod
-    def get_members_not_ready(cls, bot: LobbyBot, lobby_id: int) -> list[discord.Member]:
+    def get_members_not_ready(cls, bot: Any, lobby_id: int) -> list[discord.Member]:
         '''Get the number of members that are not ready'''
         members = [member_model.member for member_model in cls.get_lobby(bot, lobby_id).members
                    if member_model.state == MemberState.NOT_READY]
         return members
 
     @classmethod
-    def get_lobby_lock(cls, bot: LobbyBot, lobby_id: int) -> LobbyState:
+    def get_lobby_lock(cls, bot: Any, lobby_id: int) -> LobbyState:
         '''Get the lock state of the lobby'''
         return cls.get_lobby(bot, lobby_id).status
 
     @classmethod
-    async def delete_lobby(cls, bot: LobbyBot, lobby_id: int) -> None:
+    async def delete_lobby(cls, bot: Any, lobby_id: int) -> None:
         lobby = cls.get_lobby(bot, lobby_id)
         # Delete channel
         channel = lobby.lobby_channel
@@ -382,17 +379,17 @@ class LobbyManager:
         bot.lobby.pop(lobby_id)
 
     @classmethod
-    def set_descriptor(cls, bot: LobbyBot, lobby_id: int, description: str) -> None:
+    def set_descriptor(cls, bot: Any, lobby_id: int, description: str) -> None:
         '''Set the description of the lobby'''
         cls.get_lobby(bot, lobby_id).description = description
 
     @classmethod
-    def get_descriptor(cls, bot: LobbyBot, lobby_id: int) -> str | None:
+    def get_descriptor(cls, bot: Any, lobby_id: int) -> str | None:
         '''Get the description of the lobby'''
         return cls.get_lobby(bot, lobby_id).description
 
     @classmethod
-    def is_full(cls, bot: LobbyBot, lobby_id: int) -> bool:
+    def is_full(cls, bot: Any, lobby_id: int) -> bool:
         '''Check if the lobby is full'''
         lobby = cls.get_lobby(bot, lobby_id)
         if int(lobby.game_size) == lobby.members:
@@ -401,7 +398,7 @@ class LobbyManager:
             return False
 
     @classmethod
-    def get_session_time(cls, bot: LobbyBot, lobby_id: int) -> str:
+    def get_session_time(cls, bot: Any, lobby_id: int) -> str:
         '''Get the session time of the lobby'''
         creation: datetime = cls.get_lobby(bot, lobby_id).created_datetime
         deletion = datetime.now()
@@ -409,12 +406,12 @@ class LobbyManager:
         return "Session Duration: " + strftime("%H:%M:%S", gmtime(duration.total_seconds()))
 
     @classmethod
-    def get_last_promotion_message(cls, bot: LobbyBot, lobby_id: int) -> discord.Message | None:
+    def get_last_promotion_message(cls, bot: Any, lobby_id: int) -> discord.Message | None:
         '''Get the last promotion message'''
         return cls.get_lobby(bot, lobby_id).last_promotion_message
 
     @classmethod
-    def can_promote(cls, bot: LobbyBot, lobby_id: int) -> bool:
+    def can_promote(cls, bot: Any, lobby_id: int) -> bool:
         '''Check if last promotion message is older than 10 minutes'''
         lobby = cls.get_lobby(bot, lobby_id)
         if lobby.last_promotion_message is None:
@@ -429,7 +426,7 @@ class LobbyManager:
     @classmethod
     def set_last_promotion_message(
         cls,
-        bot: LobbyBot,
+        bot: Any,
         lobby_id: int,
         message: discord.Message
     ) -> None:
@@ -439,17 +436,17 @@ class LobbyManager:
         lobby.last_promotion_datetime = datetime.now()
 
     @classmethod
-    def get_unready_mentions(cls, bot: LobbyBot, lobby_id: int) -> str:
+    def get_unready_mentions(cls, bot: Any, lobby_id: int) -> str:
         members_to_ping = cls.get_members_not_ready(bot, lobby_id)
         mention_list = [f'<@{member.id}>' for member in members_to_ping]
         return ", ".join(mention_list)
 
     @classmethod
-    def get_ready_mentions(cls, bot: LobbyBot, lobby_id: int) -> str:
+    def get_ready_mentions(cls, bot: Any, lobby_id: int) -> str:
         members_to_ping = cls.get_members_ready(bot, lobby_id)
         mention_list = [f'<@{member.id}>' for member in members_to_ping]
         return ", ".join(mention_list)
 
     @classmethod
-    def get_new_owner_mention(cls, bot: LobbyBot, lobby_id: int) -> str:
+    def get_new_owner_mention(cls, bot: Any, lobby_id: int) -> str:
         return f'<@{cls.get_lobby_owner(bot, lobby_id).id}>'
