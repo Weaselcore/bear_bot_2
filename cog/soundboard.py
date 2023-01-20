@@ -15,7 +15,7 @@ class SoundBoardCog(commands.Cog):
         self.soundboard_channel: discord.TextChannel | None = None
         self.ffmpeg_path = Path("ffmpeg.exe")
 
-        # Creates persistent view when cog is loaded
+        # Creates partially persistent view when cog is loaded
         for view in self.create_soundboard_view():
             # Will only add view if it already exist
             # TODO: Use db to store differences to determine if view needs to be updated.
