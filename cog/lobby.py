@@ -1,4 +1,5 @@
 import asyncio
+from typing import Protocol, TypeVar
 from discord.ext import commands, tasks
 from discord import Interaction, app_commands
 import discord
@@ -11,8 +12,14 @@ from model.lobby_model import (
 from model.game_model import GameManager
 
 
+class LobbyBot(Protocol):
+    lobby: dict[int, LobbyModel]
+
+
 class LobbyCog(commands.Cog):
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot):
+
+        bot = TypeVar('bot', bound=LobbyBot)
         self.bot = bot
 
         self.game_manager = GameManager()
@@ -24,7 +31,10 @@ class LobbyCog(commands.Cog):
     async def update_lobby_embed(self, lobby_id: int):
         """Updates the embed of the lobby message"""
         embed = LobbyManager.get_embed(self.bot, lobby_id)
+
+        assert embed is not None
         await embed.update()
+
         queue_embed = LobbyManager.get_queue_embed(self.bot, lobby_id)
         if queue_embed:
             await queue_embed.update()
@@ -43,6 +53,9 @@ class LobbyCog(commands.Cog):
     @app_commands.command(description="Create lobby through UI", name='lobby')
     async def create_lobby(self, interaction: Interaction):
         """Creates a lobby through UI command"""
+
+        assert interaction.guild is not None
+
         exist = discord.utils.get(interaction.guild.channels, name='Lobbies')
 
         if not exist:
@@ -56,6 +69,8 @@ class LobbyCog(commands.Cog):
                 ephemeral=True
             )
             return
+
+        assert isinstance(exist, discord.CategoryChannel)
 
         # Create new text channel
         channel = await interaction.guild.create_text_channel(
@@ -77,8 +92,8 @@ class LobbyCog(commands.Cog):
         # Create a new lobby model
         lobby_model = LobbyModel(
             control_panel=control_panel,
-            owner=interaction.user,
-            original_channel=interaction.channel,
+            owner=interaction.user, # type: ignore
+            original_channel=interaction.channel, # type: ignore
             lobby_channel=channel
         )
         LobbyManager.set_lobby(self.bot, interaction.user.id, lobby_model)
@@ -90,7 +105,7 @@ class LobbyCog(commands.Cog):
         )
         LobbyManager.set_thread(self.bot, interaction.user.id, thread)
         # Add owner to the lobby
-        LobbyManager.add_member(interaction.client, interaction.user.id, interaction.user),
+        LobbyManager.add_member(interaction.client, interaction.user.id, interaction.user), # type: ignore
         # Create a custom view to hold logic, user id is used to have one instance per user
         view = DropdownView(lobby_id=interaction.user.id, game_manager=self.game_manager)
         # Message select dropdowns in the channel
@@ -183,7 +198,7 @@ class LobbyCog(commands.Cog):
         )
 
     @app_commands.command(description="Lobby Owner: Add user to the lobby", name='adduser')
-    async def add_user(self, interaction: discord.Interaction, user: discord.User):
+    async def add_user(self, interaction: discord.Interaction, user: discord.Member):
         """Adds a user to the lobby"""
         # Check if there are lobbies
         if len(self.bot.lobby) == 0:
@@ -196,7 +211,7 @@ class LobbyCog(commands.Cog):
         for key, lobby_model in self.bot.lobby.items():
             if lobby_model.owner == interaction.user:
                 # Add user to the lobby
-                success = LobbyManager.add_member(interaction.client, key, user)
+                success = LobbyManager.add_member(interaction.client, key, user) # type: ignore
                 # Send message to the user
                 if success:
                     await interaction.response.send_message(
@@ -218,7 +233,7 @@ class LobbyCog(commands.Cog):
             )
 
     @app_commands.command(description="Lobby Owner: Remove user from the lobby", name='removeuser')
-    async def remove_user(self, interaction: discord.Interaction, user: discord.User):
+    async def remove_user(self, interaction: discord.Interaction, user: discord.Member):
         """Removes a user from the lobby"""
         # Check if there are lobbies
         if len(self.bot.lobby) == 0:
@@ -238,7 +253,7 @@ class LobbyCog(commands.Cog):
         for key, lobby_model in self.bot.lobby.items():
             if lobby_model.owner == interaction.user:
                 # Remove user from the lobby
-                success = LobbyManager.remove_member(interaction.client, key, user)
+                success = LobbyManager.remove_member(interaction.client, key, user)  # type: ignore
                 # Send message to the user
                 if success:
                     await interaction.response.send_message(
@@ -263,7 +278,7 @@ class LobbyCog(commands.Cog):
         description="Lobby Owner: Toggle ready for a user in the lobby",
         name='readyuser'
     )
-    async def ready_user(self, interaction: discord.Interaction, user: discord.User):
+    async def ready_user(self, interaction: discord.Interaction, user: discord.Member):
         """Toggles ready for a user in the lobby"""
         # Check if there are lobbies
         if len(self.bot.lobby) == 0:
@@ -276,7 +291,7 @@ class LobbyCog(commands.Cog):
         for key, lobby_model in self.bot.lobby.items():
             if lobby_model.owner == interaction.user:
                 # Toggle ready for user in the lobby
-                success = LobbyManager.update_member_state(interaction.client, key, user)
+                success = LobbyManager.update_member_state(interaction.client, key, user) # type: ignore
                 # Send message to the user
                 if success:
                     await interaction.response.send_message(
