@@ -5,7 +5,7 @@ from time import gmtime, strftime
 from typing import Protocol
 import discord
 
-from view.lobby.embeds import LobbyEmbed
+from view.lobby.embeds import LobbyEmbed, QueueEmbed
 
 
 class MemberState(Enum):
@@ -47,7 +47,7 @@ class LobbyModel:
     owner: discord.Member
     created_datetime = datetime.now()
     description: str | None = None
-    embed: LobbyEmbed| None = None
+    embed: LobbyEmbed | None = None
     embed_message: discord.Message | None = None
     queue_message: discord.Message | None = None
     game_code = 'gametype'
@@ -166,19 +166,19 @@ class LobbyManager:
         cls.get_lobby(bot, lobby_id).queue_message = queue_message
 
     @classmethod
-    def get_embed(cls, bot: LobbyBot, lobby_id: int) -> discord.Embed | None:
+    def get_embed(cls, bot: LobbyBot, lobby_id: int) -> LobbyEmbed | None:
         return cls.get_lobby(bot, lobby_id).embed
 
     @classmethod
-    def set_embed(cls, bot: LobbyBot, lobby_id: int, embed: discord.Embed) -> None:
+    def set_embed(cls, bot: LobbyBot, lobby_id: int, embed: LobbyEmbed) -> None:
         cls.get_lobby(bot, lobby_id).embed = embed
 
     @classmethod
-    def get_queue_embed(cls, bot: LobbyBot, lobby_id: int) -> discord.Embed | None:
+    def get_queue_embed(cls, bot: LobbyBot, lobby_id: int) -> QueueEmbed | None:
         return cls.get_lobby(bot, lobby_id).queue_embed
 
     @classmethod
-    def set_queue_embed(cls, bot: LobbyBot, lobby_id: int, queue_embed: discord.Embed) -> None:
+    def set_queue_embed(cls, bot: LobbyBot, lobby_id: int, queue_embed: QueueEmbed) -> None:
         cls.get_lobby(bot, lobby_id).queue_embed = queue_embed
 
     @classmethod
