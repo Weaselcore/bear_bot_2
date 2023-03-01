@@ -21,6 +21,9 @@ class MyClient(commands.Bot):
         # maintain its own tree instead.
         # self.tree = app_commands.CommandTree(self)
 
+    # In this basic example, we just synchronize the app commands to one guild.
+    # Instead of specifying a guild to every command, we copy over our global commands instead.
+    # By doing so, we don't have to wait up to an hour until they are shown to the end-user.
     async def setup_hook(self) -> None:
         await self.load_extension('cog.lobby')
         await self.load_extension('cog.soundboard')
@@ -28,6 +31,10 @@ class MyClient(commands.Bot):
         # await self.load_extension('cog.quiz')
         self.lobby = {} # type: ignore
         # Any database would be initialised here.
+        # TODO: Add database credentials in .env file.
+
+    async def close(self) -> None:
+        await super().close()
 
 
 async def main():
@@ -105,4 +112,4 @@ async def main():
 
         # Start the bot.
         await bot.start(os.environ['TOKEN'])
-asyncio.run(main())
+asyncio.run(main(), debug=True)

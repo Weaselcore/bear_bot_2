@@ -1,6 +1,6 @@
 import discord
 from cog.lobby import PromotionEmbed
-from model.lobby_model import LobbyManager
+from manager.lobby_service import LobbyManager
 
 
 # self.lobby_to_promote: list[Promotion] = []
