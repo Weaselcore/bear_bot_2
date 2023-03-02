@@ -2,6 +2,7 @@ FROM python:3.10
 
 WORKDIR /
 
+RUN git clone https://github.com/Weaselcore/bear_bot_2.git
 RUN pip install pipenv
 RUN apt update
 RUN apt -y install ffmpeg
