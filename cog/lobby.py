@@ -177,19 +177,27 @@ class DropdownView(discord.ui.View):
             game for game in list_of_games if game.id == game_id]
         
         if game_result == []:
-            raise ValueError("Something went truly wrong, could not filter gamemodel")
-
-
-        if game_id is not None and player_number is not None:
             self.add_item(
                 GameDropdown(
                     lobby_id=lobby_id,
                     games=list_of_games,
                     game_manager=game_manager,
                     lobby_manager=lobby_manager,
-                    placeholder=game_result[0].name
                 )
             )
+            return
+       
+        self.add_item(
+            GameDropdown(
+                lobby_id=lobby_id,
+                games=list_of_games,
+                game_manager=game_manager,
+                lobby_manager=lobby_manager,
+                placeholder=game_result[0].name
+            )
+        )
+
+        if player_number is not None:
             self.add_item(
                 NumberDropdown(
                     lobby_id=lobby_id,
@@ -200,16 +208,7 @@ class DropdownView(discord.ui.View):
                     placeholder=str(player_number)
                 )
             )
-        elif game_id is not None and player_number is None:
-            self.add_item(
-                GameDropdown(
-                    lobby_id=lobby_id,
-                    games=list_of_games,
-                    game_manager=game_manager,
-                    lobby_manager=lobby_manager,
-                    placeholder=game_result[0].name
-                )
-            )
+        elif player_number is None:
             self.add_item(
                 NumberDropdown(
                     lobby_id=lobby_id,
@@ -219,15 +218,7 @@ class DropdownView(discord.ui.View):
                     number=game_result[0].max_size,
                 )
             )
-        else:
-            self.add_item(
-                GameDropdown(
-                    lobby_id=lobby_id,
-                    games=list_of_games,
-                    game_manager=game_manager,
-                    lobby_manager=lobby_manager,
-                )
-            )
+
 
 
 class GameDropdown(discord.ui.Select):
@@ -851,11 +842,12 @@ class LobbyCog(commands.Cog):
             color=discord.Color.green(),
         )
 
-        if game is not None and size is not None:
+        if game is not None:
+            game_size = size if size else "❓"
             game_model = await self.game_manager.get_game(game)
             embed.add_field(
                 name=f'{game_model.name}',
-                value=f'⠀⠀⠀⠀⤷ {size} slots',
+                value=f'⠀⠀⠀⠀⤷ {game_size} slots',
             )
         if description is not None:
             embed.add_field(
@@ -1169,7 +1161,6 @@ class LobbyCog(commands.Cog):
 
 
 async def setup(bot: commands.Bot):
-
     lobby_embed_manager = LobbyEmbedManager()
 
     lobby_manager = LobbyManager(
