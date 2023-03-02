@@ -1,0 +1,11 @@
+FROM python:3.10
+
+WORKDIR /
+
+RUN pip install pipenv
+RUN apt update
+RUN apt -y install ffmpeg
+WORKDIR /bear_bot_2
+RUN pipenv install --deploy --ignore-pipfile
+
+CMD [ "pipenv", "run", "python", "bot.py" ]

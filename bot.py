@@ -31,6 +31,10 @@ class MyClient(commands.Bot):
         # await self.load_extension('cog.quiz')
         self.lobby = {} # type: ignore
         # Any database would be initialised here.
+        # TODO: Add database credentials in .env file.
+
+    async def close(self) -> None:
+        await super().close()
 
 
 async def main():
@@ -108,4 +112,4 @@ async def main():
 
         # Start the bot.
         await bot.start(os.environ['TOKEN'])
-asyncio.run(main())
+asyncio.run(main(), debug=True)
