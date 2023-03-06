@@ -343,7 +343,7 @@ class LobbyManager:
         )
         thread = await self.get_thread(lobby_id)
         member = await self.get_member(lobby_id, member_id)
-        if not owner_set:
+        if not owner_set and updated_state:
             member = await self.get_member(lobby_id, member_id)
             await self.embed_manager.send_update_embed(
                 update_type=self.embed_manager.UPDATE_TYPES.READY,
