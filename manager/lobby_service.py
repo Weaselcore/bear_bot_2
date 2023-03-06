@@ -145,29 +145,6 @@ class LobbyManager:
     def print_lobby(self, lobby_id: int) -> None:
         print(self.get_lobby(lobby_id))
 
-    async def get_lobby_status(self, lobby_id: int) -> bool:
-        return await self._get_repository().is_lobby_locked(lobby_id)
-
-    async def update_lobby_status(self, lobby_id: int) -> None:
-        is_locked = await self._get_repository().is_lobby_locked(lobby_id)
-        updated_is_locked = await self._get_repository().set_is_lobby_locked(
-            lobby_id,
-            not is_locked
-        )
-        owner = await self.get_lobby_owner(lobby_id)
-        if updated_is_locked is True:
-            await self.embed_manager.send_update_embed(
-                update_type=self.embed_manager.UPDATE_TYPES.LOCK,
-                title=owner.display_name,
-                destination=await self.get_thread(lobby_id)
-            )
-        else:
-            await self.embed_manager.send_update_embed(
-                update_type=self.embed_manager.UPDATE_TYPES.UNLOCK,
-                title=owner.display_name,
-                destination=await self.get_thread(lobby_id)
-            )
-
     async def get_original_channel(self, lobby_id: int) -> discord.TextChannel:
         original_channel_id = await self._get_repository().get_original_channel_id(
             lobby_id
@@ -397,6 +374,7 @@ class LobbyManager:
                 update_type=self.embed_manager.UPDATE_TYPES.LOCK,
                 title=owner.display_name,
                 destination=thread,
+                pings=await self.get_all_mentions(lobby_id)
             )
         elif not updated_is_locked:
             await self.embed_manager.send_update_embed(
@@ -537,6 +515,11 @@ class LobbyManager:
     async def get_ready_mentions(self, lobby_id: int) -> str:
         members_to_ping = await self.get_members_ready(lobby_id)
         mention_list = [f'<@{member}>' for member in members_to_ping]
+        return ", ".join(mention_list)
+    
+    async def get_all_mentions(self, lobby_id: int) -> str:
+        members_to_ping = await self.get_members(lobby_id)
+        mention_list = [f'<@{member.id}>' for member in members_to_ping]
         return ", ".join(mention_list)
 
     async def get_owner_mention(self, lobby_id: int) -> str:
