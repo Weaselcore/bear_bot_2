@@ -1,13 +1,13 @@
 import asyncio
-import collections
 import discord
+from collections.abc import Sequence
 from discord.ext import commands, tasks
 from discord import Client, Interaction, app_commands
 from discord.ui import View, TextInput
-
 from embeds.game_embed import GameEmbedManager
+
 from embeds.lobby_embed import LobbyEmbedManager
-from exceptions.lobby import LobbyNotFound, MemberNotFound
+from exceptions.lobby_exceptions import LobbyNotFound, MemberNotFound
 from manager.lobby_service import LobbyManager
 from manager.game_service import GameManager
 
@@ -161,14 +161,14 @@ class NumberTransformer(app_commands.Transformer):
                         )
             return list_of_options
         except ValueError:
-            pass
+            return []
 
 
 class DropdownView(discord.ui.View):
     def __init__(
         self,
         lobby_id: int,
-        list_of_games: collections.abc.Sequence[GameModel],
+        list_of_games: Sequence[GameModel],
         game_manager: GameManager,
         lobby_manager: LobbyManager,
         game_id: int | None = None,
@@ -230,13 +230,13 @@ class GameDropdown(discord.ui.Select):
     def __init__(
         self,
         lobby_id: int,
-        games: collections.abc.Sequence[GameModel],
+        games: Sequence[GameModel],
         game_manager: GameManager,
         lobby_manager: LobbyManager,
         placeholder: str = "Choose your game..."
     ):
         # Set the options that will be presented inside the dropdown
-        options = []
+        options: list[discord.SelectOption] = []
         super().__init__(
             placeholder=placeholder,
             min_values=1,
@@ -372,7 +372,7 @@ class DescriptionModal(discord.ui.Modal, title='Edit Description'):
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer()
         await self.lobby_manager.set_description(self.lobby_id, self.answer.value)
-        interaction.client.dispatch('update_lobby_embed', self.lobby_id)
+        interaction.client.dispatch('update_lobby_embed', self.lobby_id) # type: ignore
 
 
 class DeletionConfirmationModal(
@@ -453,7 +453,7 @@ class OwnerSelectView(discord.ui.View):
             assert member is not None
             await self.lobby_manager.switch_owner(self.lobby_id, member.id)
             await self.lobby_manager.get_lobby_owner(self.lobby_id)
-            interaction.client.dispatch(
+            interaction.client.dispatch(  # type: ignore
                 'update_lobby_embed', self.lobby_id)
 
             # Disable view after selection
@@ -502,7 +502,7 @@ class ButtonView(discord.ui.View):
         else:
             await self.lobby_manager.add_member(self.lobby_id, interaction.user.id)
 
-        interaction.client.dispatch('update_lobby_embed', self.lobby_id)
+        interaction.client.dispatch('update_lobby_embed', self.lobby_id)  # type: ignore
 
     @discord.ui.button(
         label="Ready",
@@ -539,7 +539,7 @@ class ButtonView(discord.ui.View):
         await interaction.edit_original_response(view=self)
 
         # Update lobby embed
-        interaction.client.dispatch('update_lobby_embed', self.lobby_id)
+        interaction.client.dispatch('update_lobby_embed', self.lobby_id)  # type: ignore
 
     @discord.ui.button(
         label="Leave",
@@ -585,7 +585,7 @@ class ButtonView(discord.ui.View):
         self.ready.label = f"Ready: {number_filled}"
         await interaction.edit_original_response(view=self)
         # Update lobby embed
-        interaction.client.dispatch('update_lobby_embed', self.lobby_id)
+        interaction.client.dispatch('update_lobby_embed', self.lobby_id)  # type: ignore
 
     @discord.ui.button(
         label="Lock",
@@ -615,7 +615,7 @@ class ButtonView(discord.ui.View):
         await interaction.edit_original_response(view=self)
 
         # Update lobby embed
-        interaction.client.dispatch('update_lobby_embed', self.lobby_id)
+        interaction.client.dispatch('update_lobby_embed', self.lobby_id) # type: ignore
 
     @discord.ui.button(
         label="Change Leader",
@@ -649,7 +649,6 @@ class ButtonView(discord.ui.View):
                 self.lobby_manager,
                 options
             ),
-            ephemeral=True,
         )
 
     @discord.ui.button(
@@ -718,9 +717,15 @@ class ButtonView(discord.ui.View):
                 self.description = f'Click on lobby <#{channel.id}> to join!'
                 lobby_size = await self.lobby_manager.get_member_length(self.lobby_id)
                 game_size = await self.lobby_manager.get_gamesize(self.lobby_id)
+                description = await self.lobby_manager.get_description(self.lobby_id)
+                if description:
+                    self.add_field(
+                        name='Description:',
+                        value=f'⠀⠀⠀⠀⤷  {description}',
+                    )
                 self.add_field(
                     name='Slots Left:',
-                    value=f'R>{game_size - lobby_size}',
+                    value=f'⠀⠀⠀⠀⤷  R>{game_size - lobby_size}',
                 )
                 if game_model.icon_url:
                     self.set_thumbnail(url=game_model.icon_url)
@@ -1037,7 +1042,7 @@ class LobbyCog(commands.Cog):
         """Removes a game from the lobby module"""
         # Check if the game exists
         try:
-            game_model = await self.game_manager.get_game(int(game))
+            game_model = await self.game_manager.get_game(int(game)) # type: ignore
         except (ValueError, TypeError):
             # Send message to the user
             await interaction.response.send_message(
@@ -1045,7 +1050,7 @@ class LobbyCog(commands.Cog):
                 ephemeral=True
             )
 
-        deleted = await self.game_manager.remove_game(int(game))
+        deleted = await self.game_manager.remove_game(int(game)) # type: ignore
         if deleted:
             # Send message to the user
             await interaction.response.send_message(
@@ -1152,7 +1157,7 @@ class LobbyCog(commands.Cog):
             ephemeral=True
         )
         # Send message to the user
-        interaction.client.dispatch("update_lobby_embed", lobby_id)
+        interaction.client.dispatch("update_lobby_embed", lobby_id) # type: ignore
 
     @app_commands.command(
             description="Lobby Owner: Remove user from the lobby",
@@ -1211,7 +1216,7 @@ class LobbyCog(commands.Cog):
                 dispatching request to server!',
             ephemeral=True
         )
-        interaction.client.dispatch("update_lobby_embed", lobby_id)
+        interaction.client.dispatch("update_lobby_embed", lobby_id) # type: ignore
 
     @app_commands.command(
         description="Lobby Owner: Toggle ready for a user in the lobby",
@@ -1263,7 +1268,7 @@ class LobbyCog(commands.Cog):
             ephemeral=True
         )
 
-        interaction.client.dispatch("update_lobby_embed", lobby_id)
+        interaction.client.dispatch("update_lobby_embed", lobby_id) # type: ignore
 
 
 async def setup(bot: commands.Bot):
@@ -1280,7 +1285,7 @@ async def setup(bot: commands.Bot):
         bot=bot
     )
     # Register persistent views per lobby on restart
-    lobbies: list[LobbyModel] = await lobby_manager.get_all_lobbies()
+    lobbies: Sequence[LobbyModel] = await lobby_manager.get_all_lobbies()
     for lobby in lobbies:
         list_of_games = await game_manager.get_all_games_by_guild_id(lobby.guild_id)
         # Construct control panel - dropdown view
