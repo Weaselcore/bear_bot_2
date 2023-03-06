@@ -724,8 +724,8 @@ class ButtonView(discord.ui.View):
                         value=f'⠀⠀⠀⠀⤷  {description}',
                     )
                 self.add_field(
-                    name='Slots Left:',
-                    value=f'⠀⠀⠀⠀⤷  R>{game_size - lobby_size}',
+                    name='Remaining Space:',
+                    value=f'⠀⠀⠀⠀⤷  {game_size - lobby_size} slot(s)',
                     inline=False,
                 )
                 if game_model.icon_url:
