@@ -9,8 +9,10 @@ from sqlalchemy.orm import sessionmaker
 from repository.db_config import Base
 from repository.tables import GuildModel, LobbyModel, MemberModel
 
-"""These fixtures are used to create a database for testing purposes. For now it tests the lobby cog feature.
-    Change these to make the fixures more generalised for other database tests."""
+"""These fixtures are used to create a database for testing purposes. For now it tests
+    the lobby cog feature. Change these to make the fixures more generalised for other 
+    database tests.
+"""
 
 load_dotenv()
 
@@ -89,6 +91,10 @@ async def init_database(engine):
 @pytest_asyncio.fixture()
 async def session(engine):
     async with engine.begin() as conn:
-        async_session = sessionmaker(expire_on_commit=False, class_=AsyncSession, bind=conn)
+        async_session = sessionmaker(
+            expire_on_commit=False,
+            class_=AsyncSession,
+            bind=conn
+        )
         yield async_session
         await conn.rollback()

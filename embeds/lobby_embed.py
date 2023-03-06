@@ -64,7 +64,7 @@ class LobbyEmbed(discord.Embed):
         members: list[discord.Member],
         member_ready: collections.abc.Sequence[int],
         game_size: int,
-        
+
     ):
         # Setup slots and owner field
         super().__init__(
@@ -72,7 +72,8 @@ class LobbyEmbed(discord.Embed):
         )
 
         self.set_author(
-            name=f"👑 Lobby Owner: {owner.display_name}", icon_url=owner.display_avatar.url
+            name=f"👑 Lobby Owner: {owner.display_name}",
+            icon_url=owner.display_avatar.url
         )
 
         # Set description
@@ -83,17 +84,17 @@ class LobbyEmbed(discord.Embed):
 
         # Set colour based on status
         if is_locked:
-            self.color = discord.Color.yellow() # type: ignore
-        elif is_full:  
-            self.color = discord.Color.green() # type: ignore
+            self.color = discord.Color.yellow()  # type: ignore
+        elif is_full:
+            self.color = discord.Color.green()  # type: ignore
         else:
-            self.color = discord.Color.red() # type: ignore
+            self.color = discord.Color.red()  # type: ignore
 
         # Fill in closed slots with status message.
         for member in members:
             self.add_field(
                 name=member.display_name,
-                value=f'Status: {"Ready" if member.id in member_ready else "Not Ready"}',
+                value=f'Status: {"Ready" if member.id in member_ready else "Not Ready"}',  # noqa
                 inline=False
             )
 
@@ -108,7 +109,8 @@ class LobbyEmbed(discord.Embed):
                 )
 
         # Add footer with lobby id and fill/ready status.
-        footer = f'[Lobby ID:  {lobby_id}] [🎮 {lobby_length}/{game_size} slots filled, ✅ {len(member_ready)}/{game_size} ready]'
+        footer = f'[Lobby ID:  {lobby_id}] [🎮 {lobby_length}/{game_size} slots filled,\
+              ✅ {len(member_ready)}/{game_size} ready]'
         self.set_footer(text=footer)
 
 
@@ -130,10 +132,10 @@ class QueueEmbed(discord.Embed):
 class LobbyEmbedManager:
 
     UPDATE_TYPES = UpdateEmbedType
-    
+
     @staticmethod
     async def send_update_embed(
-        update_type: UpdateEmbedType, 
+        update_type: UpdateEmbedType,
         title: str,
         destination: discord.TextChannel | discord.Thread,
         additional_string: str | None = None,
@@ -144,7 +146,7 @@ class LobbyEmbedManager:
         message = None
         default_footer = True
         new_field = False
-        
+
         match update_type:
             case UpdateEmbedType.JOIN:
                 message = UpdateEmbedMessage.JOIN.value
@@ -155,7 +157,8 @@ class LobbyEmbedManager:
             case UpdateEmbedType.OWNER_CHANGE:
                 message = f'{UpdateEmbedMessage.OWNER_CHANGE.value} {additional_string}'
             case UpdateEmbedType.DESCRIPTION_CHANGE:
-                message = f'{UpdateEmbedMessage.DESCRIPTION_CHANGE.value} {additional_string}'
+                message = f'{UpdateEmbedMessage.DESCRIPTION_CHANGE.value} \
+                    {additional_string}'
             case UpdateEmbedType.SIZE_CHANGE:
                 message = f'{UpdateEmbedMessage.SIZE_CHANGE.value} {additional_string}'
             case UpdateEmbedType.GAME_CHANGE:
@@ -177,13 +180,13 @@ class LobbyEmbedManager:
                 message = f'{UpdateEmbedMessage.OWNER_READY.value} {additional_string}'
             case _:
                 raise NotImplementedError
-            
+
         embed = discord.Embed(
             title=title,
             description=message,
             color=UpdateEmbedColour[update_type.value].value
         )
-    
+
         # Set footer with current time
         if default_footer:
             timezone = pytz.timezone('Pacific/Auckland')
@@ -201,7 +204,7 @@ class LobbyEmbedManager:
                 name='Reason:',
                 value=additional_string,
                 inline=False
-            )   
+            )
 
         await destination.send(content=pings, embed=embed)
 
@@ -218,8 +221,8 @@ class LobbyEmbedManager:
         channel: discord.TextChannel | discord.Thread,
         view: discord.ui.View
     ) -> int | None:
-        
-        embed=LobbyEmbed(
+
+        embed = LobbyEmbed(
             lobby_id=lobby_id,
             owner=owner,
             description=description,
@@ -233,7 +236,6 @@ class LobbyEmbedManager:
         lobby_message = await channel.send(embed=embed, view=view)
         return lobby_message.id
 
-
     @staticmethod
     async def update_lobby_embed(
         lobby_id: int,
@@ -246,11 +248,11 @@ class LobbyEmbedManager:
         game_size: int,
         message: discord.Message | None,
     ) -> None:
-        
+
         if description is None:
             description = 'No description provided.'
 
-        embed=LobbyEmbed(
+        embed = LobbyEmbed(
             lobby_id=lobby_id,
             owner=owner,
             description=description,
@@ -263,16 +265,14 @@ class LobbyEmbedManager:
         if message is not None:
             await message.edit(embed=embed)
 
-
     @staticmethod
     async def create_queue_embed(
         queue_members: list[discord.Member],
         channel: discord.TextChannel | discord.Thread,
     ) -> int | None:
         queue_embed = QueueEmbed(queue_members)
-        queue_message = await channel.send(embed=queue_embed)        
+        queue_message = await channel.send(embed=queue_embed)
         return queue_message.id
-
 
     @staticmethod
     async def update_queue_embed(

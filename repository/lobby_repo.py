@@ -1,11 +1,22 @@
-import collections
-from datetime import timedelta
-from time import gmtime, strftime
+from collections.abc import Sequence
+from datetime import datetime, timedelta
 from sqlalchemy import Result, func, update, delete
 from sqlalchemy.future import select
-from exceptions.lobby import *
+from time import gmtime, strftime
 
-from repository.tables import *
+from exceptions.lobby import (
+    GuildNotFound,
+    LobbyCreationError,
+    LobbyNotFound,
+    MemberNotFound
+)
+from repository.tables import (
+    GuildModel,
+    LobbyModel,
+    MemberLobbyModel,
+    MemberModel,
+    QueueMemberLobbyModel
+)
 
 
 class LobbyPostgresRepository:
@@ -147,7 +158,13 @@ class LobbyPostgresRepository:
 
     async def get_thread_id(self, lobby_id: int) -> int | None:
         async with self.database() as session:
-            result: Result = await session.execute(select(LobbyModel.history_thread_id).where(LobbyModel.id == lobby_id))
+            result: Result = await session.execute(
+                select(
+                    LobbyModel.history_thread_id
+                ).where(
+                    LobbyModel.id == lobby_id
+                )
+            )
             history_thread_id = result.scalars().first()
             return history_thread_id
 
@@ -275,18 +292,6 @@ class LobbyPostgresRepository:
     async def set_owner(self, lobby_id: int, member_id: int) -> int:
         async with self.database() as session:
             lobby = await self.get_lobby(lobby_id)
-            # result: Result = await session.execute(
-            #     update(  # type: ignore
-            #         LobbyModel
-            #     ).where(
-            #         LobbyModel.id == lobby_id
-            #     ).values(
-            #         owner_id=member_id
-            #     ).returning(
-            #         LobbyModel.owner_id
-            #     )
-            # )
-            # owner_id = result.scalars().first()
             lobby.owner_id = member_id
             await session.commit()
             if not lobby.owner_id:
@@ -333,7 +338,7 @@ class LobbyPostgresRepository:
                 raise MemberNotFound(member_id)
             return member
 
-    async def get_members(self, lobby_id: int) -> collections.abc.Sequence[MemberModel]:
+    async def get_members(self, lobby_id: int) -> Sequence[MemberModel]:
         async with self.database() as session:
             result: Result = await session.execute(
                 select(  # type: ignore
@@ -346,7 +351,11 @@ class LobbyPostgresRepository:
             )
             return result.scalars().all()
 
-    async def get_queue_member(self, lobby_id: int, member_id: int) -> MemberModel | None:
+    async def get_queue_member(
+        self,
+        lobby_id: int,
+        member_id: int
+    ) -> MemberModel | None:
         async with self.database() as session:
             member = await self.get_member(member_id)
             if not member:
@@ -402,7 +411,13 @@ class LobbyPostgresRepository:
 
     async def get_lobby_channel_id(self, lobby_id: int) -> int:
         async with self.database() as session:
-            result: Result = await session.execute(select(LobbyModel.lobby_channel_id).where(LobbyModel.id == lobby_id))
+            result: Result = await session.execute(
+                select(
+                    LobbyModel.lobby_channel_id
+                ).where(
+                    LobbyModel.id == lobby_id
+                )
+            )
             lobby_channel_id = result.scalars().first()
             if not lobby_channel_id:
                 raise LobbyNotFound(lobby_id)
@@ -410,7 +425,13 @@ class LobbyPostgresRepository:
 
     async def get_original_channel_id(self, lobby_id: int) -> int:
         async with self.database() as session:
-            result: Result = await session.execute(select(LobbyModel.original_channel_id).where(LobbyModel.id == lobby_id))
+            result: Result = await session.execute(
+                select(
+                    LobbyModel.original_channel_id
+                ).where(
+                    LobbyModel.id == lobby_id
+                )
+            )
             original_channel_id = result.scalars().first()
             if not original_channel_id:
                 raise LobbyNotFound(lobby_id)
@@ -418,13 +439,23 @@ class LobbyPostgresRepository:
 
     async def get_control_panel_message_id(self, lobby_id: int) -> int:
         async with self.database() as session:
-            result: Result = await session.execute(select(LobbyModel.control_panel_message_id).where(LobbyModel.id == lobby_id))
+            result: Result = await session.execute(
+                select(
+                    LobbyModel.control_panel_message_id
+                ).where(
+                    LobbyModel.id == lobby_id
+                )
+            )
             control_panel_message_id = result.scalars().first()
             if not control_panel_message_id:
                 raise LobbyNotFound(lobby_id)
             return control_panel_message_id
 
-    async def set_control_panel_message_id(self, lobby_id: int, control_panel_message_id: int) -> None:
+    async def set_control_panel_message_id(
+        self,
+        lobby_id: int,
+        control_panel_message_id: int
+    ) -> None:
         async with self.database() as session:
             await session.execute(
                 update(  # type: ignore
@@ -438,7 +469,13 @@ class LobbyPostgresRepository:
 
     async def get_embed_message_id(self, lobby_id: int) -> int | None:
         async with self.database() as session:
-            result: Result = await session.execute(select(LobbyModel.embed_message_id).where(LobbyModel.id == lobby_id))
+            result: Result = await session.execute(
+                select(
+                    LobbyModel.embed_message_id
+                ).where(
+                    LobbyModel.id == lobby_id
+                )
+            )
             embed_message_id = result.scalars().first()
             return embed_message_id
 
@@ -490,7 +527,11 @@ class LobbyPostgresRepository:
             )
             return result.scalars().first()
 
-    async def set_last_promotion_message_id(self, lobby_id: int, lobby_message_id: int) -> None:
+    async def set_last_promotion_message_id(
+        self,
+        lobby_id: int,
+        lobby_message_id: int
+    ) -> None:
         async with self.database() as session:
             await session.execute(
                 update(  # type: ignore
@@ -518,7 +559,8 @@ class LobbyPostgresRepository:
             if not last_promotion_datetime:
                 return True
 
-            if last_promotion_datetime is None or (datetime.now() - last_promotion_datetime) > timedelta(minutes=10):
+            if last_promotion_datetime is None or \
+                    (datetime.now() - last_promotion_datetime) > timedelta(minutes=10):
                 return True
             else:
                 return False
@@ -544,7 +586,8 @@ class LobbyPostgresRepository:
                 )
             )
             has_joined_in_memberlobby = exists_in_memberlobby.scalars().first()
-            has_joined_in_queuememberlobby = exists_in_queuememberlobby.scalars().first()
+            has_joined_in_queuememberlobby = exists_in_queuememberlobby.\
+                scalars().first()
 
             if has_joined_in_memberlobby or has_joined_in_queuememberlobby:
                 return True
@@ -708,7 +751,9 @@ class LobbyPostgresRepository:
                 raise LobbyNotFound(lobby_id)
 
             duration = datetime.now() - created_datetime
-            return "Session Duration: " + strftime("%H:%M:%S", gmtime(duration.total_seconds()))
+            return "Session Duration: " + strftime(
+                "%H:%M:%S", gmtime(duration.total_seconds())
+            )
 
     async def has_joined_vc(self, lobby_id: int, member_id: int) -> bool:
         async with self.database() as session:
@@ -728,7 +773,12 @@ class LobbyPostgresRepository:
                 raise MemberNotFound(member_id)
             return has_joined_vc
 
-    async def set_has_joined_vc(self, lobby_id: int, member_id: int, has_joined_vc: bool) -> bool:
+    async def set_has_joined_vc(
+            self,
+            lobby_id: int,
+            member_id: int,
+            has_joined_vc: bool
+        ) -> bool:
         async with self.database() as session:
             result: Result = await session.execute(
                 update(  # type: ignore
@@ -749,7 +799,7 @@ class LobbyPostgresRepository:
                 raise ValueError("Member not in a lobby")
             return updated_has_joined_vc
 
-    async def get_members_not_ready(self, lobby_id: int) -> collections.abc.Sequence[int]:
+    async def get_members_not_ready(self, lobby_id: int) -> Sequence[int]:
         async with self.database() as session:
             result: Result = await session.execute(
                 select(  # type: ignore
@@ -757,12 +807,12 @@ class LobbyPostgresRepository:
                 ).filter(
                     MemberLobbyModel.lobby_id == lobby_id
                 ).filter(
-                    MemberLobbyModel.ready == False
+                    MemberLobbyModel.ready is False
                 )
             )
             return result.scalars().all()
 
-    async def get_members_ready(self, lobby_id: int) -> collections.abc.Sequence[int]:
+    async def get_members_ready(self, lobby_id: int) -> Sequence[int]:
         async with self.database() as session:
             result: Result = await session.execute(
                 select(  # type: ignore
@@ -770,7 +820,7 @@ class LobbyPostgresRepository:
                 ).filter(
                     MemberLobbyModel.lobby_id == lobby_id
                 ).filter(
-                    MemberLobbyModel.ready == True
+                    MemberLobbyModel.ready is True
                 )
             )
             members = result.scalars().all()

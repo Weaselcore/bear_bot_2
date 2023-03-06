@@ -12,26 +12,13 @@ from discord.ext.commands import Context, Greedy
 class MyClient(commands.Bot):
     def __init__(self, *, intents: discord.Intents):
         super().__init__(command_prefix="/", intents=intents, help_command=None)
-        # A CommandTree is a special type that holds all the application command
-        # state required to make it work. This is a separate class because it
-        # allows all the extra state to be opt-in.
-        # Whenever you want to work with application commands, your tree is used
-        # to store and work with them.
-        # Note: When using commands.Bot instead of discord.Client, the bot will
-        # maintain its own tree instead.
-        # self.tree = app_commands.CommandTree(self)
 
-    # In this basic example, we just synchronize the app commands to one guild.
-    # Instead of specifying a guild to every command, we copy over our global commands instead.
-    # By doing so, we don't have to wait up to an hour until they are shown to the end-user.
     async def setup_hook(self) -> None:
         await self.load_extension('cog.lobby')
         await self.load_extension('cog.soundboard')
         await self.load_extension('cog.ai')
         # await self.load_extension('cog.quiz')
-        self.lobby = {} # type: ignore
-        # Any database would be initialised here.
-        # TODO: Add database credentials in .env file.
+        self.lobby = {}  # type: ignore
 
     async def close(self) -> None:
         await super().close()
@@ -74,12 +61,14 @@ async def main():
         async def ping(interaction: discord.Interaction):
             await interaction.response.send_message(f'Pong! {bot.latency * 1000:.2f}ms')
 
-
         @bot.command()
         @commands.guild_only()
         @commands.is_owner()
         async def nsync(
-        ctx: Context, guilds: Greedy[discord.Object], option: Literal["~", "*", "^"] | None = None) -> None:
+            ctx: Context,
+            guilds: Greedy[discord.Object],
+            option: Literal["~", "*", "^"] | None = None
+        ) -> None:
             if not guilds:
                 if option == "~":
                     synced = await ctx.bot.tree.sync(guild=ctx.guild)
@@ -93,8 +82,10 @@ async def main():
                 else:
                     synced = await ctx.bot.tree.sync()
 
+                suffix = 'globally' if option is None else 'to the current guild.'
+
                 await ctx.send(
-                    f"Synced {len(synced)} commands {'globally' if option is None else 'to the current guild.'}"
+                    f"Synced {len(synced)} commands {suffix}"
                 )
                 return
 
@@ -108,7 +99,6 @@ async def main():
                     returned += 1
 
             await ctx.send(f"Synced the tree to {returned}/{len(guilds)}.")
-
 
         # Start the bot.
         await bot.start(os.environ['TOKEN'])

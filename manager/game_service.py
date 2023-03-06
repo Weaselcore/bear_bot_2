@@ -1,11 +1,10 @@
-import collections
+from collections.abc import Sequence
 import discord
 
 from embeds.game_embed import GameEmbedManager
 from repository.game_repo import GamePostgresRepository
 from repository.tables import GameModel
 
-#
 class GameManager:
 
     def __init__(
@@ -62,7 +61,7 @@ class GameManager:
         """ Get game from list """
         return await self._get_repository().get_game(game_id)
 
-    async def get_all_games_by_guild_id(self, guild_id:int) -> collections.abc.Sequence[GameModel]:
+    async def get_all_games_by_guild_id(self, guild_id: int) -> Sequence[GameModel]:
         """ Get all games names and id from list of GameModels """
         return await self._get_repository().get_all_games_by_guild_id(guild_id)
 

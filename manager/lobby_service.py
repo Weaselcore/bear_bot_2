@@ -1,5 +1,4 @@
-import collections
-from typing import TYPE_CHECKING
+from collections.abc import Sequence
 import discord
 from embeds.lobby_embed import LobbyEmbedManager
 from repository.lobby_repo import LobbyPostgresRepository, MemberNotFound
@@ -37,10 +36,10 @@ class LobbyManager:
 
     async def get_lobby(self, lobby_id: int) -> LobbyModel:
         return await self._get_repository().get_lobby(lobby_id)
-    
-    async def get_all_lobbies(self) -> collections.abc.Sequence[LobbyModel]:
+
+    async def get_all_lobbies(self) -> Sequence[LobbyModel]:
         return await self._get_repository().get_all_lobbies()
-    
+
     async def create_lobby(
         self,
         control_panel_message_id: int,
@@ -75,7 +74,7 @@ class LobbyManager:
         history_thread = await guild.fetch_channel(history_thread_id)
         if not history_thread:
             raise ValueError('History thread not found')
-        return history_thread # type: ignore
+        return history_thread  # type: ignore
 
     async def set_thread(self, lobby_id: int, thread_id: int) -> None:
         await self._get_repository().set_thread_id(lobby_id, thread_id)
@@ -85,7 +84,7 @@ class LobbyManager:
 
     async def set_game_id(self, lobby_id: int, game_id: int) -> int:
         owner = await self.get_lobby_owner(lobby_id)
-        game_id =  await self._get_repository().set_game_id(lobby_id, game_id)
+        game_id = await self._get_repository().set_game_id(lobby_id, game_id)
         try:
             thread = await self.get_thread(lobby_id)
             await self.embed_manager.send_update_embed(
@@ -97,10 +96,10 @@ class LobbyManager:
         except Exception:
             pass
         return game_id
-    
+
     async def get_gamesize(self, lobby_id: int) -> int:
         return await self._get_repository().get_gamesize(lobby_id)
-    
+
     async def set_gamesize(self, lobby_id: int, game_size: int) -> int:
         game_size = await self._get_repository().set_gamesize(lobby_id, game_size)
         owner = await self.get_lobby_owner(lobby_id)
@@ -115,14 +114,14 @@ class LobbyManager:
     async def get_lobby_name(self) -> str:
         lobby_number = len(await self._get_repository().get_all_lobbies()) + 1
         return f'Lobby {lobby_number}'
-    
+
     async def get_lobby_channel(self, lobby_id: int) -> discord.TextChannel:
         lobby_channel_id = await self._get_repository().get_lobby_channel_id(lobby_id)
         guild = await self._get_guild(lobby_id)
         lobby_channel = await guild.fetch_channel(lobby_channel_id)
         if not lobby_channel:
             raise ValueError('Lobby channel not found')
-        return lobby_channel # type: ignore
+        return lobby_channel  # type: ignore
 
     async def get_lobby_owner(self, lobby_id: int) -> discord.Member:
         member_model = await self._get_repository().get_owner(lobby_id)
@@ -131,7 +130,7 @@ class LobbyManager:
         if not member:
             raise MemberNotFound(member_model.id)
         return member
-        
+
     def print_lobby(self, lobby_id: int) -> None:
         print(self.get_lobby(lobby_id))
 
@@ -140,7 +139,10 @@ class LobbyManager:
 
     async def update_lobby_status(self, lobby_id: int) -> None:
         is_locked = await self._get_repository().is_lobby_locked(lobby_id)
-        updated_is_locked = await self._get_repository().set_is_lobby_locked(lobby_id, not is_locked)
+        updated_is_locked = await self._get_repository().set_is_lobby_locked(
+            lobby_id,
+            not is_locked
+        )
         owner = await self.get_lobby_owner(lobby_id)
         if updated_is_locked is True:
             await self.embed_manager.send_update_embed(
@@ -154,45 +156,53 @@ class LobbyManager:
                 title=owner.display_name,
                 destination=await self.get_thread(lobby_id)
             )
-    
+
     async def get_original_channel(self, lobby_id: int) -> discord.TextChannel:
-        original_channel_id = await self._get_repository().get_original_channel_id(lobby_id)
+        original_channel_id = await self._get_repository().get_original_channel_id(
+            lobby_id
+        )
         guild = await self._get_guild(lobby_id)
         original_channel = await guild.fetch_channel(original_channel_id)
         if not original_channel:
             raise ValueError('Original channel not found')
-        return original_channel # type: ignore
-    
+        return original_channel  # type: ignore
+
     async def get_control_panel_message(self, lobby_id: int) -> discord.Message:
-        control_panel_id = await self._get_repository().get_control_panel_message_id(lobby_id)
+        control_panel_id = await self._get_repository().get_control_panel_message_id(
+            lobby_id
+        )
         lobby_text_channel = await self.get_lobby_channel(lobby_id)
         assert lobby_text_channel
         control_panel_message = await lobby_text_channel.fetch_message(control_panel_id)
         if not control_panel_message:
             raise ValueError('Control panel message not found')
         return control_panel_message
-    
+
     async def get_embed_message(self, lobby_id: int) -> discord.Message | None:
         embed_message_id = await self._get_repository().get_embed_message_id(lobby_id)
         lobby_text_channel = await self.get_lobby_channel(lobby_id)
         assert lobby_text_channel
         if not embed_message_id:
             return None
-        embed_message =  await lobby_text_channel.fetch_message(embed_message_id)
+        embed_message = await lobby_text_channel.fetch_message(embed_message_id)
         return embed_message
-    
+
     async def set_embed_message(self, lobby_id: int, embed_message_id: int) -> None:
         await self._get_repository().set_embed_message_id(lobby_id, embed_message_id)
-    
+
     async def get_queue_embed_message(self, lobby_id: int) -> None | discord.Message:
-        queue_embed_message_id = await self._get_repository().get_queue_message_id(lobby_id)
+        queue_embed_message_id = await self._get_repository().get_queue_message_id(
+            lobby_id
+        )
         lobby_text_channel = await self.get_lobby_channel(lobby_id)
         assert lobby_text_channel
         if not queue_embed_message_id:
             return None
-        queue_embed_message = await lobby_text_channel.fetch_message(queue_embed_message_id)
+        queue_embed_message = await lobby_text_channel.fetch_message(
+            queue_embed_message_id
+        )
         return queue_embed_message
-    
+
     async def set_queue_message(self, lobby_id: int, queue_message_id: int) -> None:
         await self._get_repository().set_queue_message_id(lobby_id, queue_message_id)
 
@@ -208,22 +218,31 @@ class LobbyManager:
         if not member:
             raise MemberNotFound(member_id)
         return member
-    
+
     async def get_members(self, lobby_id: int) -> list[discord.Member]:
-        member_list: collections.abc.Sequence[MemberModel] = await self._get_repository().get_members(lobby_id)
+        member_list: Sequence[MemberModel] = await self._get_repository().get_members(
+            lobby_id
+        )
         guild = await self._get_guild(lobby_id)
-        list_of_members = [await guild.fetch_member(member.id) for member in member_list]
+        list_of_members = [await guild.fetch_member(member.id) \
+                           for member in member_list]
         final_list = list(filter(None, list_of_members))
         return final_list
-    
+
     async def get_queue_members(self, lobby_id: int) -> list[discord.Member]:
         queue_member_list = await self._get_repository().get_queue_members(lobby_id)
         guild = await self._get_guild(lobby_id)
-        list_of_queue_members = [await guild.fetch_member(member.id) for member in queue_member_list]
+        list_of_queue_members = [await guild.fetch_member(member.id) \
+                                 for member in queue_member_list]
         final_list = list(filter(None, list_of_queue_members))
         return final_list
-    
-    async def add_member(self, lobby_id: int, member_id: int, owner_added: bool = False) -> None:
+
+    async def add_member(
+        self,
+        lobby_id: int,
+        member_id: int,
+        owner_added: bool = False
+    ) -> None:
         await self._get_repository().add_member(lobby_id, member_id)
         member = await self.get_member(lobby_id, member_id)
         thread = await self.get_thread(lobby_id)
@@ -241,12 +260,16 @@ class LobbyManager:
                 additional_string=member.display_name,
                 destination=thread,
             )
-        
-    
+
     async def add_member_queue(self, lobby_id: int, member_id: int) -> None:
         await self._get_repository().add_queue_member(lobby_id, member_id)
-    
-    async def remove_member(self, lobby_id: int, member_id: int, owner_removed: bool=False) -> None:
+
+    async def remove_member(
+        self,
+        lobby_id: int,
+        member_id: int,
+        owner_removed: bool = False
+    ) -> None:
         member = await self.get_member(lobby_id, member_id)
         thread = await self.get_thread(lobby_id)
         await self._get_repository().remove_member(lobby_id, member_id)
@@ -264,12 +287,20 @@ class LobbyManager:
                 additional_string=member.display_name,
                 destination=thread,
             )
-    
+
     async def move_queue_members(self, lobby_id: int) -> None:
         await self._get_repository().move_queue_members(lobby_id)
-    
-    async def set_member_state(self, lobby_id: int, member_id: int, owner_set: bool=False) -> bool:
-        updated_state = await self._get_repository().set_member_state(lobby_id, member_id)
+
+    async def set_member_state(
+        self,
+        lobby_id: int,
+        member_id: int,
+        owner_set: bool = False
+    ) -> bool:
+        updated_state = await self._get_repository().set_member_state(
+            lobby_id,
+            member_id
+        )
         thread = await self.get_thread(lobby_id)
         member = await self.get_member(lobby_id, member_id)
         if not owner_set:
@@ -295,11 +326,14 @@ class LobbyManager:
     async def get_is_lobby_lock(self, lobby_id: int) -> bool:
         '''Get the lock state of the lobby'''
         return await self._get_repository().is_lobby_locked(lobby_id)
-    
+
     async def set_is_lobby_locked(self, lobby_id: int) -> bool:
         '''Toggle the lock state of the lobby'''
         is_locked = await self._get_repository().is_lobby_locked(lobby_id)
-        updated_is_locked = await self._get_repository().set_is_lobby_locked(lobby_id, not is_locked)
+        updated_is_locked = await self._get_repository().set_is_lobby_locked(
+            lobby_id,
+            not is_locked
+        )
         owner = await self.get_lobby_owner(lobby_id)
         thread = await self.get_thread(lobby_id)
 
@@ -316,10 +350,10 @@ class LobbyManager:
                 destination=thread,
             )
         return not is_locked
-    
+
     async def has_joined(self, lobby_id: int, member_id: int) -> bool:
         return await self._get_repository().has_joined(lobby_id, member_id)
-    
+
     async def switch_owner(self, lobby_id: int, member_id: int) -> None:
         '''Swap a member with the owner of the lobby'''
         old_owner = await self.get_lobby_owner(lobby_id)
@@ -332,23 +366,23 @@ class LobbyManager:
             additional_string=new_owner.display_name,
             pings=self.member_id_to_mention(new_owner.id)
         )
-    
+
     async def search_new_owner(self, lobby_id: int) -> int | None:
         '''Choose the next owner in lobby and move next owner up to first slot'''
         return await self._get_repository().search_new_owner(lobby_id)
-    
+
     async def get_member_length(self, lobby_id: int) -> int:
         '''Get the number of members in the lobby'''
         return len(await self._get_repository().get_members(lobby_id))
-    
-    async def get_members_ready(self, lobby_id: int) -> collections.abc.Sequence[int]:
+
+    async def get_members_ready(self, lobby_id: int) -> Sequence[int]:
         '''Get the number of members that are ready'''
         return await self._get_repository().get_members_ready(lobby_id)
-    
-    async def get_members_not_ready(self, lobby_id: int) -> collections.abc.Sequence[int]:
+
+    async def get_members_not_ready(self, lobby_id: int) -> Sequence[int]:
         '''Get the list of members that are not ready'''
         return await self._get_repository().get_members_not_ready(lobby_id)
-    
+
     async def delete_lobby(self, lobby_id: int, reason: str | None = None) -> None:
         '''Delete a lobby'''
         owner = await self.get_lobby_owner(lobby_id)
@@ -363,14 +397,16 @@ class LobbyManager:
             footer_string="⌚ " + session_time,
         )
 
-    
     async def get_description(self, lobby_id: int) -> str | None:
         '''Get the description of the lobby'''
         return await self._get_repository().get_description(lobby_id)
 
     async def set_description(self, lobby_id: int, description: str) -> None:
         '''Set the description of the lobby'''
-        description = await self._get_repository().set_description(lobby_id, description)
+        description = await self._get_repository().set_description(
+            lobby_id,
+            description
+        )
         await self.embed_manager.send_update_embed(
             update_type=self.embed_manager.UPDATE_TYPES.DESCRIPTION_CHANGE,
             title=description,
@@ -381,27 +417,29 @@ class LobbyManager:
     async def is_full(self, lobby_id: int) -> bool:
         '''Check if the lobby is full'''
         return await self._get_repository().is_full(lobby_id)
-    
+
     async def get_session_time(self, lobby_id: int) -> str:
         '''Get the session time of the lobby'''
         return await self._get_repository().get_session_time(lobby_id)
 
-    
     async def get_last_promotion_message(self, lobby_id: int) -> discord.Message | None:
         '''Get the last promotion message'''
-        last_promotion_message_id = await self._get_repository().get_last_promotion_message_id(lobby_id)
+        last_promotion_message_id = await self._get_repository().\
+            get_last_promotion_message_id(lobby_id)
         if not last_promotion_message_id:
             return None
-        
+
         original_lobby_text_channel = await self.get_original_channel(lobby_id)
         if not original_lobby_text_channel:
             return None
-        return await original_lobby_text_channel.fetch_message(last_promotion_message_id)
-    
+        return await original_lobby_text_channel.fetch_message(
+            last_promotion_message_id
+        )
+
     async def can_promote(self, lobby_id: int) -> bool:
         '''Check if last promotion message is older than 10 minutes'''
         return await self._get_repository().can_promote(lobby_id)
-    
+
     async def set_last_promotion_message(self, lobby_id: int, message_id: int) -> None:
         '''Set the last promotion message'''
         await self._get_repository().set_last_promotion_message_id(lobby_id, message_id)
@@ -410,7 +448,7 @@ class LobbyManager:
         '''Check if a member is the owner of a lobby'''
         return await self._get_repository().is_owner_of_lobby(member_id)
 
-    async def get_lobbies_count(self) -> int: 
+    async def get_lobbies_count(self) -> int:
         '''Get the number of lobbies'''
         return await self._get_repository().get_lobbies_count()
 
@@ -422,19 +460,16 @@ class LobbyManager:
         '''Get the id of a lobby by owner'''
         return await self._get_repository().get_lobby_id_by_owner_id(owner_id)
 
-    
     async def get_unready_mentions(self, lobby_id: int) -> str:
         members_to_ping = await self.get_members_not_ready(lobby_id)
         mention_list = [f'<@{member}>' for member in members_to_ping]
         return ", ".join(mention_list)
 
-    
     async def get_ready_mentions(self, lobby_id: int) -> str:
         members_to_ping = await self.get_members_ready(lobby_id)
         mention_list = [f'<@{member}>' for member in members_to_ping]
         return ", ".join(mention_list)
 
-    
     async def get_new_owner_mention(self, lobby_id: int) -> str:
         owner = f'<@{(await self.get_lobby_owner(lobby_id)).id}>'
         if not owner:
@@ -449,7 +484,12 @@ class LobbyManager:
         return f'<#{thread.id}>'
 
     from manager.game_service import GameManager
-    async def initialise_lobby_embed(self, lobby_id: int, game_manager: GameManager) -> None:
+
+    async def initialise_lobby_embed(
+        self,
+        lobby_id: int,
+        game_manager: GameManager
+    ) -> None:
         from cog.lobby import ButtonView
         lobby_button_view = ButtonView(
             lobby_id=lobby_id,

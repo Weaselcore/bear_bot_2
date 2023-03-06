@@ -1,7 +1,5 @@
-
-import collections
+from collections.abc import Sequence
 from sqlalchemy import Result, delete, insert, select, update
-from exceptions.lobby import GuildNotFound
 from repository.tables import GameModel, GuildModel
 
 
@@ -74,17 +72,6 @@ class GamePostgresRepository:
             if game is None:
                 raise ValueError(f"Game code {game_id} not found.")
             return game
-
-    # async def get_all_games(self) -> collections.abc.Sequence[GameModel]:
-    #     async with self.database() as session:
-    #         result: Result = await session.execute(
-    #             select(
-    #                 GameModel
-    #             ).order_by(
-    #                 GameModel.name
-    #             )
-    #         )
-    #         return result.scalars().all()
 
     async def get_game_max_size(self, game_id: int) -> int:
         async with self.database() as session:
@@ -217,7 +204,7 @@ class GamePostgresRepository:
             session.commit()
             return game_role
 
-    async def get_all_games_by_guild_id(self, guild_id: int) -> collections.abc.Sequence[GameModel]:
+    async def get_all_games_by_guild_id(self, guild_id: int) -> Sequence[GameModel]:
         """ Get all games name and id from list of GameModels """
         async with self.database() as session:
             result: Result = await session.execute(
