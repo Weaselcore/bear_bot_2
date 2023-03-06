@@ -26,6 +26,9 @@ class LobbyManager:
 
     async def _get_guild(self, lobby_id: int) -> discord.Guild:
         guild_id = await self._get_repository().get_guild_id(lobby_id)
+        guild_from_cache = self.bot.get_guild(guild_id)
+        if guild_from_cache:
+            return guild_from_cache
         guild = await self.bot.fetch_guild(guild_id)
         if not guild:
             raise ValueError('Guild not found')
@@ -71,6 +74,11 @@ class LobbyManager:
         history_thread_id = await self._get_repository().get_thread_id(lobby_id)
         assert history_thread_id
         guild = await self._get_guild(lobby_id)
+
+        history_thread_from_cache = guild.get_thread(history_thread_id)
+        if history_thread_from_cache:
+            return history_thread_from_cache
+        
         history_thread = await guild.fetch_channel(history_thread_id)
         if not history_thread:
             raise ValueError('History thread not found')
@@ -118,17 +126,19 @@ class LobbyManager:
     async def get_lobby_channel(self, lobby_id: int) -> discord.TextChannel:
         lobby_channel_id = await self._get_repository().get_lobby_channel_id(lobby_id)
         guild = await self._get_guild(lobby_id)
-        lobby_channel = await guild.fetch_channel(lobby_channel_id)
-        if not lobby_channel:
+
+        lobby_channel_from_cache = guild.get_channel(lobby_channel_id)
+        if lobby_channel_from_cache:
+            return lobby_channel_from_cache
+        
+        lobby_channel_from_fetch = await guild.fetch_channel(lobby_channel_id)
+        if not lobby_channel_from_fetch:
             raise ValueError('Lobby channel not found')
-        return lobby_channel  # type: ignore
+        return lobby_channel_from_fetch  # type: ignore
 
     async def get_lobby_owner(self, lobby_id: int) -> discord.Member:
         member_model = await self._get_repository().get_owner(lobby_id)
-        guild = await self._get_guild(lobby_id)
-        member = await guild.fetch_member(member_model.id)
-        if not member:
-            raise MemberNotFound(member_model.id)
+        member = await self.get_member(lobby_id, member_model.id)
         return member
 
     def print_lobby(self, lobby_id: int) -> None:
@@ -162,10 +172,14 @@ class LobbyManager:
             lobby_id
         )
         guild = await self._get_guild(lobby_id)
-        original_channel = await guild.fetch_channel(original_channel_id)
-        if not original_channel:
+        original_channel_from_cache = guild.get_channel(original_channel_id)
+        if original_channel_from_cache:
+            return original_channel_from_cache
+        
+        original_channel_from_fetch = await guild.fetch_channel(original_channel_id)
+        if not original_channel_from_fetch:
             raise ValueError('Original channel not found')
-        return original_channel  # type: ignore
+        return original_channel_from_fetch  # type: ignore
 
     async def get_control_panel_message(self, lobby_id: int) -> discord.Message:
         control_panel_id = await self._get_repository().get_control_panel_message_id(
@@ -173,10 +187,19 @@ class LobbyManager:
         )
         lobby_text_channel = await self.get_lobby_channel(lobby_id)
         assert lobby_text_channel
-        control_panel_message = await lobby_text_channel.fetch_message(control_panel_id)
-        if not control_panel_message:
+
+        control_panel_message_from_cache = lobby_text_channel.get_partial_message(
+            control_panel_id
+        )
+        if control_panel_message_from_cache:
+            return control_panel_message_from_cache
+    
+        control_panel_message_from_fetch = await lobby_text_channel.fetch_message(
+            control_panel_id
+        )
+        if not control_panel_message_from_fetch:
             raise ValueError('Control panel message not found')
-        return control_panel_message
+        return control_panel_message_from_fetch
 
     async def get_embed_message(self, lobby_id: int) -> discord.Message | None:
         embed_message_id = await self._get_repository().get_embed_message_id(lobby_id)
@@ -184,8 +207,16 @@ class LobbyManager:
         assert lobby_text_channel
         if not embed_message_id:
             return None
-        embed_message = await lobby_text_channel.fetch_message(embed_message_id)
-        return embed_message
+        embed_message_from_cache = lobby_text_channel.get_partial_message(
+            embed_message_id
+        )
+        if embed_message_from_cache:
+            return embed_message_from_cache
+        
+        embed_message_from_fetch = await lobby_text_channel.fetch_message(
+            embed_message_id
+        )
+        return embed_message_from_fetch
 
     async def set_embed_message(self, lobby_id: int, embed_message_id: int) -> None:
         await self._get_repository().set_embed_message_id(lobby_id, embed_message_id)
@@ -198,10 +229,15 @@ class LobbyManager:
         assert lobby_text_channel
         if not queue_embed_message_id:
             return None
-        queue_embed_message = await lobby_text_channel.fetch_message(
+        queue_embed_message_from_cache = lobby_text_channel.get_partial_message(
             queue_embed_message_id
         )
-        return queue_embed_message
+        if queue_embed_message_from_cache:
+            return queue_embed_message_from_cache
+        queue_embed_message_from_fetch = await lobby_text_channel.fetch_message(
+            queue_embed_message_id
+        )
+        return queue_embed_message_from_fetch
 
     async def set_queue_message(self, lobby_id: int, queue_message_id: int) -> None:
         await self._get_repository().set_queue_message_id(lobby_id, queue_message_id)
@@ -214,25 +250,29 @@ class LobbyManager:
 
     async def get_member(self, lobby_id: int, member_id: int) -> discord.Member:
         guild = await self._get_guild(lobby_id)
-        member = await guild.fetch_member(member_id)
-        if not member:
-            raise MemberNotFound(member_id)
-        return member
+
+        member_from_cache = await guild.get_member(member_id)
+        if member_from_cache:
+            return member_from_cache
+        
+        member_from_fetch = await guild.fetch_member(member_id)
+        if member_from_fetch:
+            return member_from_fetch
+        
+        raise MemberNotFound(member_id)
 
     async def get_members(self, lobby_id: int) -> list[discord.Member]:
         member_list: Sequence[MemberModel] = await self._get_repository().get_members(
             lobby_id
         )
-        guild = await self._get_guild(lobby_id)
-        list_of_members = [await guild.fetch_member(member.id) \
+        list_of_members = [await self.get_member(lobby_id, member.id) \
                            for member in member_list]
         final_list = list(filter(None, list_of_members))
         return final_list
 
     async def get_queue_members(self, lobby_id: int) -> list[discord.Member]:
         queue_member_list = await self._get_repository().get_queue_members(lobby_id)
-        guild = await self._get_guild(lobby_id)
-        list_of_queue_members = [await guild.fetch_member(member.id) \
+        list_of_queue_members = [await self.get_member(lobby_id, member.id) \
                                  for member in queue_member_list]
         final_list = list(filter(None, list_of_queue_members))
         return final_list
@@ -310,7 +350,7 @@ class LobbyManager:
                 title=member.display_name,
                 destination=thread,
             )
-        elif owner_set:
+        else:
             owner = await self.get_lobby_owner(lobby_id)
             await self.embed_manager.send_update_embed(
                 update_type=self.embed_manager.UPDATE_TYPES.OWNER_READY,
@@ -432,9 +472,18 @@ class LobbyManager:
         original_lobby_text_channel = await self.get_original_channel(lobby_id)
         if not original_lobby_text_channel:
             return None
-        return await original_lobby_text_channel.fetch_message(
+        channel_from_cache = original_lobby_text_channel.get_partial_message(
             last_promotion_message_id
         )
+        if channel_from_cache:
+            return channel_from_cache
+        channel_from_fetch =  await original_lobby_text_channel.fetch_message(
+            last_promotion_message_id
+        )
+        if channel_from_fetch:
+            return channel_from_fetch
+        else:
+            return None
 
     async def can_promote(self, lobby_id: int) -> bool:
         '''Check if last promotion message is older than 10 minutes'''
