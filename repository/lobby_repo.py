@@ -38,7 +38,7 @@ class LobbyPostgresRepository:
                 raise LobbyNotFound(lobby_id)
             return lobby
 
-    async def get_all_lobbies(self) -> Sequence[LobbyModel | None]:
+    async def get_all_lobbies(self) -> Sequence[LobbyModel]:
         async with self.database() as session:
             result: Result = await session.execute(select(LobbyModel))
             return result.scalars().unique().all()  # type: ignore

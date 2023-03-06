@@ -247,7 +247,7 @@ class LobbyEmbedManager:
         members: list[discord.Member],
         member_ready: collections.abc.Sequence[int],
         game_size: int,
-        message: discord.Message | None,
+        message: discord.Message | discord.PartialMessage |  None,
     ) -> None:
 
         if description is None:
@@ -278,7 +278,7 @@ class LobbyEmbedManager:
     @staticmethod
     async def update_queue_embed(
         queue_members: list[discord.Member],
-        message: discord.Message | None,
+        message: discord.Message | discord.PartialMessage | None,
     ) -> None:
         queue_embed = QueueEmbed(queue_members)
         if message is not None:
