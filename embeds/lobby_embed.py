@@ -94,7 +94,8 @@ class LobbyEmbed(discord.Embed):
         for member in members:
             self.add_field(
                 name=member.display_name,
-                value=f'Status: {"Ready" if member.id in member_ready else "Not Ready"}',  # noqa
+                value=f'Status: \
+            {"Ready" if member.id in member_ready else "Not Ready"}',
                 inline=False
             )
 
@@ -109,8 +110,8 @@ class LobbyEmbed(discord.Embed):
                 )
 
         # Add footer with lobby id and fill/ready status.
-        footer = f'[Lobby ID:  {lobby_id}] [🎮 {lobby_length}/{game_size} slots filled,\
-              ✅ {len(member_ready)}/{game_size} ready]'
+        footer = f'[Lobby ID:  {lobby_id}] [🎮 {lobby_length}/{game_size} slots filled, \
+    ✅ {len(member_ready)}/{game_size} ready]'
         self.set_footer(text=footer)
 
 

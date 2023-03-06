@@ -40,7 +40,7 @@ class LobbyManager:
     async def get_lobby(self, lobby_id: int) -> LobbyModel:
         return await self._get_repository().get_lobby(lobby_id)
 
-    async def get_all_lobbies(self) -> Sequence[LobbyModel]:
+    async def get_all_lobbies(self) -> Sequence[LobbyModel | None]:
         return await self._get_repository().get_all_lobbies()
 
     async def create_lobby(
@@ -78,7 +78,7 @@ class LobbyManager:
         history_thread_from_cache = guild.get_thread(history_thread_id)
         if history_thread_from_cache:
             return history_thread_from_cache
-        
+
         history_thread = await guild.fetch_channel(history_thread_id)
         if not history_thread:
             raise ValueError('History thread not found')
@@ -129,8 +129,9 @@ class LobbyManager:
 
         lobby_channel_from_cache = guild.get_channel(lobby_channel_id)
         if lobby_channel_from_cache:
+            assert isinstance(lobby_channel_from_cache, discord.TextChannel)
             return lobby_channel_from_cache
-        
+
         lobby_channel_from_fetch = await guild.fetch_channel(lobby_channel_id)
         if not lobby_channel_from_fetch:
             raise ValueError('Lobby channel not found')
@@ -174,14 +175,18 @@ class LobbyManager:
         guild = await self._get_guild(lobby_id)
         original_channel_from_cache = guild.get_channel(original_channel_id)
         if original_channel_from_cache:
+            assert isinstance(original_channel_from_cache, discord.TextChannel)
             return original_channel_from_cache
-        
+
         original_channel_from_fetch = await guild.fetch_channel(original_channel_id)
         if not original_channel_from_fetch:
             raise ValueError('Original channel not found')
         return original_channel_from_fetch  # type: ignore
 
-    async def get_control_panel_message(self, lobby_id: int) -> discord.Message:
+    async def get_control_panel_message(
+        self,
+        lobby_id: int
+    ) -> discord.Message | discord.PartialMessage:
         control_panel_id = await self._get_repository().get_control_panel_message_id(
             lobby_id
         )
@@ -193,7 +198,7 @@ class LobbyManager:
         )
         if control_panel_message_from_cache:
             return control_panel_message_from_cache
-    
+
         control_panel_message_from_fetch = await lobby_text_channel.fetch_message(
             control_panel_id
         )
@@ -201,7 +206,10 @@ class LobbyManager:
             raise ValueError('Control panel message not found')
         return control_panel_message_from_fetch
 
-    async def get_embed_message(self, lobby_id: int) -> discord.Message | None:
+    async def get_embed_message(
+        self,
+        lobby_id: int
+    ) -> None | discord.Message | discord.PartialMessage:
         embed_message_id = await self._get_repository().get_embed_message_id(lobby_id)
         lobby_text_channel = await self.get_lobby_channel(lobby_id)
         assert lobby_text_channel
@@ -212,7 +220,7 @@ class LobbyManager:
         )
         if embed_message_from_cache:
             return embed_message_from_cache
-        
+
         embed_message_from_fetch = await lobby_text_channel.fetch_message(
             embed_message_id
         )
@@ -221,7 +229,10 @@ class LobbyManager:
     async def set_embed_message(self, lobby_id: int, embed_message_id: int) -> None:
         await self._get_repository().set_embed_message_id(lobby_id, embed_message_id)
 
-    async def get_queue_embed_message(self, lobby_id: int) -> None | discord.Message:
+    async def get_queue_embed_message(
+        self,
+        lobby_id: int
+    ) -> None | discord.Message | discord.PartialMessage:
         queue_embed_message_id = await self._get_repository().get_queue_message_id(
             lobby_id
         )
@@ -251,28 +262,28 @@ class LobbyManager:
     async def get_member(self, lobby_id: int, member_id: int) -> discord.Member:
         guild = await self._get_guild(lobby_id)
 
-        member_from_cache = await guild.get_member(member_id)
+        member_from_cache = guild.get_member(member_id)
         if member_from_cache:
             return member_from_cache
-        
+
         member_from_fetch = await guild.fetch_member(member_id)
         if member_from_fetch:
             return member_from_fetch
-        
+
         raise MemberNotFound(member_id)
 
     async def get_members(self, lobby_id: int) -> list[discord.Member]:
         member_list: Sequence[MemberModel] = await self._get_repository().get_members(
             lobby_id
         )
-        list_of_members = [await self.get_member(lobby_id, member.id) \
+        list_of_members = [await self.get_member(lobby_id, member.id)
                            for member in member_list]
         final_list = list(filter(None, list_of_members))
         return final_list
 
     async def get_queue_members(self, lobby_id: int) -> list[discord.Member]:
         queue_member_list = await self._get_repository().get_queue_members(lobby_id)
-        list_of_queue_members = [await self.get_member(lobby_id, member.id) \
+        list_of_queue_members = [await self.get_member(lobby_id, member.id)
                                  for member in queue_member_list]
         final_list = list(filter(None, list_of_queue_members))
         return final_list
@@ -345,18 +356,22 @@ class LobbyManager:
         member = await self.get_member(lobby_id, member_id)
         if not owner_set and updated_state:
             member = await self.get_member(lobby_id, member_id)
+            pings = await self.get_unready_mentions(lobby_id)
+            pings += await self.get_owner_mention(lobby_id)
             await self.embed_manager.send_update_embed(
                 update_type=self.embed_manager.UPDATE_TYPES.READY,
                 title=member.display_name,
                 destination=thread,
+                pings=pings,
             )
-        else:
+        if owner_set:
             owner = await self.get_lobby_owner(lobby_id)
             await self.embed_manager.send_update_embed(
                 update_type=self.embed_manager.UPDATE_TYPES.OWNER_READY,
                 title=owner.display_name,
                 additional_string=member.display_name,
                 destination=thread,
+                pings=await self.get_unready_mentions(lobby_id),
             )
         return updated_state
 
@@ -462,7 +477,10 @@ class LobbyManager:
         '''Get the session time of the lobby'''
         return await self._get_repository().get_session_time(lobby_id)
 
-    async def get_last_promotion_message(self, lobby_id: int) -> discord.Message | None:
+    async def get_last_promotion_message(
+        self,
+        lobby_id: int
+    ) -> discord.Message | discord.PartialMessage | None:
         '''Get the last promotion message'''
         last_promotion_message_id = await self._get_repository().\
             get_last_promotion_message_id(lobby_id)
@@ -477,7 +495,7 @@ class LobbyManager:
         )
         if channel_from_cache:
             return channel_from_cache
-        channel_from_fetch =  await original_lobby_text_channel.fetch_message(
+        channel_from_fetch = await original_lobby_text_channel.fetch_message(
             last_promotion_message_id
         )
         if channel_from_fetch:
@@ -511,6 +529,8 @@ class LobbyManager:
 
     async def get_unready_mentions(self, lobby_id: int) -> str:
         members_to_ping = await self.get_members_not_ready(lobby_id)
+        if len(members_to_ping) == 0:
+            return ""
         mention_list = [f'<@{member}>' for member in members_to_ping]
         return ", ".join(mention_list)
 
@@ -519,11 +539,8 @@ class LobbyManager:
         mention_list = [f'<@{member}>' for member in members_to_ping]
         return ", ".join(mention_list)
 
-    async def get_new_owner_mention(self, lobby_id: int) -> str:
-        owner = f'<@{(await self.get_lobby_owner(lobby_id)).id}>'
-        if not owner:
-            raise ValueError("No owner found")
-        return owner
+    async def get_owner_mention(self, lobby_id: int) -> str:
+        return f'<@{(await self.get_lobby_owner(lobby_id)).id}>'
 
     def member_id_to_mention(self, member_id: int) -> str:
         return f'<@{member_id}>'

@@ -4,7 +4,7 @@ from sqlalchemy import Result, func, update, delete
 from sqlalchemy.future import select
 from time import gmtime, strftime
 
-from exceptions.lobby import (
+from exceptions.lobby_exceptions import (
     GuildNotFound,
     LobbyCreationError,
     LobbyNotFound,
@@ -38,7 +38,7 @@ class LobbyPostgresRepository:
                 raise LobbyNotFound(lobby_id)
             return lobby
 
-    async def get_all_lobbies(self) -> list[LobbyModel | None]:
+    async def get_all_lobbies(self) -> Sequence[LobbyModel | None]:
         async with self.database() as session:
             result: Result = await session.execute(select(LobbyModel))
             return result.scalars().unique().all()  # type: ignore
@@ -807,7 +807,7 @@ class LobbyPostgresRepository:
                 ).filter(
                     MemberLobbyModel.lobby_id == lobby_id
                 ).filter(
-                    MemberLobbyModel.ready is False
+                    MemberLobbyModel.ready == False # noqa
                 )
             )
             return result.scalars().all()
@@ -820,7 +820,7 @@ class LobbyPostgresRepository:
                 ).filter(
                     MemberLobbyModel.lobby_id == lobby_id
                 ).filter(
-                    MemberLobbyModel.ready is True
+                    MemberLobbyModel.ready == True # noqa
                 )
             )
             members = result.scalars().all()
