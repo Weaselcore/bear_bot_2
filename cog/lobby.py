@@ -726,6 +726,7 @@ class ButtonView(discord.ui.View):
                 self.add_field(
                     name='Slots Left:',
                     value=f'⠀⠀⠀⠀⤷  R>{game_size - lobby_size}',
+                    inline=False,
                 )
                 if game_model.icon_url:
                     self.set_thumbnail(url=game_model.icon_url)
