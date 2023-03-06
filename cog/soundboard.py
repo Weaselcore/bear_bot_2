@@ -1,7 +1,14 @@
 import aiohttp
 from pathlib import Path
 from discord.ext import commands
-from discord import Interaction, app_commands, CategoryChannel, VoiceClient, Member, VoiceState
+from discord import (
+    Interaction,
+    app_commands,
+    CategoryChannel,
+    VoiceClient,
+    Member,
+    VoiceState
+)
 import discord
 from view.soundboard.sound_board import SoundBoardView, SoundButton
 from view.soundboard.streamable_submission import StreamableSubmission
@@ -18,20 +25,35 @@ class SoundBoardCog(commands.Cog):
         # Creates partially persistent view when cog is loaded
         for view in self.create_soundboard_view():
             # Will only add view if it already exist
-            # TODO: Use db to store differences to determine if view needs to be updated.
+            # TODO: Use db to store differences to determine if view needs to be updated
             self.bot.add_view(view=view)
 
         print('SoundBoardCog loaded')
 
-
     @commands.Cog.listener()
-    async def on_voice_state_update(self, _: Member, before: VoiceState, after: VoiceState):
-        if not after.channel == before.channel:
-            if(len(before.channel.members) == 1 and self.bot.user in before.channel.members): # type: ignore
-                voice_client: VoiceClient = before.channel.guild.voice_client # type: ignore
-                await voice_client.disconnect(force=False)
+    async def on_voice_state_update(
+        self,
+        member: Member,
+        before: VoiceState,
+        after: VoiceState
+    ): 
+        assert after.channel is not None
+        assert before.channel is not None
+        
+        if member == self.bot.user:
+            if len(after.channel.members) == 1:
+                voice_client = after.channel.guild.voice_client
+                if voice_client:
+                    await voice_client.disconnect(force=False)
+        elif not after.channel == before.channel:
+            before_length = len(before.channel.members)
+            is_in_channel = self.bot.user in before.channel.members
 
-    
+            if (before_length == 1 and is_in_channel):
+                voice_client = before.channel.guild.voice_client
+                if voice_client:
+                    await voice_client.disconnect(force=False)
+
     @commands.Cog.listener()
     async def on_play(self, interaction: Interaction, custom_id: str):
         """Custom listener for when bot is going to play audio."""
@@ -44,32 +66,33 @@ class SoundBoardCog(commands.Cog):
 
         # Check if bot is connected to a voice channel
         if not voice_client:
-            voice_client = await interaction.user.voice.channel.connect() # type: ignore
+            voice_client = \
+                await interaction.user.voice.channel.connect()  # type: ignore
 
         # Check if bot is in the same voice channel as the user
-        if self.bot.user not in interaction.channel.members: # type: ignore
-            voice_client = await interaction.user.voice.channel.connect() # type: ignore
-        
+        if self.bot.user not in interaction.channel.members:  # type: ignore
+            voice_client = \
+                await interaction.user.voice.channel.connect()  # type: ignore
+
         if not voice_client:
             return ValueError("Voice client could not be connected.")
 
-        if voice_client.is_playing(): # type: ignore
-            voice_client.stop() # type: ignore
+        if voice_client.is_playing():  # type: ignore
+            voice_client.stop()  # type: ignore
 
         # Prepare audio source
         file_path = Path(f"data/sound_bites/{custom_id}.mp3")
         source = discord.PCMVolumeTransformer(
             discord.FFmpegPCMAudio(
-                source=file_path, # type: ignore
+                source=file_path,  # type: ignore
             ),
             volume=0.55
         )
 
-        voice_client.play( # type: ignore
+        voice_client.play(  # type: ignore
             source=source,
         )
 
-    
     def create_soundboard_view(self) -> list[SoundBoardView]:
 
         soundboard_view_list = []
@@ -87,8 +110,6 @@ class SoundBoardCog(commands.Cog):
         else:  # Send the last view
             soundboard_view_list.append(view)
         return soundboard_view_list
-        
-
 
     @commands.Cog.listener()
     async def on_soundboard_update(self, interaction: Interaction):
@@ -96,8 +117,9 @@ class SoundBoardCog(commands.Cog):
             raise ValueError("Interaction does not have a guild.")
 
         # Find if category channel exists
-        category: CategoryChannel | None = discord.utils.find( # type: ignore
-            lambda c: c.name == 'soundboard' and isinstance(c, discord.CategoryChannel),
+        category: CategoryChannel | None = discord.utils.find(  # type: ignore
+            lambda c: c.name == 'soundboard' and isinstance(
+                c, discord.CategoryChannel),
             interaction.guild.channels
         )
 
@@ -106,7 +128,8 @@ class SoundBoardCog(commands.Cog):
 
         # Clone channel to delete old views
         channel = discord.utils.find(
-            lambda c: c.name == 'page-1' and isinstance(c, discord.TextChannel),
+            lambda c: c.name == 'page-1' and isinstance(
+                c, discord.TextChannel),
             interaction.guild.channels
         )
 
@@ -135,16 +158,14 @@ class SoundBoardCog(commands.Cog):
                     ephemeral=True
                 )
 
-
     @app_commands.command(
         description="Server boost: T1 - 8mb, T2 - 50mb, T3 - 100mb", name='upload'
     )
     async def upload(self, interaction: Interaction, file: discord.Attachment):
-        # TODO check guild level for size limit.
+        # TODO: check guild level for size limit.
         await interaction.response.send_modal(
             UploadSubmission(self.bot, file),
         )
-
 
     @app_commands.command(description="Manually update soundboard", name='update')
     async def update(self, interaction: Interaction):
@@ -172,12 +193,10 @@ class SoundBoardCog(commands.Cog):
                     break
         return list_of_files
 
-
     @app_commands.command(description="Play soundbite", name='play')
     @app_commands.autocomplete(name=file_search)
     async def play(self, interaction: Interaction, name: str):
         self.bot.dispatch("play", interaction, name)
-
 
     @app_commands.command(description="Delete soundbite", name='delete')
     @app_commands.autocomplete(name=file_search)
@@ -191,25 +210,24 @@ class SoundBoardCog(commands.Cog):
                 content=f"{name}.mp3 does not exist. Please report this."
             )
 
-
     @app_commands.command(description="Stops and disconnects voice client", name='stop')
     async def stop(self, interaction: Interaction):
 
         if not interaction.guild:
             raise ValueError("Interaction does not have a guild.")
 
-        voice_client: VoiceClient = interaction.guild.voice_client # type: ignore
-        if interaction.user.voice is None: # type: ignore
+        voice_client: VoiceClient = interaction.guild.voice_client  # type: ignore
+        if interaction.user.voice is None:  # type: ignore
             await interaction.response.send_message(
                 content='You need to be in a voice channel to use this command.'
             )
         elif voice_client is not None:
             if voice_client.is_connected() is True:
-                name = interaction.channel.name # type: ignore
+                name = interaction.channel.name  # type: ignore
                 if not interaction.guild:
                     raise ValueError("Interaction does not have a guild.")
                 try:
-                    await interaction.guild.voice_client.disconnect() # type: ignore
+                    await interaction.guild.voice_client.disconnect()  # type: ignore
                 except Exception as e:
                     print(e)
                 await interaction.response.send_message(
@@ -220,7 +238,6 @@ class SoundBoardCog(commands.Cog):
                 content="Bearbot is not connected to a voice channel.",
                 ephemeral=True
             )
-
 
     @app_commands.command(
         description="Create soundbite from Streamable URL",
@@ -234,11 +251,17 @@ class SoundBoardCog(commands.Cog):
             async with session.get(url) as response:
                 response_text = await response.text()
                 url_patterns = '<meta property="og:video:url" content="', '">'
-                video_url = response_text.split(url_patterns[0])[1].split(url_patterns[1])[0] \
-                    if url_patterns[0] in response_text else None
+                video_url = response_text.split(
+                    url_patterns[0]
+                )[1].split(
+                    url_patterns[1]
+                )[0] if url_patterns[0] in response_text else None
                 name_patterns = '/video/mp4/', '?'
-                file_name = response_text.split(name_patterns[0])[1].split(name_patterns[1])[0]\
-                    if name_patterns[0] in response_text else 'video.mp4'
+                file_name = response_text.split(
+                    name_patterns[0]
+                )[1].split(
+                    name_patterns[1]
+                )[0] if name_patterns[0] in response_text else 'video.mp4'
         if video_url is None:
             await interaction.response.send_message(
                 content="Invalid Streamable URL was given or video url not valid.",
@@ -248,14 +271,12 @@ class SoundBoardCog(commands.Cog):
                 StreamableSubmission(self.bot, video_url, file_name),
             )
 
-
     @app_commands.command(
         description="Initialise soundboard channel for guild.",
         name='createsoundboardchannel',
     )
     async def create_soundboard_channel(self, interaction: Interaction):
         self.bot.dispatch("soundboard_update", interaction)
-
 
     async def cog_unload(self):
         if self.soundboard_channel is not None:
