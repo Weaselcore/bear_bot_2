@@ -372,7 +372,8 @@ class DescriptionModal(discord.ui.Modal, title='Edit Description'):
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer()
         await self.lobby_manager.set_description(self.lobby_id, self.answer.value)
-        interaction.client.dispatch('update_lobby_embed', self.lobby_id) # type: ignore
+        interaction.client.dispatch(  # type: ignore
+            'update_lobby_embed', self.lobby_id)
 
 
 class DeletionConfirmationModal(
@@ -502,7 +503,8 @@ class ButtonView(discord.ui.View):
         else:
             await self.lobby_manager.add_member(self.lobby_id, interaction.user.id)
 
-        interaction.client.dispatch('update_lobby_embed', self.lobby_id)  # type: ignore
+        interaction.client.dispatch(  # type: ignore
+            'update_lobby_embed', self.lobby_id)
 
     @discord.ui.button(
         label="Ready",
@@ -539,7 +541,8 @@ class ButtonView(discord.ui.View):
         await interaction.edit_original_response(view=self)
 
         # Update lobby embed
-        interaction.client.dispatch('update_lobby_embed', self.lobby_id)  # type: ignore
+        interaction.client.dispatch(  # type: ignore
+            'update_lobby_embed', self.lobby_id)
 
     @discord.ui.button(
         label="Leave",
@@ -585,7 +588,8 @@ class ButtonView(discord.ui.View):
         self.ready.label = f"Ready: {number_filled}"
         await interaction.edit_original_response(view=self)
         # Update lobby embed
-        interaction.client.dispatch('update_lobby_embed', self.lobby_id)  # type: ignore
+        interaction.client.dispatch(  # type: ignore
+            'update_lobby_embed', self.lobby_id)
 
     @discord.ui.button(
         label="Lock",
@@ -615,7 +619,8 @@ class ButtonView(discord.ui.View):
         await interaction.edit_original_response(view=self)
 
         # Update lobby embed
-        interaction.client.dispatch('update_lobby_embed', self.lobby_id) # type: ignore
+        interaction.client.dispatch(  # type: ignore
+            'update_lobby_embed', self.lobby_id)
 
     @discord.ui.button(
         label="Change Leader",
@@ -1043,15 +1048,16 @@ class LobbyCog(commands.Cog):
         """Removes a game from the lobby module"""
         # Check if the game exists
         try:
-            game_model = await self.game_manager.get_game(int(game)) # type: ignore
+            game_model = await self.game_manager.get_game(int(game))  # type: ignore
         except (ValueError, TypeError):
             # Send message to the user
             await interaction.response.send_message(
                 'The game given does not exist!',
                 ephemeral=True
             )
+            return
 
-        deleted = await self.game_manager.remove_game(int(game)) # type: ignore
+        deleted = await self.game_manager.remove_game(int(game))  # type: ignore
         if deleted:
             # Send message to the user
             await interaction.response.send_message(
@@ -1104,9 +1110,9 @@ class LobbyCog(commands.Cog):
         )
 
     @app_commands.command(
-            description="Lobby Owner: Add user to the lobby",
-            name='userjoin'
-        )
+        description="Lobby Owner: Add user to the lobby",
+        name='userjoin'
+    )
     @is_lobby_thread()
     async def add_user(self, interaction: discord.Interaction, user: discord.Member):
         """Adds a user to the lobby"""
@@ -1158,12 +1164,13 @@ class LobbyCog(commands.Cog):
             ephemeral=True
         )
         # Send message to the user
-        interaction.client.dispatch("update_lobby_embed", lobby_id) # type: ignore
+        interaction.client.dispatch(  # type: ignore
+            "update_lobby_embed", lobby_id)
 
     @app_commands.command(
-            description="Lobby Owner: Remove user from the lobby",
-            name='userkick'
-        )
+        description="Lobby Owner: Remove user from the lobby",
+        name='userkick'
+    )
     @is_lobby_thread()
     async def remove_user(self, interaction: discord.Interaction, user: discord.Member):
         """Removes a user from the lobby"""
@@ -1217,7 +1224,8 @@ class LobbyCog(commands.Cog):
                 dispatching request to server!',
             ephemeral=True
         )
-        interaction.client.dispatch("update_lobby_embed", lobby_id) # type: ignore
+        interaction.client.dispatch(  # type: ignore
+            "update_lobby_embed", lobby_id)
 
     @app_commands.command(
         description="Lobby Owner: Toggle ready for a user in the lobby",
@@ -1269,7 +1277,8 @@ class LobbyCog(commands.Cog):
             ephemeral=True
         )
 
-        interaction.client.dispatch("update_lobby_embed", lobby_id) # type: ignore
+        interaction.client.dispatch(  # type: ignore
+            "update_lobby_embed", lobby_id)
 
 
 async def setup(bot: commands.Bot):
