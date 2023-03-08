@@ -293,6 +293,7 @@ class LobbyPostgresRepository:
         async with self.database() as session:
             lobby = await self.get_lobby(lobby_id)
             lobby.owner_id = member_id
+            session.add(lobby)
             await session.commit()
             if not lobby.owner_id:
                 raise AttributeError("Failed to set owner")
