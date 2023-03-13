@@ -37,22 +37,22 @@ class SoundBoardCog(commands.Cog):
         before: VoiceState,
         after: VoiceState
     ): 
-        assert after.channel is not None
-        assert before.channel is not None
         
-        if member == self.bot.user:
-            if len(after.channel.members) == 1:
-                voice_client = after.channel.guild.voice_client
-                if voice_client:
-                    await voice_client.disconnect(force=False)
-        elif not after.channel == before.channel:
-            before_length = len(before.channel.members)
-            is_in_channel = self.bot.user in before.channel.members
+        # If user is the only user and disconnects, disconnect bot
+        try:
+            if not member == self.bot.user:
+                if before.channel.members is None: # type: ignore
+                    return
+                if len(before.channel.members) == 1 and self.bot.user in before.channel.members: # type: ignore # noqa
+                    if before.channel.guild.voice_client: # type: ignore
+                        await before.channel.guild.voice_client.disconnect(force=True) # type: ignore # noqa
+            if member == self.bot.user:
+                if len(after.channel.members) == 1 and self.bot.user in after.channel.members:# type: ignore # noqa
+                    if after.channel.guild.voice_client: # type: ignore
+                        await after.channel.guild.voice_client.disconnect(force=True)# type: ignore # noqa
+        except AttributeError:
+            pass
 
-            if (before_length == 1 and is_in_channel):
-                voice_client = before.channel.guild.voice_client
-                if voice_client:
-                    await voice_client.disconnect(force=False)
 
     @commands.Cog.listener()
     async def on_play(self, interaction: Interaction, custom_id: str):
