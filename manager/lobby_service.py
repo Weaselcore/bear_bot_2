@@ -1,5 +1,8 @@
 from collections.abc import Sequence
+from datetime import datetime
+from time import gmtime, strftime
 import discord
+import pytz
 from embeds.lobby_embed import LobbyEmbedManager
 from repository.lobby_repo import LobbyPostgresRepository, MemberNotFound
 from repository.tables import GuildModel, LobbyModel, MemberModel
@@ -453,7 +456,18 @@ class LobbyManager:
 
     async def get_session_time(self, lobby_id: int) -> str:
         '''Get the session time of the lobby'''
-        return await self._get_repository().get_session_time(lobby_id)
+        timezone = pytz.timezone('Pacific/Auckland')
+
+        created_datetime = await self._get_repository().get_session_time(lobby_id)
+        current_datetime = datetime.utcnow()
+
+        localised_creation_datetime = created_datetime.astimezone(tz=timezone)
+        localised_datetime_now =  current_datetime.astimezone(tz=timezone)
+
+        duration = localised_datetime_now - localised_creation_datetime
+        return "Session Duration: " + strftime(
+            "%H:%M:%S", gmtime(duration.total_seconds())
+        )
 
     async def get_last_promotion_message(
         self,

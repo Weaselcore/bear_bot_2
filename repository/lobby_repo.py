@@ -2,7 +2,6 @@ from collections.abc import Sequence
 from datetime import datetime, timedelta
 from sqlalchemy import Result, func, update, delete
 from sqlalchemy.future import select
-from time import gmtime, strftime
 
 from exceptions.lobby_exceptions import (
     GuildNotFound,
@@ -106,6 +105,7 @@ class LobbyPostgresRepository:
                 game_size=max_size,
                 guild_id=guild.id,
                 description=description,
+                created_datetime=datetime.utcnow(),
             )
             # Add owner to the lobby
             lobby_data.members.append(
@@ -737,7 +737,7 @@ class LobbyPostgresRepository:
             else:
                 return len(lobby.members) >= lobby.game_size
 
-    async def get_session_time(self, lobby_id: int) -> str:
+    async def get_session_time(self, lobby_id: int) -> datetime:
         async with self.database() as session:
             result: Result = await session.execute(
                 select(
@@ -750,11 +750,8 @@ class LobbyPostgresRepository:
 
             if not created_datetime:
                 raise LobbyNotFound(lobby_id)
-
-            duration = datetime.now() - created_datetime
-            return "Session Duration: " + strftime(
-                "%H:%M:%S", gmtime(duration.total_seconds())
-            )
+            
+            return created_datetime
 
     async def has_joined_vc(self, lobby_id: int, member_id: int) -> bool:
         async with self.database() as session:
