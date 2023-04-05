@@ -6,7 +6,15 @@ import logging
 import logging.handlers
 from discord.ext import commands
 from dotenv import load_dotenv
+
 from discord.ext.commands import Context, Greedy
+
+GUILD = discord.Object(id=299536709778014210)
+TEST_GUILD = discord.Object(id=613605418882564096)
+FAM_GUILD = discord.Object(id=1058008950131392542)
+DEV = True
+FAM = True
+
 
 
 class MyClient(commands.Bot):
@@ -18,7 +26,7 @@ class MyClient(commands.Bot):
         # await self.load_extension('cog.soundboard')
         # await self.load_extension('cog.ai')
         await self.load_extension('cog.larynx_tts')
-        # await self.load_extension('cog.quiz')
+        await self.load_extension('cog.quiz')
         self.lobby = {}  # type: ignore
 
     async def close(self) -> None:
@@ -96,10 +104,6 @@ async def main():
                     await ctx.bot.tree.sync(guild=guild)
                 except discord.HTTPException:
                     pass
-                else:
-                    returned += 1
-
-            await ctx.send(f"Synced the tree to {returned}/{len(guilds)}.")
 
         # Start the bot.
         await bot.start(os.environ['TOKEN'])

@@ -26,6 +26,7 @@ pytest-async-sqlalchemy = "*"
 pytest-asyncio = "*"
 ruff = "*"
 black = "*"
+mypy = "*"
 
 [requires]
 python_version = "3.10"
