@@ -5,7 +5,17 @@ import html
 import random
 from dataclasses_json import dataclass_json
 from discord.ext import commands
-from discord import ButtonStyle, Member, Message, User, app_commands, Interaction, Embed, TextChannel, Colour
+from discord import (
+    app_commands,
+    ButtonStyle,
+    Colour,
+    Embed,
+    Interaction,
+    Member,
+    Message,
+    TextChannel,
+    User,
+)
 from discord.ui import View, Button
 import aiohttp
 import json
@@ -20,7 +30,7 @@ DIFFICULTY = [
 ]
 
 TYPE = [
-    # There is an any type, but might lower complexity by giving a binary option.
+    # There is an any type, lowers complexity by giving a binary option.
     ("Multiple Choice", "multiple"),
     ("True/False", "boolean")
 ]
@@ -60,6 +70,7 @@ MODE = [
     ("FREE-FOR-ALL", "Free-For-All"),
     ("TEAM", "Team"),
 ]
+
 
 class Mode(Enum):
     SOLO = "Solo"
@@ -127,14 +138,14 @@ class QuizSession:
         self._index += 1
         self.current_question = self.questions[self._index]
         self.user_answered.clear()
-    
+
     def get_index(self) -> int:
         return self._index + 1
 
     # TODO: Refactor these 2 functions below, too much repetition.
     def user_correct(self, user: User | Member):
         self.user_answered.add(user.id)
-        if not user.id in self.user_statistics.keys():
+        if user.id not in self.user_statistics.keys():
             new_stat = UserStat(user=user)
             new_stat.correct += 1
             if self._index > 0:
@@ -147,7 +158,7 @@ class QuizSession:
 
     def user_wrong(self, user: User | Member):
         self.user_answered.add(user.id)
-        if not user.id in self.user_statistics.keys():
+        if user.id not in self.user_statistics.keys():
             new_stat = UserStat(user=user)
             new_stat.wrong += 1
             if self._index > 0:
@@ -160,10 +171,10 @@ class QuizSession:
 
     def user_unanswer(self):
         for user_id, user_stat in self.user_statistics.items():
-            if not user_id in self.user_answered:
+            if user_id not in self.user_answered:
                 user_stat.unanswered += 1
                 self.user_statistics[user_id] = user_stat
-    
+
     def are_users_done(self) -> bool:
         if len(self.user_answered) == len(self.user_statistics):
             return True
@@ -179,12 +190,20 @@ class QuestionEmbed(Embed):
         super().__init__(
             title=html.unescape(quiz_manager.current_question.question),
             timestamp=datetime.datetime.now(),
-            description=f"👇 Select a button to answer question within {quiz_manager.timeout} seconds.",
+            description=f"👇 Select a button to answer question within \
+                    {quiz_manager.timeout} seconds.",
             colour=Colour.random()
         )
-        self.add_field(name="Category:", value=quiz_manager.current_question.category)
-        self.add_field(name="Difficulty:", value=quiz_manager.current_question.difficulty.capitalize())
-        self.set_footer(text=f"📝 {quiz_manager.get_index()} out of {quiz_manager.max_questions} questions")
+        self.add_field(name="Category:",
+                       value=quiz_manager.current_question.category)
+        self.add_field(
+            name="Difficulty:",
+            value=quiz_manager.current_question.difficulty.capitalize()
+        )
+        self.set_footer(
+            text=f"📝 {quiz_manager.get_index()} out of \
+                {quiz_manager.max_questions} questions"
+        )
 
 
 class ProgressButton(Button):
@@ -197,20 +216,23 @@ class ProgressButton(Button):
         self.label = label
 
     def update_label(self, new_label: str):
-        self.label =  new_label
+        self.label = new_label
 
 
 class AnswerButton(Button):
-    def __init__(self,
-                 answer: str,
-                 quiz_manager: QuizSession,
-                 # Wrapping type in string quotes allows for linting to be delayed avoiding definition errors.
-                 parent_view: "QuestionButtonView",
-                 style: ButtonStyle = ButtonStyle.secondary,
-                 ):
+    def __init__(
+        self,
+        answer: str,
+        quiz_manager: QuizSession,
+        # Wrapping type in string quotes allows for linting
+        # to be delayed, avoiding definition errors below.
+        parent_view: "QuestionButtonView",
+        style: ButtonStyle = ButtonStyle.secondary,
+    ):
         super().__init__(style=style)
         self.quiz_manager = quiz_manager
-        self.correct_answer = html.unescape(quiz_manager.current_question.correct_answer.lower())
+        self.correct_answer = html.unescape(
+            quiz_manager.current_question.correct_answer.lower())
         self.answer = answer
         self.label = answer.upper()
         self.parent_view = parent_view
@@ -259,7 +281,7 @@ class AnswerButton(Button):
         if self.view:
             # Remember, you need to respond to the interaction before this works.
             await interaction.edit_original_response(view=self.view)
-            
+
 
 class QuestionButtonView(View):
     def __init__(
@@ -292,7 +314,8 @@ class QuestionButtonView(View):
                 )
             )
         if not quiz_manager.mode == Mode.SOLO:
-            self.progress_button = ProgressButton(label=quiz_manager.get_progress_label())
+            self.progress_button = ProgressButton(
+                label=quiz_manager.get_progress_label())
             self.add_item(self.progress_button)
 
     @property
@@ -301,7 +324,7 @@ class QuestionButtonView(View):
             return self._message
         else:
             raise ValueError("Message has not been set.")
-    
+
     @message.setter
     def message(self, new_message: Message):
         self._message = new_message
@@ -334,7 +357,12 @@ class QuestionButtonView(View):
                 self.active = True
         except IndexError:
             if self.message:
-                self.bot.dispatch("quiz_finish", self.message.channel, self.quiz_manager.user_statistics, self.quiz_manager.max_questions)
+                self.bot.dispatch(
+                    "quiz_finish",
+                    self.message.channel,
+                    self.quiz_manager.user_statistics,
+                    self.quiz_manager.max_questions
+                )
                 self.active = True
 
     async def on_timeout(self) -> None:
@@ -351,23 +379,27 @@ class QuestionButtonView(View):
                 if item.correct_answer.lower() == item.label.lower():
                     await item.on_correct()
             item.disabled = True
-        self.progress_button.update_label(self.quiz_manager.get_progress_label())
+        self.progress_button.update_label(
+            self.quiz_manager.get_progress_label())
         await self.message.edit(view=self)
 
     def on_user_correct(self, user: Member | User):
         self.quiz_manager.user_correct(user)
         if self.progress_button:
-            self.progress_button.update_label(self.quiz_manager.get_progress_label())
+            self.progress_button.update_label(
+                self.quiz_manager.get_progress_label())
 
     def on_user_wrong(self, user: Member | User):
         self.quiz_manager.user_wrong(user)
         if self.progress_button:
-            self.progress_button.update_label(self.quiz_manager.get_progress_label())
+            self.progress_button.update_label(
+                self.quiz_manager.get_progress_label())
 
     def on_user_unanswer(self):
         self.quiz_manager.user_unanswer()
         if self.progress_button:
-            self.progress_button.update_label(self.quiz_manager.get_progress_label())
+            self.progress_button.update_label(
+                self.quiz_manager.get_progress_label())
 
 
 # Construct API Url from parameters
@@ -389,7 +421,8 @@ def get_url(amount: int, difficulty: str, q_type: str, category: str) -> str:
     else:
         category_url = CATEGORY_PREFIX + category
 
-    url = f"{ROOT_URL}amount={amount}{category_url}{difficulty_url}{Q_TYPE_PREFIX}{q_type}"
+    url = \
+        f"{ROOT_URL}amount={amount}{category_url}{difficulty_url}{Q_TYPE_PREFIX}{q_type}"
     return url
 
 
@@ -399,50 +432,118 @@ class QuizCog(commands.Cog):
         self.bot.quiz_lobby = {}  # type: ignore
 
     @commands.Cog.listener()
-    async def on_quiz_finish(self, channel: TextChannel, user_stats: dict[int, UserStat], max_question: int):
+    async def on_quiz_finish(
+        self,
+        channel: TextChannel,
+        user_stats: dict[int, UserStat],
+        max_question: int
+    ):
         embed = Embed(
             title="Quiz Statistics",
-            description=f"There were {max_question} questions for this session.", 
+            description=f"There were {max_question} questions for this session.",
             colour=Colour.blue(),
         )
         for _, user_stat in user_stats.items():
             embed.add_field(
                 name=user_stat.user.display_name,
-                value=f"Correct: {user_stat.correct} | Incorrect: {user_stat.wrong} | Unanswered: {user_stat.unanswered}",
+                value=f"Correct: {user_stat.correct} \
+                    | Incorrect: {user_stat.wrong} \
+                    | Unanswered: {user_stat.unanswered}",
                 inline=False,
             )
-            embed.set_thumbnail(url="https://png.pngtree.com/png-clipart/20190705/original/pngtree-vector-information-icon-png-image_4225166.jpg")
+            embed.set_thumbnail(
+                url="https://png.pngtree.com/png-clipart/20190705/original/pngtree-vector-information-icon-png-image_4225166.jpg")
         await channel.send(embed=embed)
 
+    async def amount_autocomplete(
+        self,
+        interaction: Interaction,
+        current: str
+    ) -> list[app_commands.Choice[str]]:
+        return [
+            app_commands.Choice(
+                name=str(number),
+                value=str(number)
+            ) for number in AMOUNT if current in AMOUNT
+        ]
 
-    async def amount_autocomplete(self, interaction: Interaction, current: str) -> list[app_commands.Choice[str]]:
-        return [app_commands.Choice(name=str(number), value=str(number)) for number in AMOUNT if current in AMOUNT]
+    async def difficulty_autocomplete(
+            self,
+            interaction: Interaction,
+            current: str
+    ) -> list[app_commands.Choice[str]]:
+        return [
+            app_commands.Choice(
+                name=difficulty[0],
+                value=difficulty[1]
+            ) for difficulty in DIFFICULTY if current.lower() in difficulty[0].lower()
+        ]
 
-    async def difficulty_autocomplete(self, interaction: Interaction, current: str) -> list[app_commands.Choice[str]]:
-        return [app_commands.Choice(name=difficulty[0], value=difficulty[1]) for difficulty in DIFFICULTY if current.lower() in difficulty[0].lower()]
+    async def type_autocomplete(
+        self,
+        interaction: Interaction,
+        current: str
+    ) -> list[app_commands.Choice[str]]:
+        return [
+            app_commands.Choice(
+                name=question_type[0],
+                value=question_type[1]
+            ) for question_type in TYPE if current.lower() in question_type[0].lower()
+        ]
 
-    async def type_autocomplete(self, interaction: Interaction, current: str) -> list[app_commands.Choice[str]]:
-        return [app_commands.Choice(name=question_type[0], value=question_type[1]) for question_type in TYPE if current.lower() in question_type[0].lower()]
+    async def genre_autocomplete(
+        self,
+        interaction: Interaction,
+        current: str
+    ) -> list[app_commands.Choice[str]]:
+        return [
+            app_commands.Choice(
+                name=category[0],
+                value=str(category[1])
+            ) for category in CATEGORY if current.lower() in category[0].lower()
+        ]
 
-    async def genre_autocomplete(self, interaction: Interaction, current: str) -> list[app_commands.Choice[str]]:
-        return [app_commands.Choice(name=category[0], value=str(category[1])) for category in CATEGORY if current.lower() in category[0].lower()]
+    async def mode_autocomplete(
+        self,
+        interaction: Interaction,
+        current: str
+    ) -> list[app_commands.Choice[str]]:
+        return [
+            app_commands.Choice(
+                name=mode[0],
+                value=mode[1]
+            ) for mode in MODE if current.lower() in mode[0].lower()
+        ]
 
-    async def mode_autocomplete(self, interaction: Interaction, current: str) -> list[app_commands.Choice[str]]:
-        return [app_commands.Choice(name=mode[0], value=mode[1]) for mode in MODE if current.lower() in mode[0].lower()]
-
-    @app_commands.command(description="Ask for any difficulty/genre question", name="trivia_any")
+    @app_commands.command(
+        description="Ask for any difficulty/genre question",
+        name="trivia_any"
+    )
     @app_commands.autocomplete(
         amount=amount_autocomplete,
         mode=mode_autocomplete
     )
-    async def any_trivia(self, interaction: Interaction, amount: int = 5, mode: str = Mode.FREE_FOR_ALL.value, timeout: int = 15):
+    async def any_trivia(
+        self,
+        interaction: Interaction,
+        amount: int = 5,
+        mode: str = Mode.FREE_FOR_ALL.value,
+        timeout: int = 15
+    ):
         await interaction.response.defer()
         async with aiohttp.ClientSession() as session:
 
             q_type_choices = ["multiple", "boolean"]
             q_type = random.choice(q_type_choices)
 
-            async with session.get(get_url(amount=amount, difficulty="None", q_type=q_type, category="None")) as response:
+            async with session.get(
+                get_url(
+                    amount=amount,
+                    difficulty="None",
+                    q_type=q_type,
+                    category="None"
+                )
+            ) as response:
 
                 if response.status == 200:
                     json_body = await response.text()
@@ -468,13 +569,18 @@ class QuizCog(commands.Cog):
                                 quiz_manager=quiz_manager
                             ),
                             view=view,
-                            # This parameter makes the command wait, so a message it collected/returned when coro is complete.
+                            # This parameter makes the command wait,
+                            # so a message it collected/returned when coro is complete.
                             wait=True
                         )
                     else:
-                        await interaction.followup.send("Server could not complete request.")
+                        await interaction.followup.send(
+                            "Server could not complete request."
+                        )
                 else:
-                    await interaction.followup.send("Server could not complete request.")
+                    await interaction.followup.send(
+                        "Server could not complete request."
+                    )
 
     @app_commands.command(description="Ask for trivia questions", name="trivia")
     @app_commands.autocomplete(
@@ -484,11 +590,27 @@ class QuizCog(commands.Cog):
         category=genre_autocomplete,
         mode=mode_autocomplete
     )
-    async def trivia(self, interaction: Interaction, amount: str, difficulty: str, type: str, category: str, mode: str = Mode.FREE_FOR_ALL.value, timeout: int = 15):
+    async def trivia(
+        self,
+        interaction: Interaction,
+        amount: str,
+        difficulty: str,
+        type: str,
+        category: str,
+        mode: str = Mode.FREE_FOR_ALL.value,
+        timeout: int = 15
+    ):
         await interaction.response.defer()
 
         async with aiohttp.ClientSession() as session:
-            async with session.get(get_url(int(amount), difficulty, type, category)) as response:
+            async with session.get(
+                get_url(
+                    int(amount),
+                    difficulty,
+                    type,
+                    category
+                )
+            ) as response:
 
                 if response.status == 200:
                     json_body = await response.text()
@@ -515,9 +637,15 @@ class QuizCog(commands.Cog):
                             wait=True,
                         )
                     else:
-                        await interaction.edit_original_response(content=f"Server could not complete request. {get_url(int(amount), difficulty, type, category)}")
+                        await interaction.edit_original_response(
+                            content=f"Server could not complete request. \
+                                {get_url(int(amount), difficulty, type, category)}"
+                        )
                 else:
-                    await interaction.edit_original_response(content=f"Server could not complete request. {get_url(int(amount), difficulty, type, category)}")
+                    await interaction.edit_original_response(
+                        content=f"Server could not complete request. \
+                            {get_url(int(amount), difficulty, type, category)}"
+                    )
 
 
 async def setup(bot):
