@@ -10,10 +10,22 @@ aiofiles = "*"
 perflint = "*"
 pytz = "*"
 openai = "*"
+aiofile = "*"
+python-dotenv = "*"
+sqlalchemy = {extras = ["asyncio"], version = "*"}
+asyncpg = "*"
+types-cachetools = "*"
+cachetools = "*"
+asyncache = "*"
 
 [dev-packages]
 autopep8 = "*"
 pylama = "*"
+types-aiofiles = "*"
+pytest-async-sqlalchemy = "*"
+pytest-asyncio = "*"
+ruff = "*"
+black = "*"
 mypy = "*"
 
 [requires]

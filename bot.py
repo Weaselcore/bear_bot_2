@@ -1,11 +1,13 @@
 import asyncio
 import os
-from typing import List
+from typing import Literal
 import discord
 import logging
 import logging.handlers
 from discord.ext import commands
 from dotenv import load_dotenv
+
+from discord.ext.commands import Context, Greedy
 
 GUILD = discord.Object(id=299536709778014210)
 TEST_GUILD = discord.Object(id=613605418882564096)
@@ -14,32 +16,21 @@ DEV = True
 FAM = True
 
 
+
 class MyClient(commands.Bot):
     def __init__(self, *, intents: discord.Intents):
-        super().__init__(command_prefix="/", intents=intents)
-        # A CommandTree is a special type that holds all the application command
-        # state required to make it work. This is a separate class because it
-        # allows all the extra state to be opt-in.
-        # Whenever you want to work with application commands, your tree is used
-        # to store and work with them.
-        # Note: When using commands.Bot instead of discord.Client, the bot will
-        # maintain its own tree instead.
-        # self.tree = app_commands.CommandTree(self)
+        super().__init__(command_prefix="/", intents=intents, help_command=None)
 
-    # In this basic example, we just synchronize the app commands to one guild.
-    # Instead of specifying a guild to every command, we copy over our global commands instead.
-    # By doing so, we don't have to wait up to an hour until they are shown to the end-user.
     async def setup_hook(self) -> None:
-        await self.load_extension('cog.lobby')
-        await self.load_extension('cog.soundboard')
-        await self.load_extension('cog.ai')
+        # await self.load_extension('cog.lobby')
+        # await self.load_extension('cog.soundboard')
+        # await self.load_extension('cog.ai')
+        await self.load_extension('cog.larynx_tts')
         await self.load_extension('cog.quiz')
-        # TODO: Please make this dynamic. This is getting silly now.
-        # self.tree.copy_global_to(guild=FAM_GUILD)
-        # await self.tree.sync(guild=FAM_GUILD)
-        # TODO: Persistent? Repository Pattern?
-        self.lobby = {} # type: ignore
-        # Any database would be initialised here.
+        self.lobby = {}  # type: ignore
+
+    async def close(self) -> None:
+        await super().close()
 
 
 async def main():
@@ -75,32 +66,45 @@ async def main():
         async def hi(interaction: discord.Interaction):
             await interaction.response.send_message(f'Hi, {interaction.user.mention}')
 
-        @bot.tree.command(name="sync")
-        async def sync(interaction: discord.Interaction):
-            if interaction.user == interaction.guild.owner: # type: ignore
-                # This copies the global commands over to your guild.
-                guild_to_sync = None
-                synced_commands = None
-                if DEV:
-                    guild_to_sync = TEST_GUILD
+        @bot.tree.command(name="ping")
+        async def ping(interaction: discord.Interaction):
+            await interaction.response.send_message(f'Pong! {bot.latency * 1000:.2f}ms')
+
+        @bot.command()
+        @commands.guild_only()
+        @commands.is_owner()
+        async def betasync(
+            ctx: Context,
+            guilds: Greedy[discord.Object],
+            option: Literal["~", "*", "^"] | None = None
+        ) -> None:
+            if not guilds:
+                if option == "~":
+                    synced = await ctx.bot.tree.sync(guild=ctx.guild)
+                elif option == "*":
+                    ctx.bot.tree.copy_global_to(guild=ctx.guild)
+                    synced = await ctx.bot.tree.sync(guild=ctx.guild)
+                elif option == "^":
+                    ctx.bot.tree.clear_commands(guild=ctx.guild)
+                    await ctx.bot.tree.sync(guild=ctx.guild)
+                    synced = []
                 else:
-                    guild_to_sync = GUILD
-                if guild_to_sync:
-                    bot.tree.copy_global_to(guild=guild_to_sync)
-                    synced_commands: List[discord.AppCommand] | None = await bot.tree.sync(  # type: ignore
-                        guild=guild_to_sync
-                    )
-                if synced_commands is None:
-                    await interaction.response.send_message(
-                        content="No commands to sync"
-                    )
-                else:
-                    await interaction.response.send_message(
-                        content=f'Synced {len(synced_commands)} commands'
-                    )
-            else:
-                await interaction.response.send_message(content="You are not the guild owner")
+                    synced = await ctx.bot.tree.sync()
+
+                suffix = 'globally' if option is None else 'to the current guild.'
+
+                await ctx.send(
+                    f"Synced {len(synced)} commands {suffix}"
+                )
+                return
+
+            returned = 0
+            for guild in guilds:
+                try:
+                    await ctx.bot.tree.sync(guild=guild)
+                except discord.HTTPException:
+                    pass
 
         # Start the bot.
         await bot.start(os.environ['TOKEN'])
-asyncio.run(main())
+asyncio.run(main(), debug=True)
