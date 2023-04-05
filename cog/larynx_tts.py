@@ -12,6 +12,7 @@ class LarynxTTS(commands.Cog):
         self.base_url = os.environ["LARYNX_WEBSERVER_URL"]
         self.config = {
             "voice": "en-us/cmu_aup-glow_tts",
+            #"voice": "en-us/blizzard_fls-glow_tts",
             "vocoder": "hifi_gan/vctk_small",
             "denoiserStrength": 0.003,
             "noiseScale": 0.222,
@@ -68,12 +69,13 @@ class LarynxTTS(commands.Cog):
         text: str,
         length: float | None = 1.2
     ):
-        await interaction.response.defer()
 
         # Check if user is in a voice channel
         if not interaction.user.voice: # type: ignore
             await interaction.response.send_message("You are not in a voice channel")
             return
+        
+        await interaction.response.defer()
         
         # Create an async session
         async with aiohttp.ClientSession() as session:
@@ -82,6 +84,7 @@ class LarynxTTS(commands.Cog):
             params = self.config.copy()
             params["text"] = text
             params["lengthScale"] = length
+            # Necessary?
             session.headers["Content-Type"] = "audio/wav"
 
             async with session.get(full_url, params=params) as resp:

@@ -15,8 +15,8 @@ class MyClient(commands.Bot):
 
     async def setup_hook(self) -> None:
         # await self.load_extension('cog.lobby')
-        await self.load_extension('cog.soundboard')
-        await self.load_extension('cog.ai')
+        # await self.load_extension('cog.soundboard')
+        # await self.load_extension('cog.ai')
         await self.load_extension('cog.larynx_tts')
         # await self.load_extension('cog.quiz')
         self.lobby = {}  # type: ignore
@@ -65,7 +65,7 @@ async def main():
         @bot.command()
         @commands.guild_only()
         @commands.is_owner()
-        async def nsync(
+        async def betasync(
             ctx: Context,
             guilds: Greedy[discord.Object],
             option: Literal["~", "*", "^"] | None = None
