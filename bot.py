@@ -16,7 +16,7 @@ class MyClient(commands.Bot):
     async def setup_hook(self) -> None:
         await self.load_extension('cog.lobby')
         await self.load_extension('cog.soundboard')
-        await self.load_extension('cog.ai')
+        # await self.load_extension('cog.ai')
         # await self.load_extension('cog.quiz')
         self.lobby = {}  # type: ignore
 
