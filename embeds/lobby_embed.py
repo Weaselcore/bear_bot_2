@@ -171,7 +171,7 @@ class LobbyEmbedManager:
             case UpdateEmbedType.DELETE:
                 message = UpdateEmbedMessage.DELETE.value
                 default_footer = False
-                if additional_string is not None:
+                if not additional_string == "":
                     new_field = True
             case UpdateEmbedType.OWNER_ADD:
                 message = f'{UpdateEmbedMessage.OWNER_ADD.value} {additional_string}'
