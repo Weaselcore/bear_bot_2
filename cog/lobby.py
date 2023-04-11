@@ -1,9 +1,11 @@
 import asyncio
+import os
 import discord
 from collections.abc import Sequence
 from discord.ext import commands, tasks
 from discord import Client, Interaction, app_commands
 from discord.ui import View, TextInput
+from dotenv import load_dotenv
 from embeds.game_embed import GameEmbedManager
 
 from embeds.lobby_embed import LobbyEmbedManager
@@ -14,7 +16,36 @@ from manager.game_service import GameManager
 from repository.tables import GameModel, LobbyModel
 from repository.game_repo import GamePostgresRepository
 from repository.lobby_repo import LobbyPostgresRepository
-from repository.db_config import async_session
+from repository.db_config import Base
+
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
+
+load_dotenv()
+
+# Construct database url from environment variables
+DATABASE_URL = "postgresql+asyncpg://{}:{}@{}:{}/{}".format(
+    os.environ['PG_USER'],
+    os.environ['PG_PASSWORD'],
+    os.environ['PG_HOST'],
+    os.environ['PG_PORT'],
+    os.environ['PG_DATABASE']
+)
+
+# Create database engine
+engine = create_async_engine(
+    DATABASE_URL,
+    pool_size=3,
+    future=True,
+    echo=True,
+)
+
+# This is the database session factory, invoking this variable creates a new session
+async_session = sessionmaker(  # type: ignore
+    engine,
+    expire_on_commit=False,
+    class_=AsyncSession
+)
 
 # Predicate for commands
 
@@ -1282,6 +1313,11 @@ class LobbyCog(commands.Cog):
 
 
 async def setup(bot: commands.Bot):
+
+    # Create all tables if they don't exist
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
     lobby_embed_manager = LobbyEmbedManager()
 
     lobby_manager = LobbyManager(
