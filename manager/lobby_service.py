@@ -45,6 +45,9 @@ class LobbyManager:
 
     async def get_all_lobbies(self) -> Sequence[LobbyModel]:
         return await self._get_repository().get_all_lobbies()
+    
+    async def get_next_lobby_id(self) -> int:
+        return await self._get_repository().get_next_lobby_id()
 
     async def create_lobby(
         self,

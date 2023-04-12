@@ -842,7 +842,6 @@ class LobbyCog(commands.Cog):
         self.lobby_cleanup.start()
 
 
-
     async def cog_app_command_error(
         self,
         interaction: discord.Interaction,
@@ -1005,7 +1004,7 @@ class LobbyCog(commands.Cog):
 
         # Create new text channel
         lobby_channel = await interaction.guild.create_text_channel(
-            name=f'{await self.lobby_manager.get_lobby_name()}',
+            name=f'Lobby {str(await self.lobby_manager.get_next_lobby_id())}',
             category=lobby_category_channel,
             overwrites={
                 interaction.guild.default_role: discord.PermissionOverwrite(
@@ -1413,6 +1412,8 @@ async def setup(bot: commands.Bot):
             game_manager,
         )
     )
+
+    print("Lobby ID: ", await lobby_manager.get_next_lobby_id())
 
 
 async def teardown(bot):
