@@ -610,7 +610,6 @@ class ButtonView(discord.ui.View):
             await lobby_channel.delete()
             return
 
-        await self.lobby_manager.remove_member(self.lobby_id, interaction.user.id)
         # Remove user and find new leader
         if interaction.user == lobby_owner:
             new_owner_id = await self.lobby_manager.search_new_owner(self.lobby_id)
@@ -623,6 +622,8 @@ class ButtonView(discord.ui.View):
                 await lobby_channel.delete()
                 return
             await self.lobby_manager.switch_owner(self.lobby_id, new_owner_id)
+            
+        await self.lobby_manager.remove_member(self.lobby_id, interaction.user.id)
 
         # Fill slots if people are in the queue
         await self.lobby_manager.move_queue_members(self.lobby_id)

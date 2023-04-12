@@ -320,7 +320,6 @@ class LobbyPostgresRepository:
                 if await self.is_owner_of_lobby(member.id):
                     continue
                 if not member.id == owner.id:
-                    await self.set_owner(lobby_id, member.id)
                     return member.id
             else:
                 return None
@@ -667,7 +666,7 @@ class LobbyPostgresRepository:
         try:
             member = await self.get_member(member_id)
             lobby = await self.get_lobby(lobby_id)
-            
+
             async with self.database() as session:
                 if member in lobby.members:
                     session.add(lobby)
