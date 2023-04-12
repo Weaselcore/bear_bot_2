@@ -667,6 +667,7 @@ class LobbyPostgresRepository:
         try:
             member = await self.get_member(member_id)
             lobby = await self.get_lobby(lobby_id)
+            
             async with self.database() as session:
                 if member in lobby.members:
                     session.add(lobby)

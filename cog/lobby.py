@@ -586,20 +586,33 @@ class ButtonView(discord.ui.View):
         if not await self.lobby_manager.has_joined(self.lobby_id, interaction.user.id):
             return
 
+        # Check if user is in queue
+        queue_list = await self.lobby_manager.get_queue_members(self.lobby_id)
+        filtered_list = list(
+            filter(lambda member: member.id == interaction.user.id, queue_list)
+        )
+        if len(filtered_list) > 0:
+            await self.lobby_manager.remove_queue_member(
+                self.lobby_id,
+                interaction.user.id
+            )
+            interaction.client.dispatch(  # type: ignore
+                'update_lobby_embed', self.lobby_id)
+            return
+        
         lobby_owner = await self.lobby_manager.get_lobby_owner(self.lobby_id)
+        current_lobby_size = await self.lobby_manager.get_member_length(self.lobby_id)
 
-        # Delete lobby if there is 1 person left
-        if await self.lobby_manager.get_member_length(self.lobby_id) == 1:
+        # Delete lobby if there is 1 person left and not queue member
+        if current_lobby_size == 1 and interaction.user == lobby_owner:
             lobby_channel = await self.lobby_manager.get_lobby_channel(self.lobby_id)
             await self.lobby_manager.delete_lobby(self.lobby_id)
             await lobby_channel.delete()
             return
-        # Remove member from lobby
-        elif interaction.user != lobby_owner:
-            await self.lobby_manager.remove_member(self.lobby_id, interaction.user.id)
+
+        await self.lobby_manager.remove_member(self.lobby_id, interaction.user.id)
         # Remove user and find new leader
-        elif interaction.user == lobby_owner:
-            await self.lobby_manager.remove_member(self.lobby_id, interaction.user.id)
+        if interaction.user == lobby_owner:
             new_owner_id = await self.lobby_manager.search_new_owner(self.lobby_id)
             # Delete if there are no suitable owner candidates
             if new_owner_id is None:
@@ -611,13 +624,14 @@ class ButtonView(discord.ui.View):
                 return
             await self.lobby_manager.switch_owner(self.lobby_id, new_owner_id)
 
-        # Move member to queue when someone leaves
+        # Fill slots if people are in the queue
         await self.lobby_manager.move_queue_members(self.lobby_id)
 
         # Update Ready button
         number_filled = len(await self.lobby_manager.get_members_ready(self.lobby_id))
         self.ready.label = f"Ready: {number_filled}"
         await interaction.edit_original_response(view=self)
+
         # Update lobby embed
         interaction.client.dispatch(  # type: ignore
             'update_lobby_embed', self.lobby_id)

@@ -303,6 +303,7 @@ class LobbyManager:
     ) -> None:
         member = await self.get_member(lobby_id, member_id)
         thread = await self.get_thread(lobby_id)
+
         await self._get_repository().remove_member(lobby_id, member_id)
         if not owner_removed:
             await self.embed_manager.send_update_embed(
@@ -318,6 +319,9 @@ class LobbyManager:
                 additional_string=member.display_name,
                 destination=thread,
             )
+
+    async def remove_queue_member(self, lobby_id: int, member_id: int) -> None:
+        await self._get_repository().remove_queue_member(lobby_id, member_id)
 
     async def move_queue_members(self, lobby_id: int) -> None:
         await self._get_repository().move_queue_members(lobby_id)
