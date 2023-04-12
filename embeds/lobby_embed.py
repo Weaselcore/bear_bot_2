@@ -19,6 +19,7 @@ class UpdateEmbedType(Enum):
     OWNER_ADD = 'OWNER_ADD'
     OWNER_REMOVE = 'OWNER_REMOVE'
     OWNER_READY = 'OWNER_READY'
+    CLEAN_UP = 'CLEAN_UP'
 
 
 class UpdateEmbedColour(Enum):
@@ -35,6 +36,7 @@ class UpdateEmbedColour(Enum):
     OWNER_ADD = discord.Color.blue()
     OWNER_REMOVE = discord.Color.red()
     OWNER_READY = discord.Color.green()
+    CLEAN_UP = discord.Color.red()
 
 
 class UpdateEmbedMessage(Enum):
@@ -51,6 +53,7 @@ class UpdateEmbedMessage(Enum):
     OWNER_ADD = 'has added someone to the lobby! 🏃‍♂️ :'
     OWNER_REMOVE = 'has removed someone from the lobby! 💨 :'
     OWNER_READY = "has updated someone's status! ℹ :"
+    CLEAN_UP = 'has cleaned up lobby'
 
 
 class LobbyEmbed(discord.Embed):
@@ -179,6 +182,9 @@ class LobbyEmbedManager:
                 message = f'{UpdateEmbedMessage.OWNER_REMOVE.value} {additional_string}'
             case UpdateEmbedType.OWNER_READY:
                 message = f'{UpdateEmbedMessage.OWNER_READY.value} {additional_string}'
+            case UpdateEmbedType.CLEAN_UP:
+                message = f'{UpdateEmbedMessage.CLEAN_UP.value} {additional_string}! 🧹'
+                default_footer = False
             case _:
                 raise NotImplementedError
 

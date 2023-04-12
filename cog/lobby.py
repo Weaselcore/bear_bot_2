@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime
 import os
 import discord
 from collections.abc import Sequence
@@ -6,9 +7,10 @@ from discord.ext import commands, tasks
 from discord import Client, Interaction, app_commands
 from discord.ui import View, TextInput
 from dotenv import load_dotenv
-from embeds.game_embed import GameEmbedManager
+import pytz
 
 from embeds.lobby_embed import LobbyEmbedManager
+from embeds.game_embed import GameEmbedManager
 from exceptions.lobby_exceptions import LobbyNotFound, MemberNotFound
 from manager.lobby_service import LobbyManager
 from manager.game_service import GameManager
@@ -837,6 +839,10 @@ class LobbyCog(commands.Cog):
         self.lobby_manager = lobby_manager
         print('LobbyCog loaded')
 
+        self.lobby_cleanup.start()
+
+
+
     async def cog_app_command_error(
         self,
         interaction: discord.Interaction,
@@ -888,6 +894,31 @@ class LobbyCog(commands.Cog):
                 embed=embed,
                 ephemeral=True,
             )
+
+
+    @tasks.loop(
+        count=None,
+        reconnect=True,
+        time=(
+            pytz.timezone('Pacific/Auckland').localize(
+                datetime.utcnow().replace(hour=5, minute=0, second=0, microsecond=0)
+            ).time()
+        )
+    )
+    async def lobby_cleanup(self):
+        """Cleans up lobbies every 5am NZT"""
+        lobbies = await self.lobby_manager.get_all_lobbies()
+        for lobby in lobbies:
+            lobby_channel = await self.lobby_manager.get_lobby_channel(lobby.id)
+            await lobby_channel.delete()
+            await self.lobby_manager.delete_lobby(
+                lobby_id=lobby.id,
+                clean_up=True
+            )
+    
+    @lobby_cleanup.before_loop
+    async def before_lobby_cleanup(self):
+        await self.bot.wait_until_ready()
 
     # Custom listeners for tasks
     @tasks.loop(count=1, reconnect=True)
@@ -1345,6 +1376,7 @@ async def setup(bot: commands.Bot):
     )
     game_manager = GameManager(
         repository=GamePostgresRepository(async_session),
+        # TODO: Implement embed manager
         embed_manager=GameEmbedManager(),
         bot=bot
     )

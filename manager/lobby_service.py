@@ -423,17 +423,31 @@ class LobbyManager:
         '''Get the list of members that are not ready'''
         return await self._get_repository().get_members_not_ready(lobby_id)
 
-    async def delete_lobby(self, lobby_id: int, reason: str | None = None) -> None:
+    async def delete_lobby(
+        self,
+        lobby_id: int,
+        reason: str | None = None,
+        clean_up: bool = False
+    ) -> None:
         '''Delete a lobby'''
-        owner = await self.get_lobby_owner(lobby_id)
+        
         original_channel = await self.get_original_channel(lobby_id)
         session_time = await self.get_session_time(lobby_id)
+        owner = "Bear Bot" if clean_up else \
+            (await self.get_lobby_owner(lobby_id)).display_name
+        
         await self._get_repository().delete_lobby(lobby_id)
+        
+        embed_type = self.embed_manager.UPDATE_TYPES.CLEAN_UP \
+            if clean_up else self.embed_manager.UPDATE_TYPES.DELETE
+        
+        additional_string = lobby_id if clean_up else reason
+
         await self.embed_manager.send_update_embed(
-            update_type=self.embed_manager.UPDATE_TYPES.DELETE,
-            title=owner.display_name,
+            update_type=embed_type,
+            title=owner,
             destination=original_channel,
-            additional_string=reason,
+            additional_string=str(additional_string),
             footer_string="⌚ " + session_time,
         )
 
