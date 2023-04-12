@@ -7,7 +7,7 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from repository.db_config import Base
-from repository.tables import GuildModel, LobbyModel, MemberModel
+from repository.tables import GameModel, GuildModel, LobbyModel, MemberModel
 
 """These fixtures are used to create a database for testing purposes. For now it tests
     the lobby cog feature. Change these to make the fixures more generalised for other 
@@ -49,11 +49,38 @@ async def init_database(engine):
     async_session = sessionmaker(engine, expire_on_commit=True, class_=AsyncSession)
 
     async with async_session() as session:
+
+
         member = MemberModel(id=123)
         session.add(member)
 
         member2 = MemberModel(id=321)
         session.add(member2)
+
+        
+        guild = GuildModel(
+            id=1,
+            name="test",
+        )
+
+        session.add(guild)
+
+        await session.flush()
+
+        game = GameModel(
+            guild_id=guild.id,
+            name="test",
+            max_size=5,
+        )
+
+        game2 = GameModel(
+            guild_id=guild.id,
+            name="test2",
+            max_size=2,
+        )
+
+        session.add(game)
+        session.add(game2)
 
         await session.flush()
 
@@ -65,7 +92,8 @@ async def init_database(engine):
             description="test",
             embed_message_id=78,
             queue_message_id=91,
-            game_id="test",
+            game_id=game.id,
+            guild_id=guild.id,
             game_size=5,
             last_promotion_message_id=None,
             last_promotion_datetime=None,
@@ -77,12 +105,6 @@ async def init_database(engine):
         lobby.members.append(member)
         lobby.queue_members.append(member2)
 
-        guild = GuildModel(
-            id=1,
-            name="test",
-        )
-
-        lobby.guilds.append(guild)
         session.add(lobby)
 
         await session.commit()
