@@ -490,6 +490,8 @@ class OwnerSelectView(discord.ui.View):
 
             # Disable view after selection
             if self.view is not None:
+                self.disabled = True
+                await interaction.edit_original_response(view=self.view)
                 self.view.stop()
 
 
@@ -622,7 +624,7 @@ class ButtonView(discord.ui.View):
                 await lobby_channel.delete()
                 return
             await self.lobby_manager.switch_owner(self.lobby_id, new_owner_id)
-            
+
         await self.lobby_manager.remove_member(self.lobby_id, interaction.user.id)
 
         # Fill slots if people are in the queue
@@ -694,12 +696,13 @@ class ButtonView(discord.ui.View):
         for member_model in list_of_users:
             options.append(
                 (member_model.display_name, member_model.id))
-        await interaction.edit_original_response(
+        await interaction.followup.send(
             view=OwnerSelectView(
                 self.lobby_id,
                 self.lobby_manager,
                 options
             ),
+            ephemeral=True
         )
 
     @discord.ui.button(
