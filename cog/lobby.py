@@ -1,13 +1,13 @@
 import asyncio
 from datetime import datetime
 import os
+from zoneinfo import ZoneInfo
 import discord
 from collections.abc import Sequence
 from discord.ext import commands, tasks
 from discord import Client, Interaction, app_commands
 from discord.ui import View, TextInput
 from dotenv import load_dotenv
-import pytz
 
 from embeds.lobby_embed import LobbyEmbedManager
 from embeds.game_embed import GameEmbedManager
@@ -898,11 +898,10 @@ class LobbyCog(commands.Cog):
     @tasks.loop(
         count=None,
         reconnect=True,
-        time=(
-            pytz.timezone('Pacific/Auckland').localize(
-                datetime.utcnow().replace(hour=5, minute=0, second=0, microsecond=0)
-            ).time()
-        )
+        time=datetime(
+                2021, 1, 1, 5, 0, 0, 0,
+                tzinfo=ZoneInfo('Pacific/Auckland')
+            ).timetz()
     )
     async def lobby_cleanup(self):
         """Cleans up lobbies every 5am NZT"""
