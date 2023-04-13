@@ -45,6 +45,9 @@ class LobbyManager:
 
     async def get_all_lobbies(self) -> Sequence[LobbyModel]:
         return await self._get_repository().get_all_lobbies()
+    
+    async def get_next_lobby_id(self) -> int:
+        return await self._get_repository().get_next_lobby_id()
 
     async def create_lobby(
         self,
@@ -303,6 +306,7 @@ class LobbyManager:
     ) -> None:
         member = await self.get_member(lobby_id, member_id)
         thread = await self.get_thread(lobby_id)
+
         await self._get_repository().remove_member(lobby_id, member_id)
         if not owner_removed:
             await self.embed_manager.send_update_embed(
@@ -318,6 +322,9 @@ class LobbyManager:
                 additional_string=member.display_name,
                 destination=thread,
             )
+
+    async def remove_queue_member(self, lobby_id: int, member_id: int) -> None:
+        await self._get_repository().remove_queue_member(lobby_id, member_id)
 
     async def move_queue_members(self, lobby_id: int) -> None:
         await self._get_repository().move_queue_members(lobby_id)
@@ -419,17 +426,31 @@ class LobbyManager:
         '''Get the list of members that are not ready'''
         return await self._get_repository().get_members_not_ready(lobby_id)
 
-    async def delete_lobby(self, lobby_id: int, reason: str | None = None) -> None:
+    async def delete_lobby(
+        self,
+        lobby_id: int,
+        reason: str | None = None,
+        clean_up: bool = False
+    ) -> None:
         '''Delete a lobby'''
-        owner = await self.get_lobby_owner(lobby_id)
+        
         original_channel = await self.get_original_channel(lobby_id)
         session_time = await self.get_session_time(lobby_id)
+        owner = "Bear Bot" if clean_up else \
+            (await self.get_lobby_owner(lobby_id)).display_name
+        
         await self._get_repository().delete_lobby(lobby_id)
+        
+        embed_type = self.embed_manager.UPDATE_TYPES.CLEAN_UP \
+            if clean_up else self.embed_manager.UPDATE_TYPES.DELETE
+        
+        additional_string = lobby_id if clean_up else reason
+
         await self.embed_manager.send_update_embed(
-            update_type=self.embed_manager.UPDATE_TYPES.DELETE,
-            title=owner.display_name,
+            update_type=embed_type,
+            title=owner,
             destination=original_channel,
-            additional_string=reason,
+            additional_string=str(additional_string),
             footer_string="⌚ " + session_time,
         )
 

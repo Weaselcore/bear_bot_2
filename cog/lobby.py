@@ -1,12 +1,16 @@
 import asyncio
+from datetime import datetime
+import os
+from zoneinfo import ZoneInfo
 import discord
 from collections.abc import Sequence
 from discord.ext import commands, tasks
 from discord import Client, Interaction, app_commands
 from discord.ui import View, TextInput
-from embeds.game_embed import GameEmbedManager
+from dotenv import load_dotenv
 
 from embeds.lobby_embed import LobbyEmbedManager
+from embeds.game_embed import GameEmbedManager
 from exceptions.lobby_exceptions import LobbyNotFound, MemberNotFound
 from manager.lobby_service import LobbyManager
 from manager.game_service import GameManager
@@ -14,7 +18,36 @@ from manager.game_service import GameManager
 from repository.tables import GameModel, LobbyModel
 from repository.game_repo import GamePostgresRepository
 from repository.lobby_repo import LobbyPostgresRepository
-from repository.db_config import async_session
+from repository.db_config import Base
+
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
+
+load_dotenv()
+
+# Construct database url from environment variables
+DATABASE_URL = "postgresql+asyncpg://{}:{}@{}:{}/{}".format(
+    os.environ['PG_USER'],
+    os.environ['PG_PASSWORD'],
+    os.environ['PG_HOST'],
+    os.environ['PG_PORT'],
+    os.environ['PG_DATABASE']
+)
+
+# Create database engine
+engine = create_async_engine(
+    DATABASE_URL,
+    pool_size=3,
+    future=True,
+    echo=True,
+)
+
+# This is the database session factory, invoking this variable creates a new session
+async_session = sessionmaker(  # type: ignore
+    engine,
+    expire_on_commit=False,
+    class_=AsyncSession
+)
 
 # Predicate for commands
 
@@ -459,6 +492,8 @@ class OwnerSelectView(discord.ui.View):
 
             # Disable view after selection
             if self.view is not None:
+                self.disabled = True
+                await interaction.edit_original_response(view=self.view)
                 self.view.stop()
 
 
@@ -555,20 +590,32 @@ class ButtonView(discord.ui.View):
         if not await self.lobby_manager.has_joined(self.lobby_id, interaction.user.id):
             return
 
+        # Check if user is in queue
+        queue_list = await self.lobby_manager.get_queue_members(self.lobby_id)
+        filtered_list = list(
+            filter(lambda member: member.id == interaction.user.id, queue_list)
+        )
+        if len(filtered_list) > 0:
+            await self.lobby_manager.remove_queue_member(
+                self.lobby_id,
+                interaction.user.id
+            )
+            interaction.client.dispatch(  # type: ignore
+                'update_lobby_embed', self.lobby_id)
+            return
+        
         lobby_owner = await self.lobby_manager.get_lobby_owner(self.lobby_id)
+        current_lobby_size = await self.lobby_manager.get_member_length(self.lobby_id)
 
-        # Delete lobby if there is 1 person left
-        if await self.lobby_manager.get_member_length(self.lobby_id) == 1:
+        # Delete lobby if there is 1 person left and not queue member
+        if current_lobby_size == 1 and interaction.user == lobby_owner:
             lobby_channel = await self.lobby_manager.get_lobby_channel(self.lobby_id)
             await self.lobby_manager.delete_lobby(self.lobby_id)
             await lobby_channel.delete()
             return
-        # Remove member from lobby
-        elif interaction.user != lobby_owner:
-            await self.lobby_manager.remove_member(self.lobby_id, interaction.user.id)
+
         # Remove user and find new leader
-        elif interaction.user == lobby_owner:
-            await self.lobby_manager.remove_member(self.lobby_id, interaction.user.id)
+        if interaction.user == lobby_owner:
             new_owner_id = await self.lobby_manager.search_new_owner(self.lobby_id)
             # Delete if there are no suitable owner candidates
             if new_owner_id is None:
@@ -580,13 +627,16 @@ class ButtonView(discord.ui.View):
                 return
             await self.lobby_manager.switch_owner(self.lobby_id, new_owner_id)
 
-        # Move member to queue when someone leaves
+        await self.lobby_manager.remove_member(self.lobby_id, interaction.user.id)
+
+        # Fill slots if people are in the queue
         await self.lobby_manager.move_queue_members(self.lobby_id)
 
         # Update Ready button
         number_filled = len(await self.lobby_manager.get_members_ready(self.lobby_id))
         self.ready.label = f"Ready: {number_filled}"
         await interaction.edit_original_response(view=self)
+
         # Update lobby embed
         interaction.client.dispatch(  # type: ignore
             'update_lobby_embed', self.lobby_id)
@@ -648,12 +698,13 @@ class ButtonView(discord.ui.View):
         for member_model in list_of_users:
             options.append(
                 (member_model.display_name, member_model.id))
-        await interaction.edit_original_response(
+        await interaction.followup.send(
             view=OwnerSelectView(
                 self.lobby_id,
                 self.lobby_manager,
                 options
             ),
+            ephemeral=True
         )
 
     @discord.ui.button(
@@ -788,6 +839,9 @@ class LobbyCog(commands.Cog):
         self.lobby_manager = lobby_manager
         print('LobbyCog loaded')
 
+        self.lobby_cleanup.start()
+
+
     async def cog_app_command_error(
         self,
         interaction: discord.Interaction,
@@ -839,6 +893,30 @@ class LobbyCog(commands.Cog):
                 embed=embed,
                 ephemeral=True,
             )
+
+
+    @tasks.loop(
+        count=None,
+        reconnect=True,
+        time=datetime(
+                2021, 1, 1, 5, 0, 0, 0,
+                tzinfo=ZoneInfo('Pacific/Auckland')
+            ).timetz()
+    )
+    async def lobby_cleanup(self):
+        """Cleans up lobbies every 5am NZT"""
+        lobbies = await self.lobby_manager.get_all_lobbies()
+        for lobby in lobbies:
+            lobby_channel = await self.lobby_manager.get_lobby_channel(lobby.id)
+            await lobby_channel.delete()
+            await self.lobby_manager.delete_lobby(
+                lobby_id=lobby.id,
+                clean_up=True
+            )
+    
+    @lobby_cleanup.before_loop
+    async def before_lobby_cleanup(self):
+        await self.bot.wait_until_ready()
 
     # Custom listeners for tasks
     @tasks.loop(count=1, reconnect=True)
@@ -925,7 +1003,7 @@ class LobbyCog(commands.Cog):
 
         # Create new text channel
         lobby_channel = await interaction.guild.create_text_channel(
-            name=f'{await self.lobby_manager.get_lobby_name()}',
+            name=f'Lobby {str(await self.lobby_manager.get_next_lobby_id())}',
             category=lobby_category_channel,
             overwrites={
                 interaction.guild.default_role: discord.PermissionOverwrite(
@@ -1282,6 +1360,11 @@ class LobbyCog(commands.Cog):
 
 
 async def setup(bot: commands.Bot):
+
+    # Create all tables if they don't exist
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
     lobby_embed_manager = LobbyEmbedManager()
 
     lobby_manager = LobbyManager(
@@ -1291,6 +1374,7 @@ async def setup(bot: commands.Bot):
     )
     game_manager = GameManager(
         repository=GamePostgresRepository(async_session),
+        # TODO: Implement embed manager
         embed_manager=GameEmbedManager(),
         bot=bot
     )
@@ -1327,6 +1411,8 @@ async def setup(bot: commands.Bot):
             game_manager,
         )
     )
+
+    print("Lobby ID: ", await lobby_manager.get_next_lobby_id())
 
 
 async def teardown(bot):

@@ -17,6 +17,7 @@ asyncpg = "*"
 types-cachetools = "*"
 cachetools = "*"
 asyncache = "*"
+tzdata = "*"
 
 [dev-packages]
 autopep8 = "*"

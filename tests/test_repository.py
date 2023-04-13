@@ -121,14 +121,14 @@ class TestRepository:
     async def test_get_game_code(self, session: AsyncSession):
         lobbydal = LobbyPostgresRepository(session)
         result = await lobbydal.get_game_id(1)
-        assert result == "test"
+        assert result == 1
 
     @pytest.mark.asyncio
     async def test_set_game_code(self, session: AsyncSession):
         lobbydal = LobbyPostgresRepository(session)
-        await lobbydal.set_game_id(1, 123)
+        await lobbydal.set_game_id(1, 2)
         result = await lobbydal.get_game_id(1)
-        assert result == 123
+        assert result == 2
 
     """MEMBER TESTS"""
 

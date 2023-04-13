@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from sqlalchemy import Sequence as Seq
 from datetime import datetime, timedelta
 from sqlalchemy import Result, func, update, delete
 from sqlalchemy.future import select
@@ -36,6 +37,19 @@ class LobbyPostgresRepository:
             if not lobby:
                 raise LobbyNotFound(lobby_id)
             return lobby
+        
+    async def get_next_lobby_id(self) -> int:
+        async with self.database() as session:
+            result: Result = await session.execute(
+                select(
+                    func.next_value(Seq("lobby_id_seq")),
+                )
+            )
+            max_id = result.scalars().first()
+            if max_id is None:
+                raise ValueError("")
+            else:
+                return max_id + 1
 
     async def get_all_lobbies(self) -> Sequence[LobbyModel]:
         async with self.database() as session:
@@ -263,7 +277,7 @@ class LobbyPostgresRepository:
                 ).values(
                     description=description
                 ).returning(
-                    LobbyModel.description
+                    LobbyModel.description,
                 )
             )
             description = result.scalars().first()  # type: ignore
@@ -320,7 +334,6 @@ class LobbyPostgresRepository:
                 if await self.is_owner_of_lobby(member.id):
                     continue
                 if not member.id == owner.id:
-                    await self.set_owner(lobby_id, member.id)
                     return member.id
             else:
                 return None
@@ -667,6 +680,7 @@ class LobbyPostgresRepository:
         try:
             member = await self.get_member(member_id)
             lobby = await self.get_lobby(lobby_id)
+
             async with self.database() as session:
                 if member in lobby.members:
                     session.add(lobby)
