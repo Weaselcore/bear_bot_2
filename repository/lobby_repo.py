@@ -49,7 +49,7 @@ class LobbyPostgresRepository:
             if max_id is None:
                 raise ValueError("")
             else:
-                return max_id + 1
+                return max_id
 
     async def get_all_lobbies(self) -> Sequence[LobbyModel]:
         async with self.database() as session:

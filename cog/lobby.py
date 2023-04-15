@@ -1412,8 +1412,6 @@ async def setup(bot: commands.Bot):
         )
     )
 
-    print("Lobby ID: ", await lobby_manager.get_next_lobby_id())
-
 
 async def teardown(bot):
     await bot.remove_cog(LobbyCog(bot))
