@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from sqlalchemy import Sequence as Seq
+from sqlalchemy import text
 from datetime import datetime, timedelta
 from sqlalchemy import Result, func, update, delete
 from sqlalchemy.future import select
@@ -41,15 +41,15 @@ class LobbyPostgresRepository:
     async def get_next_lobby_id(self) -> int:
         async with self.database() as session:
             result: Result = await session.execute(
-                select(
-                    func.next_value(Seq("lobby_id_seq")),
+                text(
+                    """SELECT last_value FROM lobby_id_seq""",
                 )
             )
             max_id = result.scalars().first()
             if max_id is None:
-                raise ValueError("")
+                raise ValueError("Could not get current value of lobby_id_seq sequence")
             else:
-                return max_id
+                return max_id + 1
 
     async def get_all_lobbies(self) -> Sequence[LobbyModel]:
         async with self.database() as session:
