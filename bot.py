@@ -18,7 +18,6 @@ class MyClient(commands.Bot):
         await self.load_extension('cog.soundboard')
         # await self.load_extension('cog.ai')
         # await self.load_extension('cog.quiz')
-        self.lobby = {}  # type: ignore
 
     async def close(self) -> None:
         await super().close()
