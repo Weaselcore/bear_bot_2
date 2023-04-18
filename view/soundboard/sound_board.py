@@ -1,4 +1,6 @@
-import discord
+from discord.ui import Button, View
+from discord.ext import commands
+from discord import ButtonStyle, Interaction
 
 """
 Persistent View requirements:
@@ -7,19 +9,19 @@ Persistent View requirements:
 """
 
 
-class SoundButton(discord.ui.Button):
-    def __init__(self, bot: discord.ext.commands.Bot, file_path: str):
+class SoundButton(Button):
+    def __init__(self, bot: commands.Bot, file_path: str):
         super().__init__()
         self.bot = bot
         self.custom_id = file_path
         self.label = file_path
-        self.style = discord.ButtonStyle.blurple
+        self.style = ButtonStyle.blurple
 
-    async def callback(self, interaction: discord.Interaction):
+    async def callback(self, interaction: Interaction):
         await interaction.response.defer()
         self.bot.dispatch("play", interaction, self.custom_id)
 
 
-class SoundBoardView(discord.ui.View):
+class SoundBoardView(View):
     def __init__(self):
         super().__init__(timeout=None)

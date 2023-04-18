@@ -11,7 +11,7 @@ from discord.ext.commands import Context, Greedy
 
 class MyClient(commands.Bot):
     def __init__(self, *, intents: discord.Intents):
-        super().__init__(command_prefix="/", intents=intents, help_command=None)
+        super().__init__(command_prefix="/", intents=intents, help_command=None, )
 
     async def setup_hook(self) -> None:
         await self.load_extension('cog.lobby')
@@ -47,12 +47,12 @@ async def main():
 
     async with MyClient(intents=discord.Intents.all()) as bot:
 
-        # Register the commands.
         @bot.event
         async def on_ready():
-            print(f'Logged in as {bot.user} (ID: {bot.user.id})')
+            print(f'Logged in as {bot.user} (ID: {bot.user.id})') # type: ignore
             print('------')
 
+        # Register the commands.
         @bot.tree.command(name="hi")
         async def hi(interaction: discord.Interaction):
             await interaction.response.send_message(f'Hi, {interaction.user.mention}')
@@ -102,4 +102,5 @@ async def main():
 
         # Start the bot.
         await bot.start(os.environ['TOKEN'])
+
 asyncio.run(main(), debug=True)

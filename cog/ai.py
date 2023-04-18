@@ -40,10 +40,10 @@ class AiCog(commands.Cog):
         try:
             await interaction.response.defer()
             response = await asyncio.to_thread(wait_for_response, response_query=query)
-            text: str = response["choices"][0]["text"]
+            text: str = response["choices"][0]["text"] # type: ignore
             text_to_send = text.strip().replace('\n', ' ')
 
-            model: str = response["model"]
+            model: str = response["model"] # type: ignore
             embed = discord.Embed(
                 title=truncate(query, TITLE_FIELD_NAME_LIMIT),
                 description=truncate(text_to_send, DESCRIPTION_LIMIT),

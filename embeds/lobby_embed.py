@@ -1,7 +1,17 @@
-import collections
+from collections.abc import Sequence
 from datetime import datetime
 from enum import Enum
-import discord
+from discord import (
+    Color,
+    Embed,
+    Member,
+    Message,
+    PartialMessage,
+    TextChannel,
+    Thread,
+    User
+)
+from discord.ui import View
 import pytz
 
 
@@ -23,20 +33,20 @@ class UpdateEmbedType(Enum):
 
 
 class UpdateEmbedColour(Enum):
-    LEAVE = discord.Color.red()
-    JOIN = discord.Color.blue()
-    READY = discord.Color.green()
-    OWNER_CHANGE = discord.Color.blurple()
-    DESCRIPTION_CHANGE = discord.Color.blurple()
-    SIZE_CHANGE = discord.Color.blurple()
-    GAME_CHANGE = discord.Color.blurple()
-    LOCK = discord.Color.yellow()
-    UNLOCK = discord.Color.blue()
-    DELETE = discord.Color.red()
-    OWNER_ADD = discord.Color.blue()
-    OWNER_REMOVE = discord.Color.red()
-    OWNER_READY = discord.Color.green()
-    CLEAN_UP = discord.Color.red()
+    LEAVE = Color.red()
+    JOIN = Color.blue()
+    READY = Color.green()
+    OWNER_CHANGE = Color.blurple()
+    DESCRIPTION_CHANGE = Color.blurple()
+    SIZE_CHANGE = Color.blurple()
+    GAME_CHANGE = Color.blurple()
+    LOCK = Color.yellow()
+    UNLOCK = Color.blue()
+    DELETE = Color.red()
+    OWNER_ADD = Color.blue()
+    OWNER_REMOVE = Color.red()
+    OWNER_READY = Color.green()
+    CLEAN_UP = Color.red()
 
 
 class UpdateEmbedMessage(Enum):
@@ -56,16 +66,16 @@ class UpdateEmbedMessage(Enum):
     CLEAN_UP = 'has cleaned up lobby'
 
 
-class LobbyEmbed(discord.Embed):
+class LobbyEmbed(Embed):
     def __init__(
         self,
         lobby_id: int,
-        owner: discord.Member | discord.User,
+        owner: Member | User,
         description: str | None,
         is_locked: bool,
         is_full: bool,
-        members: list[discord.Member],
-        member_ready: collections.abc.Sequence[int],
+        members: list[Member],
+        member_ready: Sequence[int],
         game_size: int,
 
     ):
@@ -87,11 +97,11 @@ class LobbyEmbed(discord.Embed):
 
         # Set colour based on status
         if is_locked:
-            self.color = discord.Color.yellow()  # type: ignore
+            self.color = Color.yellow()  # type: ignore
         elif is_full:
-            self.color = discord.Color.green()  # type: ignore
+            self.color = Color.green()  # type: ignore
         else:
-            self.color = discord.Color.red()  # type: ignore
+            self.color = Color.red()  # type: ignore
 
         # Fill in closed slots with status message.
         for member in members:
@@ -118,11 +128,11 @@ class LobbyEmbed(discord.Embed):
         self.set_footer(text=footer)
 
 
-class QueueEmbed(discord.Embed):
-    def __init__(self, queue_members: list[discord.Member]):
+class QueueEmbed(Embed):
+    def __init__(self, queue_members: list[Member]):
         super().__init__(
             description='Queue',
-            color=discord.Color.yellow()
+            color=Color.yellow()
         )
 
         for count, member in enumerate(queue_members):
@@ -141,7 +151,7 @@ class LobbyEmbedManager:
     async def send_update_embed(
         update_type: UpdateEmbedType,
         title: str,
-        destination: discord.TextChannel | discord.Thread,
+        destination: TextChannel | Thread,
         additional_string: str | None = None,
         footer_string: str | None = None,
         pings: str | None = None,
@@ -174,7 +184,7 @@ class LobbyEmbedManager:
             case UpdateEmbedType.DELETE:
                 message = UpdateEmbedMessage.DELETE.value
                 default_footer = False
-                if not additional_string == "":
+                if additional_string != "" or additional_string is not None:
                     new_field = True
             case UpdateEmbedType.OWNER_ADD:
                 message = f'{UpdateEmbedMessage.OWNER_ADD.value} {additional_string}'
@@ -188,7 +198,7 @@ class LobbyEmbedManager:
             case _:
                 raise NotImplementedError
 
-        embed = discord.Embed(
+        embed = Embed(
             title=title,
             description=message,
             color=UpdateEmbedColour[update_type.value].value
@@ -218,15 +228,15 @@ class LobbyEmbedManager:
     @staticmethod
     async def create_lobby_embed(
         lobby_id: int,
-        owner: discord.Member | discord.User,
+        owner: Member | User,
         description: str | None,
         is_locked: bool,
         is_full: bool,
-        members: list[discord.Member],
+        members: list[Member],
         member_ready: list[int],
         game_size: int,
-        channel: discord.TextChannel | discord.Thread,
-        view: discord.ui.View
+        channel: TextChannel | Thread,
+        view: View
     ) -> int | None:
 
         embed = LobbyEmbed(
@@ -246,14 +256,14 @@ class LobbyEmbedManager:
     @staticmethod
     async def update_lobby_embed(
         lobby_id: int,
-        owner: discord.Member | discord.User,
+        owner: Member | User,
         description: str | None,
         is_locked: bool,
         is_full: bool,
-        members: list[discord.Member],
-        member_ready: collections.abc.Sequence[int],
+        members: list[Member],
+        member_ready: Sequence[int],
         game_size: int,
-        message: discord.Message | discord.PartialMessage |  None,
+        message: Message | PartialMessage |  None,
     ) -> None:
 
         if description is None:
@@ -274,8 +284,8 @@ class LobbyEmbedManager:
 
     @staticmethod
     async def create_queue_embed(
-        queue_members: list[discord.Member],
-        channel: discord.TextChannel | discord.Thread,
+        queue_members: list[Member],
+        channel: TextChannel | Thread,
     ) -> int | None:
         queue_embed = QueueEmbed(queue_members)
         queue_message = await channel.send(embed=queue_embed)
@@ -283,8 +293,8 @@ class LobbyEmbedManager:
 
     @staticmethod
     async def update_queue_embed(
-        queue_members: list[discord.Member],
-        message: discord.Message | discord.PartialMessage | None,
+        queue_members: list[Member],
+        message: Message | PartialMessage | None,
     ) -> None:
         queue_embed = QueueEmbed(queue_members)
         if message is not None:

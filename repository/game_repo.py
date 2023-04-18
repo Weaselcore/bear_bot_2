@@ -40,8 +40,8 @@ class GamePostgresRepository:
                     name=name,
                     guild_id=guild_id,
                     max_size=max_size,
-                    role=role,
-                    icon_url=icon_url,
+                    role=role, # type: ignore
+                    icon_url=icon_url, # type: ignore
                 )
             session.add(new_game)
             await session.commit()

@@ -146,9 +146,10 @@ class SoundBoardCog(commands.Cog):
         soundboard_view_list = self.create_soundboard_view()
 
         for view in soundboard_view_list:
-            await new_channel.send(
-                view=view,
-            )
+            if isinstance(new_channel, discord.TextChannel):
+                await new_channel.send(
+                    view=view,
+                )
 
         # Confirmation message
         if interaction is not None:

@@ -57,9 +57,9 @@ class LobbyManager:
         guild_id: int,
         guild_name: str,
         user_id: int,
-        game_id: int | None = None,
-        max_size: int | None = None,
-        description: str | None = None,
+        game_id: int,
+        max_size: int,
+        description: str,
     ) -> int:
         return await self._get_repository().create_lobby(
             control_panel_message_id,
@@ -450,7 +450,7 @@ class LobbyManager:
             update_type=embed_type,
             title=owner,
             destination=original_channel,
-            additional_string=str(additional_string),
+            additional_string=str(additional_string) if additional_string else None,
             footer_string="⌚ " + session_time,
         )
 

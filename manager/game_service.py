@@ -9,7 +9,6 @@ class GameManager:
 
     def __init__(
         self,
-        # TODO: Make this an ABC to allow for other repositories
         repository: GamePostgresRepository,
         embed_manager: GameEmbedManager,
         bot: discord.Client
@@ -68,7 +67,3 @@ class GameManager:
     async def get_max_size_by_name(self, game_name: str, guild_id: int) -> int | None:
         """ Get max size of game by id """
         return await self._get_repository().get_max_size_by_name(game_name, guild_id)
-
-    # async def get_game_id_by_name(self, game_name: str, guild_id: int) -> int:
-    #     """ Get game id by name """
-    #     return await self._get_repository().get_game_id_by_name(game_name, guild_id)

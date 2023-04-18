@@ -88,9 +88,9 @@ class LobbyPostgresRepository:
         guild_id: int,
         guild_name: str,
         user_id: int,
-        game_id: int | None = None,
-        max_size: int | None = None,
-        description: str | None = None,
+        game_id: int,
+        max_size: int,
+        description: str,
     ) -> int:
         async with self.database() as session:
             # Check if guild is already in the database
