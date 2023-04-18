@@ -9,8 +9,7 @@ from discord import (
     PartialMessage,
     TextChannel,
     Thread,
-    User,
-    utils
+    User, 
 )
 from discord.ui import View
 

@@ -64,7 +64,7 @@ async def main():
         @bot.command()
         @commands.guild_only()
         @commands.is_owner()
-        async def nsync(
+        async def mitsync(
             ctx: Context,
             guilds: Greedy[discord.Object],
             option: Literal["~", "*", "^"] | None = None
@@ -85,7 +85,8 @@ async def main():
                 suffix = 'globally' if option is None else 'to the current guild.'
 
                 await ctx.send(
-                    f"Synced {len(synced)} commands {suffix}"
+                    f"Whoeauh! Synced {len(synced)} commands {suffix} \
+                        in a very Mit manner."
                 )
                 return
 
