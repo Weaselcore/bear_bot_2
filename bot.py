@@ -86,7 +86,7 @@ async def main():
 
                 await ctx.send(
                     f"Whoeauh! Synced {len(synced)} commands {suffix} \
-                        in a very Mit manner."
+in a very Mit manner."
                 )
                 return
 
