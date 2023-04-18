@@ -1,8 +1,9 @@
 from collections.abc import Sequence
+import discord
 from datetime import datetime
 from time import gmtime, strftime
-import discord
-import pytz
+from zoneinfo import ZoneInfo
+
 from embeds.lobby_embed import LobbyEmbedManager
 from repository.lobby_repo import LobbyPostgresRepository, MemberNotFound
 from repository.tables import GuildModel, LobbyModel, MemberModel
@@ -12,7 +13,6 @@ class LobbyManager:
 
     def __init__(
         self,
-        # TODO: Make this an ABC to allow for other repositories
         repository: LobbyPostgresRepository,
         embed_manager: LobbyEmbedManager,
         bot: discord.Client
@@ -477,13 +477,12 @@ class LobbyManager:
 
     async def get_session_time(self, lobby_id: int) -> str:
         '''Get the session time of the lobby'''
-        timezone = pytz.timezone('Pacific/Auckland')
+        timezone = ZoneInfo('Pacific/Auckland')
 
         created_datetime = await self._get_repository().get_session_time(lobby_id)
-        current_datetime = datetime.utcnow()
 
         localised_creation_datetime = created_datetime.astimezone(tz=timezone)
-        localised_datetime_now =  current_datetime.astimezone(tz=timezone)
+        localised_datetime_now =  datetime.utcnow().astimezone(tz=timezone)
 
         duration = localised_datetime_now - localised_creation_datetime
         return "Session Duration: " + strftime(

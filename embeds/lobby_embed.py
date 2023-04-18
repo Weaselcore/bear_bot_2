@@ -9,10 +9,10 @@ from discord import (
     PartialMessage,
     TextChannel,
     Thread,
-    User
+    User,
+    utils
 )
 from discord.ui import View
-import pytz
 
 
 class UpdateEmbedType(Enum):
@@ -206,12 +206,10 @@ class LobbyEmbedManager:
 
         # Set footer with current time
         if default_footer:
-            timezone = pytz.timezone('Pacific/Auckland')
-            date_time = datetime.now()
-            localised_date_time = date_time.astimezone(tz=timezone)
-            embed.set_footer(
-                text=f"⌚ {localised_date_time.strftime('%I:%M:%S%p')}"
-            )
+            embed.timestamp = datetime.now()
+        #     embed.set_footer(
+        #         text="⌚ {utils.format_dt(datetime.utcnow(), 'T')}"
+        #     )
         else:
             embed.set_footer(text=footer_string)
 
