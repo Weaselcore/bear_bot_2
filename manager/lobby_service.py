@@ -464,9 +464,10 @@ class LobbyManager:
             lobby_id,
             description
         )
+        owner = await self.get_lobby_owner(lobby_id)
         await self.embed_manager.send_update_embed(
             update_type=self.embed_manager.UPDATE_TYPES.DESCRIPTION_CHANGE,
-            title=description,
+            title=owner.display_name,
             destination=await self.get_thread(lobby_id),
             additional_string=description,
         )
