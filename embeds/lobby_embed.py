@@ -91,7 +91,7 @@ class LobbyEmbed(Embed):
 
         # Set description
         if description is not None:
-            self.description = f'Description: {description}'
+            self.description = f'```Description: {description}```'
         else:
             self.description = 'Description: None'
 
