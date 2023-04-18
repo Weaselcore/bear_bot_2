@@ -107,7 +107,7 @@ class LobbyEmbed(Embed):
         for member in members:
             self.add_field(
                 name=member.display_name,
-                value=f'Status: \
+                value=f'⠀⠀⤷ **Status**: \
             {"Ready" if member.id in member_ready else "Not Ready"}',
                 inline=False
             )
@@ -118,7 +118,7 @@ class LobbyEmbed(Embed):
             for _ in range(int(game_size) - lobby_length):
                 self.add_field(
                     name='Empty',
-                    value='😩 Fill me daddy',
+                    value='⠀⠀⤷ 😩 Fill me daddy',
                     inline=False
                 )
 
@@ -172,7 +172,7 @@ class LobbyEmbedManager:
                 message = f'{UpdateEmbedMessage.OWNER_CHANGE.value} {additional_string}'
             case UpdateEmbedType.DESCRIPTION_CHANGE:
                 message = f'{UpdateEmbedMessage.DESCRIPTION_CHANGE.value} \
-                    {additional_string}'
+                    **{additional_string}**'
             case UpdateEmbedType.SIZE_CHANGE:
                 message = f'{UpdateEmbedMessage.SIZE_CHANGE.value} {additional_string}'
             case UpdateEmbedType.GAME_CHANGE:
