@@ -1,5 +1,6 @@
 from datetime import datetime
 import enum
+from turtle import color
 from repository.db_config import Base
 from sqlalchemy.orm import mapped_column, Mapped
 from sqlalchemy import Enum
@@ -18,8 +19,8 @@ class VoteType(enum.Enum):
 
 class PollGuildModel(Base):
     __tablename__ = "poll_guild"
-    id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str]
+    id: Mapped[int] = mapped_column(primary_key=True)
     created_datetime: Mapped[datetime] = mapped_column(default=func.now())
     conclusion_datetime: Mapped[datetime] = mapped_column(nullable=True, default=None)
 
@@ -37,6 +38,7 @@ class PollModel(Base):
     message_id: Mapped[int] = mapped_column(nullable=True, default=None)
     channel_id: Mapped[int] = mapped_column(nullable=True, default=None)
     created_datetime: Mapped[datetime] = mapped_column(default=func.now())
+    is_active: Mapped[bool] = mapped_column(default=True)
 
 
 class PollAnswerModel(Base):

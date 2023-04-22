@@ -15,6 +15,12 @@ class PollManager:
         self.bot = bot
         self.repository = repository
 
+    async def get_all_polls_by_guild_id(self, guild_id: int) -> list[PollModel]:
+        return await self.repository.get_all_polls_by_guild_id(guild_id)
+    
+    async def get_all_active_polls(self) -> list[PollModel]:
+        return await self.repository.get_all_active_polls()
+
     async def get_poll(self, poll_id: int) -> PollModel:
         return await self.repository.get_poll(poll_id)
 
@@ -43,6 +49,12 @@ class PollManager:
         )
     async def get_poll_answers(self, poll_id: int) -> list[PollAnswerModel]:
         return await self.repository.get_poll_answers(poll_id)
+    
+    async def get_answers_by_poll_id(self, poll_id: int) -> list[PollAnswerModel]:
+        return await self.repository.get_answers_by_poll_id(poll_id)
+    
+    async def get_poll_answer(self, answer_id: int) -> str:
+        return await self.repository.get_poll_answer(answer_id)
 
     async def add_answer(
         self,

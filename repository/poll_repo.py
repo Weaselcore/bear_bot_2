@@ -34,6 +34,24 @@ class PollRepository:
                 await session.commit()
                 return guild_id
             
+    async def get_all_polls_by_guild_id(self, guild_id: int) -> list[PollModel]:
+        async with self.database() as session:
+            async with session.begin():
+                result = await session.execute(
+                    select(PollModel).where(
+                        PollModel.guild_id == guild_id
+                    )
+                )
+                return list(result.scalars().all())
+            
+    async def get_all_active_polls(self) -> list[PollModel]:
+        async with self.database() as session:
+            async with session.begin():
+                result = await session.execute(
+                    select(PollModel).where(PollModel.is_active == True)
+                )
+                return list(result.scalars().all())
+            
     async def get_poll(self, poll_id: int) -> PollModel:
         async with self.database() as session:
             async with session.begin():
@@ -98,6 +116,16 @@ class PollRepository:
                     )
                 )
                 return list(result.scalars().all())
+    
+    async def get_answers_by_poll_id(self, poll_id: int) -> list[PollAnswerModel]:
+        async with self.database() as session:
+            async with session.begin():
+                result = await session.execute(
+                    select(PollAnswerModel).where(
+                        PollAnswerModel.poll_id == poll_id
+                    )
+                )
+                return list(result.scalars().all())
             
     async def add_poll_answer(
         self,
@@ -126,6 +154,15 @@ class PollRepository:
                         f"Poll answer with id {answer_id} does not exist")
                 await session.delete(poll_answer)
                 await session.commit()
+
+    async def get_poll_answer(self, answer_id: int) -> str:
+        async with self.database() as session:
+            async with session.begin():
+                poll_answer = await session.get(PollAnswerModel, answer_id)
+                if poll_answer is None:
+                    raise ValueError(
+                        f"Poll answer with id {answer_id} does not exist")
+                return poll_answer.answer
 
     async def add_vote(
         self,
