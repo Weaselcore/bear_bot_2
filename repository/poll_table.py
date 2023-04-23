@@ -3,13 +3,7 @@ import enum
 from turtle import color
 from repository.db_config import Base
 from sqlalchemy.orm import mapped_column, Mapped
-from sqlalchemy import Enum
 from sqlalchemy import ForeignKey, func
-
-
-class PollType(enum.Enum):
-    BINARY = 1
-    MULTIPLE_CHOICE = 2
 
 
 class VoteType(enum.Enum):
@@ -34,7 +28,7 @@ class PollModel(Base):
         ForeignKey("poll_guild.id", ondelete="CASCADE")
     )
     vote_type: Mapped[VoteType] = mapped_column(nullable=False)
-    poll_type: Mapped[PollType] = mapped_column(nullable=False)
+    colour: Mapped[str] = mapped_column(nullable=False)
     message_id: Mapped[int] = mapped_column(nullable=True, default=None)
     channel_id: Mapped[int] = mapped_column(nullable=True, default=None)
     created_datetime: Mapped[datetime] = mapped_column(default=func.now())
@@ -48,6 +42,8 @@ class PollAnswerModel(Base):
     poll_id: Mapped[int] = mapped_column(
         ForeignKey("poll.id", ondelete="CASCADE")
     )
+    owner_id: Mapped[int] = mapped_column(nullable=False)
+    url: Mapped[str] = mapped_column(nullable=True, default=None)
     created_datetime: Mapped[datetime] = mapped_column(default=func.now())
 
 
