@@ -47,6 +47,10 @@ class AnswerTransformError(app_commands.AppCommandError):
     pass
 
 
+class VoteTypeTransformError(app_commands.AppCommandError):
+    pass
+
+
 class PollTransformer(app_commands.Transformer):
 
     def __init__(self):
@@ -236,6 +240,51 @@ class AnswerTransformer(app_commands.Transformer):
             return []
 
 
+class VoteTypeTransformer(app_commands.Transformer):
+
+    vote_types = [VoteType.SINGLE_VOTE, VoteType.MULTIPLE_VOTE]
+
+    async def transform(self, interaction: Interaction, argument: str) -> int:
+        try:
+            value = int(argument)
+            for vote_type in self.vote_types:
+                if value == vote_type.value:
+                    return vote_type.value
+            else:
+                raise VoteTypeTransformError(f"VoteType_id: {argument} not found")
+        except ValueError:
+            raise VoteTypeTransformError(f"VoteType_id: {argument} not found")
+
+    async def autocomplete(
+        self,
+        interaction: Interaction,
+        value: int | float | str,
+        /
+    ) -> list[app_commands.Choice[int | float | str]]:
+        list_of_options: list[app_commands.Choice[int | float | str]] = []
+        try:
+            if value is None:
+                for vote_type in self.vote_types:
+                    list_of_options.append(
+                        app_commands.Choice(
+                            name=vote_type.name,
+                            value=str(vote_type.value)
+                        )
+                    )
+            else:
+                for vote_type in self.vote_types:
+                    if (vote_type.name.lower()).startswith(str(value).lower()):
+                        list_of_options.append(
+                            app_commands.Choice(
+                                name=vote_type.name,
+                                value=str(vote_type.value)
+                            )
+                        )
+            return list_of_options
+        except ValueError:
+            return []
+
+
 class AnswerButton(Button):
     def __init__(
         self,
@@ -272,7 +321,7 @@ class EditModalModal(Modal):
     ) -> None:
         super().__init__(timeout=None, title="Add URL to an option")
         self.answers = answers
-        self.bot=bot
+        self.bot = bot
         self.poll_id = poll_id
         self.poll_manager = poll_manager
         self.custom_id = f"edit_modal_{self.poll_id}"
@@ -290,11 +339,11 @@ class EditModalModal(Modal):
 
     async def on_submit(self, interaction: Interaction):
         for text_input in self.children:
-            if text_input.custom_id is None: # type: ignore
+            if text_input.custom_id is None:  # type: ignore
                 continue
             for answer in self.answers:
-                if answer.id == int(text_input.custom_id): # type: ignore
-                    answer.url = text_input.value if text_input.value != "" else None # type: ignore
+                if answer.id == int(text_input.custom_id):  # type: ignore
+                    answer.url = text_input.value if text_input.value != "" else None  # type: ignore
                     if answer.url is not None:
                         if (answer.url.startswith("http://") or answer.url.startswith("https://")):
                             await self.poll_manager.add_url(answer.id, answer.url)
@@ -304,7 +353,6 @@ class EditModalModal(Modal):
         else:
             self.bot.dispatch("poll_button_update", self.poll_id)
             await interaction.response.send_message("URLs updated", ephemeral=True)
-
 
 class PollView(View):
     def __init__(
@@ -387,7 +435,7 @@ class PollCog(commands.Cog):
             owner=utils.get(self.bot.get_all_members(),
                             id=poll_model.owner_id),  # type: ignore
             poll_manager=self.poll_manager,
-            vote_type=poll_model.vote_type,
+            vote_type=poll_model.vote_type.value,
             colour=poll_model.colour,
             is_disabled=not poll_model.is_active
         )
@@ -420,8 +468,7 @@ class PollCog(commands.Cog):
         interaction: Interaction,
         question: str,
         options: str,
-        # TODO: add poll type and vote type transformers/autocomplete
-        # vote_type: VoteType = VoteType.SINGLE_VOTE
+        vote_type: app_commands.Transform[int, VoteTypeTransformer] = VoteType.SINGLE_VOTE.value,
     ):
         await interaction.response.defer()
 
@@ -430,14 +477,14 @@ class PollCog(commands.Cog):
 
         cleaned_options = tuple(option.strip()
                                 for option in options.split(","))
-        
+
         colour = str(Color.random())
 
         poll_id = await self.poll_manager.create_poll(
             question=question,
             owner_id=interaction.user.id,
             guild=interaction.guild,
-            vote_type=VoteType.SINGLE_VOTE,
+            vote_type=VoteType(vote_type),
             colour=colour
         )
 
@@ -454,7 +501,7 @@ class PollCog(commands.Cog):
             owner=utils.get(self.bot.get_all_members(),
                             id=interaction.user.id),  # type: ignore
             question=question,
-            vote_type=VoteType.MULTIPLE_VOTE,
+            vote_type=VoteType(vote_type),
             poll_manager=self.poll_manager,
             colour=colour
         )
@@ -559,7 +606,7 @@ async def setup(bot: commands.Bot):
             owner=utils.get(bot.get_all_members(),
                             id=poll.owner_id),  # type: ignore
             poll_manager=poll_manager,
-            vote_type=poll.vote_type,
+            vote_type=VoteType(poll.vote_type.value),
             colour=poll.colour,
             is_disabled=not poll.is_active
         )
