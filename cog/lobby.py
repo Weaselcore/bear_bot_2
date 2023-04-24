@@ -33,7 +33,7 @@ from manager.lobby_service import LobbyManager
 from repository.db_config import Base
 from repository.game_repo import GamePostgresRepository
 from repository.lobby_repo import LobbyPostgresRepository
-from repository.tables import GameModel, LobbyModel
+from repository.tables import GameModel, GuildModel, LobbyModel, MemberLobbyModel, MemberModel, QueueMemberLobbyModel
 
 load_dotenv()
 
@@ -838,7 +838,7 @@ class ButtonView(View):
             )
 
 
-class LobbyCog(commands.Cog):
+class LobbyCog(commands.GroupCog, group_name='lobby'):
     def __init__(
         self,
         bot: commands.Bot,
@@ -980,7 +980,7 @@ class LobbyCog(commands.Cog):
         if not self.update_lobby_embed.is_running():
             self.update_lobby_embed.start(lobby_id)
 
-    @app_commands.command(description="Create lobby through UI", name='lobby')
+    @app_commands.command(description="Create lobby through UI", name='create')
     async def create_lobby(
         self,
         interaction: Interaction,
@@ -1374,7 +1374,17 @@ async def setup(bot: commands.Bot):
 
     # Create all tables if they don't exist
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(
+            Base.metadata.create_all,
+            tables=[
+                GuildModel.__table__,
+                LobbyModel.__table__,
+                MemberLobbyModel.__table__,
+                MemberModel.__table__,
+                QueueMemberLobbyModel.__table__,
+                GameModel.__table__
+            ]
+        )
 
     lobby_embed_manager = LobbyEmbedManager()
 

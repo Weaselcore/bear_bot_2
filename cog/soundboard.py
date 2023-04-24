@@ -16,7 +16,7 @@ from view.soundboard.streamable_submission import StreamableSubmission
 from view.soundboard.upload_submission import UploadSubmission
 
 
-class SoundBoardCog(commands.Cog):
+class SoundBoardCog(commands.GroupCog, name="soundboard"):
     def __init__(self, bot: commands.Bot):
         self.bot: commands.Bot = bot
         self.soundboard_channel: discord.TextChannel | None = None
