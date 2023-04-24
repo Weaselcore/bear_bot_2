@@ -14,8 +14,8 @@ class MyClient(commands.Bot):
         super().__init__(command_prefix="/", intents=intents, help_command=None, )
 
     async def setup_hook(self) -> None:
-        # await self.load_extension('cog.lobby')
-        # await self.load_extension('cog.soundboard')
+        await self.load_extension('cog.lobby')
+        await self.load_extension('cog.soundboard')
         await self.load_extension('cog.poll')
 
     async def close(self) -> None:
