@@ -470,7 +470,7 @@ class PollCog(commands.GroupCog, group_name="poll"):
         if not self.poll_button_update.is_running():
             self.poll_button_update.start(poll_id)
 
-    @app_commands.command(description="Create a poll, separate options with a comma", name="poll")
+    @app_commands.command(description="Create a poll, separate options with a comma", name="create")
     async def poll(
         self,
         interaction: Interaction,
@@ -580,8 +580,9 @@ class PollCog(commands.GroupCog, group_name="poll"):
         interaction: Interaction,
         poll_id: app_commands.Transform[int, ActivePollTransformer],
     ):
-        is_owner = self.poll_manager.get_owner_id(poll_id) == interaction.user.id
-        is_admin = interaction.guild.owner_id == interaction.user.id # type: ignore
+        is_owner = self.poll_manager.get_owner_id(
+            poll_id) == interaction.user.id
+        is_admin = interaction.guild.owner_id == interaction.user.id  # type: ignore
         if is_owner or is_admin:
             await self.poll_manager.end_poll(poll_id)
             await interaction.response.send_message(
