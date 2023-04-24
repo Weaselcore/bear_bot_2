@@ -97,7 +97,7 @@ class PollTransformer(app_commands.Transformer):
             for poll in poll_by_guild:
                 list_of_options.append(
                     app_commands.Choice(
-                        name=str(poll.question),
+                        name=f'{str(poll.question)}: {str(poll.id)}',
                         value=str(poll.id)
                     )
                 )
@@ -107,7 +107,7 @@ class PollTransformer(app_commands.Transformer):
                 if str(poll.id).startswith(str(value).lower()):
                     list_of_options.append(
                         app_commands.Choice(
-                            name=str(poll.question),
+                            name=f'{str(poll.question)}: {str(poll.id)}',
                             value=str(poll.id)
                         )
                     )
@@ -160,7 +160,7 @@ class ActivePollTransformer(app_commands.Transformer):
             for poll in poll_by_guild:
                 list_of_options.append(
                     app_commands.Choice(
-                        name=str(poll.question),
+                        name=f'{str(poll.question)}: {str(poll.id)}',
                         value=str(poll.id)
                     )
                 )
@@ -170,14 +170,14 @@ class ActivePollTransformer(app_commands.Transformer):
                 if str(poll.id).startswith(str(value).lower()):
                     list_of_options.append(
                         app_commands.Choice(
-                            name=str(poll.question),
+                            name=f'{str(poll.question)}: {str(poll.id)}',
                             value=str(poll.id)
                         )
                     )
         return list_of_options
 
 
-class AnswerTransformer(app_commands.Transformer):
+class RestrictedAnswerTransformer(app_commands.Transformer):
 
     def __init__(self):
         self._poll_manager = None
@@ -212,32 +212,38 @@ class AnswerTransformer(app_commands.Transformer):
         /
     ) -> list[app_commands.Choice[int | float | str]]:
         list_of_options: list[app_commands.Choice[int | float | str]] = []
-        poll_id = interaction.namespace["poll_id"]
+        poll_argument = interaction.namespace["poll_id"]
         poll_manager = self.get_poll_manager(interaction)
-        if poll_id is None:
+        member_answers = []
+
+        if poll_argument is None or poll_argument == "":
             return list_of_options
-        try:
-            answers = await poll_manager.get_answers_by_poll_id(int(poll_id))
-            if value is None:
-                for answer_model in answers:
+
+        answers = await poll_manager.get_answers_by_poll_id(int(poll_argument))
+        if interaction.user.id == await poll_manager.get_owner_id(int(poll_argument)):
+            member_answers = answers
+        else:
+            member_answers = list(
+                filter(lambda answer: answer.owner_id == interaction.user.id, answers))
+
+        if value is None or value == "":
+            for answer_model in member_answers:
+                list_of_options.append(
+                    app_commands.Choice(
+                        name=answer_model.answer,
+                        value=str(answer_model.id)
+                    )
+                )
+        else:
+            for answer_model in member_answers:
+                if (answer_model.answer.lower()).startswith(str(value).lower()):
                     list_of_options.append(
                         app_commands.Choice(
                             name=answer_model.answer,
                             value=str(answer_model.id)
                         )
                     )
-            else:
-                for answer_model in answers:
-                    if answer_model.answer.startswith(str(value)):
-                        list_of_options.append(
-                            app_commands.Choice(
-                                name=answer_model.answer,
-                                value=str(answer_model.id)
-                            )
-                        )
-            return list_of_options
-        except ValueError:
-            return []
+        return list_of_options
 
 
 class VoteTypeTransformer(app_commands.Transformer):
@@ -251,7 +257,8 @@ class VoteTypeTransformer(app_commands.Transformer):
                 if value == vote_type.value:
                     return vote_type.value
             else:
-                raise VoteTypeTransformError(f"VoteType_id: {argument} not found")
+                raise VoteTypeTransformError(
+                    f"VoteType_id: {argument} not found")
         except ValueError:
             raise VoteTypeTransformError(f"VoteType_id: {argument} not found")
 
@@ -354,6 +361,7 @@ class EditModalModal(Modal):
             self.bot.dispatch("poll_button_update", self.poll_id)
             await interaction.response.send_message("URLs updated", ephemeral=True)
 
+
 class PollView(View):
     def __init__(
         self,
@@ -377,7 +385,7 @@ class PollView(View):
         self.disable = is_disabled
 
     async def create_buttons(self):
-        self.options = [answer for answer in await self.poll_manager.get_poll_answers(self.poll_id)]
+        self.options = [answer for answer in await self.poll_manager.get_answers_by_poll_id(self.poll_id)]
         for option in self.options:
             self.add_item(
                 AnswerButton(
@@ -435,7 +443,7 @@ class PollCog(commands.Cog):
             owner=utils.get(self.bot.get_all_members(),
                             id=poll_model.owner_id),  # type: ignore
             poll_manager=self.poll_manager,
-            vote_type=poll_model.vote_type.value,
+            vote_type=poll_model.vote_type,
             colour=poll_model.colour,
             is_disabled=not poll_model.is_active
         )
@@ -468,7 +476,8 @@ class PollCog(commands.Cog):
         interaction: Interaction,
         question: str,
         options: str,
-        vote_type: app_commands.Transform[int, VoteTypeTransformer] = VoteType.SINGLE_VOTE.value,
+        vote_type: app_commands.Transform[int,
+                                          VoteTypeTransformer] = VoteType.SINGLE_VOTE.value,
     ):
         await interaction.response.defer()
 
@@ -545,11 +554,22 @@ class PollCog(commands.Cog):
         self,
         interaction: Interaction,
         poll_id: app_commands.Transform[int, ActivePollTransformer],
-        answer_id: app_commands.Transform[int, AnswerTransformer]
+        answer_id: app_commands.Transform[int, RestrictedAnswerTransformer]
     ):
         answer = await self.poll_manager.get_poll_answer(answer_id)
-        await self.poll_manager.remove_answer(answer_id)
+        try:
+            success = await self.poll_manager.remove_answer(interaction.user.id, answer_id)
+        except ValueError:
+            await interaction.response.send_message(
+                content=f"Answer does not exist",
+            )
+            return
         self.bot.dispatch("poll_button_update", poll_id=poll_id)
+        if not success:
+            await interaction.response.send_message(
+                content=f"You are not the owner of this answer",
+            )
+            return
         await interaction.response.send_message(
             content=f"Removing button for answer: {answer}",
         )
@@ -572,15 +592,52 @@ class PollCog(commands.Cog):
         interaction: Interaction,
         poll_id: app_commands.Transform[int, ActivePollTransformer],
     ):
-        answers = await self.poll_manager.get_poll_answer_by_user_id(poll_id, interaction.user.id)
-        await interaction.response.send_modal(
-            EditModalModal(
-                answers=answers,
-                bot=self.bot,
-                poll_id=poll_id,
-                poll_manager=self.poll_manager,
-            ),
-        )
+        answers = None
+        if self.poll_manager.get_owner_id(poll_id) == interaction.user.id:
+            answers = await self.poll_manager.get_answers_by_poll_id(poll_id)
+        else:
+            answers = await self.poll_manager.get_poll_answer_by_user_id(poll_id, interaction.user.id)
+        if answers:
+            await interaction.response.send_modal(
+                EditModalModal(
+                    answers=answers,
+                    bot=self.bot,
+                    poll_id=poll_id,
+                    poll_manager=self.poll_manager,
+                ),
+            )
+        else:
+            await interaction.response.send_message(
+                content="You do not own any answers for this poll.",
+            )
+
+    async def cog_app_command_error(
+        self,
+        interaction: Interaction,
+        error: Exception
+    ):
+        embed = None
+
+        if isinstance(error, AnswerTransformError):
+            embed = Embed(
+                title=error.args[0],
+                description='This answer does not exist!',
+                color=Color.red()
+            )
+            await interaction.response.send_message(
+                embed=embed,
+                ephemeral=True,
+            )
+        elif isinstance(error, PollTransformError):
+            embed = Embed(
+                title=error.args[0],
+                description='This poll does not exist!',
+                color=Color.red()
+            )
+            await interaction.response.send_message(
+                embed=embed,
+                ephemeral=True,
+            )
 
 
 async def setup(bot: commands.Bot):

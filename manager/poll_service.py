@@ -17,10 +17,10 @@ class PollManager:
 
     async def get_all_polls_by_guild_id(self, guild_id: int) -> list[PollModel]:
         return await self.repository.get_all_polls_by_guild_id(guild_id)
-    
+
     async def get_all_active_polls(self) -> list[PollModel]:
         return await self.repository.get_all_active_polls()
-    
+
     async def get_all_active_polls_by_guild_id(self, guild_id: int) -> list[PollModel]:
         return await self.repository.get_all_active_polls_by_guild_id(guild_id)
 
@@ -50,12 +50,13 @@ class PollManager:
             vote_type=vote_type,
             colour=colour
         )
-    async def get_poll_answers(self, poll_id: int) -> list[PollAnswerModel]:
-        return await self.repository.get_poll_answers(poll_id)
     
+    async def get_owner_id(self, poll_id: int) -> int:
+        return await self.repository.get_owner_id(poll_id)
+
     async def get_answers_by_poll_id(self, poll_id: int) -> list[PollAnswerModel]:
         return await self.repository.get_answers_by_poll_id(poll_id)
-    
+
     async def get_poll_answer_by_user_id(self, poll_id: int, user_id: int) -> list[PollAnswerModel]:
         return await self.repository.get_poll_answer_by_user_id(poll_id, user_id)
 
@@ -73,26 +74,31 @@ class PollManager:
             poll_id=poll_id,
             owner_id=owner_id
         )
-    
+
     async def remove_answer(
         self,
+        member_id: int,
         answer_id: int
-    ):
-        return await self.repository.remove_poll_answer(answer_id)
-    
+    ) -> bool:
+        is_owner = await self.repository.is_owner_of_answer(member_id, answer_id)
+        if is_owner:
+            await self.repository.remove_poll_answer(answer_id)
+            return True
+        return False
+
     async def add_url(
         self,
         answer_id: int,
         url: str
     ):
         return await self.repository.add_url(answer_id, url)
-    
+
     async def get_channel_message_id(
         self,
         poll_id: int,
     ) -> tuple[int, int]:
         return await self.repository.get_channel_message_id(poll_id)
-    
+
     async def set_channel_message_id(
         self,
         poll_id: int,
@@ -104,7 +110,7 @@ class PollManager:
             channel_id=channel_id,
             message_id=message_id
         )
-    
+
     async def add_vote(
         self,
         poll_id: int,
@@ -112,46 +118,48 @@ class PollManager:
         member_id: int,
         vote_type: VoteType,
     ):
-        if vote_type is VoteType.SINGLE_VOTE:
-            # Check if user has already voted
-            user_votes = await self.repository.get_poll_votes_by_member_id(poll_id, member_id)
-            # If user has already voted, remove their vote
-            if user_votes is not None:
-                for vote in user_votes:
-                    await self.repository.remove_vote(
-                        answer_id=vote.id,
-                        member_id=member_id
+        match vote_type:
+            case VoteType.SINGLE_VOTE:
+                # Get all votes by user
+                user_votes = await self.repository.get_poll_votes_by_member_id(poll_id, member_id)
+                # If user has already voted, remove their vote
+                if user_votes == []:
+                    # Add new vote
+                    await self.repository.add_vote(
+                        answer_id,
+                        member_id,
                     )
-            # Add new vote
-            await self.repository.add_vote(
-                    answer_id,
-                    member_id,
-                )
-        elif vote_type is VoteType.MULTIPLE_VOTE:
-            # Check if user has already voted
-            user_vote = await self.repository.has_voted(answer_id, member_id)
-            if user_vote:
-                return
-            await self.repository.add_vote(
-                    answer_id,
-                    member_id,
-                )
-        else:
-            raise NotImplementedError("Invalid vote type")
+                    return
+                else:
+                    # If vote_types are able to switch, this will remove all previous votes
+                    for vote in user_votes:
+                        await self.repository.remove_vote(
+                            answer_id=vote.id,
+                            member_id=vote.member_id
+                        )
+                    await self.repository.add_vote(
+                        answer_id,
+                        member_id,
+                    )
+            case VoteType.MULTIPLE_VOTE:
+                # Check if user has already voted
+                user_vote = await self.repository.get_member_vote(answer_id, member_id)
+                if user_vote:
+                    await self.repository.remove_vote(answer_id=user_vote.id, member_id=member_id)
+                else:
+                    await self.repository.add_vote(
+                        answer_id,
+                        member_id,
+                    )
+            case _:
+                raise NotImplementedError(f"{vote_type} is an invalid vote type")
 
     async def get_vote(
         self,
         answer_id: int,
     ) -> int:
         return await self.repository.get_vote(answer_id)
-    
-    async def has_voted(
-        self,
-        answer_id: int,
-        member_id: int
-    ) -> bool:
-        return await self.repository.has_voted(answer_id, member_id)
-    
+
     async def end_poll(
         self,
         poll_id: int,

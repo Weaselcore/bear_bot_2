@@ -116,16 +116,14 @@ class PollRepository:
                 poll.message_id = message_id
                 poll.channel_id = channel_id
                 await session.commit()
-
-    async def get_poll_answers(self, poll_id: int) -> list[PollAnswerModel]:
+            
+    async def get_owner_id(self, poll_id: int) -> int:
         async with self.database() as session:
             async with session.begin():
-                result = await session.execute(
-                    select(PollAnswerModel).where(
-                        PollAnswerModel.poll_id == poll_id
-                    )
-                )
-                return list(result.scalars().all())
+                poll = await session.get(PollModel, poll_id)
+                if poll is None:
+                    raise ValueError(f"Poll with id {poll_id} does not exist")
+                return poll.owner_id
 
     async def get_answers_by_poll_id(self, poll_id: int) -> list[PollAnswerModel]:
         async with self.database() as session:
@@ -136,6 +134,17 @@ class PollRepository:
                     )
                 )
                 return list(result.scalars().all())
+            
+    async def is_owner_of_answer(self, member_id: int, answer_id: int) -> bool:
+        async with self.database() as session:
+            async with session.begin():
+                result = await session.execute(
+                    select(PollAnswerModel).where(
+                        PollAnswerModel.owner_id == member_id,
+                        PollAnswerModel.id == answer_id,
+                    )
+                )
+                return result.scalar() is not None
 
     async def add_poll_answer(
         self,
@@ -212,11 +221,11 @@ class PollRepository:
                 )
                 await session.commit()
 
-    async def has_voted(
+    async def get_member_vote(
         self,
         poll_answer_id: int,
         member_id: int,
-    ) -> bool:
+    ) -> PollMemberAnswerModel | None:
         async with self.database() as session:
             async with session.begin():
                 result = await session.execute(
@@ -225,7 +234,7 @@ class PollRepository:
                         PollMemberAnswerModel.member_id == member_id,
                     )
                 )
-                return result.scalar() is not None
+                return result.scalars().first()
 
     async def get_vote(
         self,
@@ -240,7 +249,7 @@ class PollRepository:
                 )
                 return len(result.scalars().all())
 
-    async def get_poll_votes_by_member_id(self, poll_id: int, member_id: int) -> list[PollMemberAnswerModel] | None:
+    async def get_poll_votes_by_member_id(self, poll_id: int, member_id: int) -> list[PollMemberAnswerModel]:
         async with self.database() as session:
             async with session.begin():
                 result = await session.execute(
