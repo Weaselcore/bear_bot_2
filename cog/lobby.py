@@ -838,7 +838,7 @@ class ButtonView(View):
             )
 
 
-class LobbyCog(commands.Cog):
+class LobbyCog(commands.GroupCog, group_name='lobby'):
     def __init__(
         self,
         bot: commands.Bot,
@@ -980,7 +980,7 @@ class LobbyCog(commands.Cog):
         if not self.update_lobby_embed.is_running():
             self.update_lobby_embed.start(lobby_id)
 
-    @app_commands.command(description="Create lobby through UI", name='lobby')
+    @app_commands.command(description="Create lobby through UI", name='create')
     async def create_lobby(
         self,
         interaction: Interaction,

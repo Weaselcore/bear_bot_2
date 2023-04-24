@@ -420,7 +420,7 @@ class PollView(View):
         return embed
 
 
-class PollCog(commands.Cog):
+class PollCog(commands.GroupCog, group_name="poll"):
 
     def __init__(
         self,
