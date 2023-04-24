@@ -585,8 +585,10 @@ class PollCog(commands.Cog):
         if is_owner or is_admin:
             await self.poll_manager.end_poll(poll_id)
             await interaction.response.send_message(
-                content=f"Poll ended",
+                content=f"Poll with id: {poll_id} ended",
+                embed=await self.poll_manager.get_poll_result_embed(poll_id),
             )
+
             self.bot.dispatch("poll_button_update", poll_id=poll_id)
         else:
             await interaction.response.send_message(
