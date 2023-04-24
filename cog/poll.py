@@ -580,11 +580,19 @@ class PollCog(commands.Cog):
         interaction: Interaction,
         poll_id: app_commands.Transform[int, ActivePollTransformer],
     ):
-        await self.poll_manager.end_poll(poll_id)
-        await interaction.response.send_message(
-            content=f"Poll ended",
-        )
-        self.bot.dispatch("poll_button_update", poll_id=poll_id)
+        is_owner = self.poll_manager.get_owner_id(poll_id) == interaction.user.id
+        is_admin = interaction.guild.owner_id == interaction.user.id # type: ignore
+        if is_owner or is_admin:
+            await self.poll_manager.end_poll(poll_id)
+            await interaction.response.send_message(
+                content=f"Poll ended",
+            )
+            self.bot.dispatch("poll_button_update", poll_id=poll_id)
+        else:
+            await interaction.response.send_message(
+                content=f"You are not the owner of this poll",
+                ephemeral=True,
+            )
 
     @app_commands.command(description="Add urls to your own options", name="add_url")
     async def add_url(
