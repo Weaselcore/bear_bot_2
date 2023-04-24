@@ -601,7 +601,7 @@ class PollCog(commands.Cog):
         poll_id: app_commands.Transform[int, ActivePollTransformer],
     ):
         answers = None
-        if self.poll_manager.get_owner_id(poll_id) == interaction.user.id:
+        if await self.poll_manager.get_owner_id(poll_id) == interaction.user.id:
             answers = await self.poll_manager.get_answers_by_poll_id(poll_id)
         else:
             answers = await self.poll_manager.get_poll_answer_by_user_id(poll_id, interaction.user.id)
@@ -618,6 +618,16 @@ class PollCog(commands.Cog):
             await interaction.response.send_message(
                 content="You do not own any answers for this poll.",
             )
+
+    @app_commands.command(description="Get poll results using poll_id", name="get_results")
+    async def get_results(
+        self,
+        interaction: Interaction,
+        poll_id: app_commands.Transform[int, PollTransformer],
+    ):
+        await interaction.response.send_message(
+            embed=await self.poll_manager.get_poll_result_embed(poll_id),
+        )
 
     async def cog_app_command_error(
         self,

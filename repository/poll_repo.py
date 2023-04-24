@@ -284,6 +284,18 @@ class PollRepository:
                 await session.delete(vote)
                 await session.commit()
 
+    async def get_poll_votes(self, poll_id: int) -> list[PollMemberAnswerModel]:
+        async with self.database() as session:
+            async with session.begin():
+                result = await session.execute(
+                    select(PollMemberAnswerModel).join(
+                        PollAnswerModel
+                    ).where(
+                        PollAnswerModel.poll_id == poll_id
+                    )
+                )
+                return list(result.scalars().all())
+
     async def end_poll(self, poll_id: int) -> None:
         async with self.database() as session:
             async with session.begin():

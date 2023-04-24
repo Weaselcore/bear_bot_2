@@ -1,8 +1,9 @@
-from discord import Guild
+from collections import Counter
+from discord import Colour, Embed, Guild
 from discord.ext import commands
 
 from repository.poll_repo import PollRepository
-from repository.poll_table import PollAnswerModel, PollModel, VoteType
+from repository.poll_table import PollAnswerModel, PollMemberAnswerModel, PollModel, VoteType
 
 
 class PollManager:
@@ -159,9 +160,59 @@ class PollManager:
         answer_id: int,
     ) -> int:
         return await self.repository.get_vote(answer_id)
+    
+    async def get_poll_votes(
+            self,
+            poll_id: int,
+    ) -> list[PollMemberAnswerModel]:
+        return await self.repository.get_poll_votes(poll_id)
 
     async def end_poll(
         self,
         poll_id: int,
     ) -> None:
         await self.repository.end_poll(poll_id)
+
+    async def get_poll_result_embed(
+        self,
+        poll_id: int,
+    ) -> Embed:
+        poll_votes: list[PollMemberAnswerModel] = await self.get_poll_votes(poll_id)
+        results: dict[int, list[int]] = {}
+        winner: str = ''
+
+        for poll_vote in poll_votes:
+            list_of_voters = results.get(poll_vote.poll_answer_id, [])
+            list_of_voters.append(poll_vote.member_id)
+            results[poll_vote.poll_answer_id] = list_of_voters
+
+        counts: list[tuple[int, int]] = Counter(results).most_common()
+
+        if len(counts) == 1:
+            winner = await self.get_poll_answer(int(counts[0][0]))
+        else:
+            # There has been a tie
+            for i in range(len(counts)):
+                winner += f'{await self.get_poll_answer(int(counts[i][0]))}, '
+
+        embed = Embed(
+            title=f"📖  Poll Results: {(await self.get_poll(poll_id)).question}",
+            description=f" 🥇  Winner(s): {winner}",
+            colour=Colour.green()
+        )
+        value_string = '⠀⠀⠀⠀⤷  ✍  Votes:\n'
+        # Print out members who voted for each answer
+        for key, values in results.items():
+            for value in values:
+                value_string += f'⠀⠀⠀⠀⠀⠀⠀⠀⤷   <@{value}>\n'
+            embed.add_field(
+                name=f"Answer  ➡  {await self.get_poll_answer(key)}",
+                value=value_string,
+                inline=False,
+            )
+            value_string = '⠀⠀⠀⠀⤷  ✍  Votes:\n'
+
+        embed.set_footer(text=f"[Poll ID: {poll_id}]")
+        return embed
+
+
