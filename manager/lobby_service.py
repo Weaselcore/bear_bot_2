@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 
 from embeds.lobby_embed import LobbyEmbedManager
 from repository.lobby_repo import LobbyPostgresRepository, MemberNotFound
-from repository.tables import GuildModel, LobbyModel, MemberModel
+from repository.lobby_table import GuildModel, LobbyModel, MemberModel
 
 
 class LobbyManager:

@@ -1,17 +1,17 @@
 import asyncio
-import os
-from typing import Literal
 import discord
+from discord.ext import commands
+from discord.ext.commands import Context, Greedy
+from dotenv import load_dotenv
 import logging
 import logging.handlers
-from discord.ext import commands
-from dotenv import load_dotenv
-from discord.ext.commands import Context, Greedy
+import os
+from typing import Literal
 
 
-class MyClient(commands.Bot):
+class MyBot(commands.Bot):
     def __init__(self, *, intents: discord.Intents):
-        super().__init__(command_prefix="/", intents=intents, help_command=None, )
+        super().__init__(command_prefix="/", intents=intents, help_command=None,)
 
     async def setup_hook(self) -> None:
         # await self.load_extension('cog.lobby')
@@ -44,7 +44,7 @@ async def main():
     load_dotenv()
     print("Retrieving token...")
 
-    async with MyClient(intents=discord.Intents.all()) as bot:
+    async with MyBot(intents=discord.Intents.all()) as bot:
 
         @bot.event
         async def on_ready():

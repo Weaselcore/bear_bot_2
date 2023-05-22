@@ -4,10 +4,9 @@ import os
 from dotenv import load_dotenv
 import pytest
 import pytest_asyncio
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from repository.db_config import Base
-from repository.tables import GameModel, GuildModel, LobbyModel, MemberModel
+from repository.lobby_table import GameModel, GuildModel, LobbyModel, MemberModel
 
 """These fixtures are used to create a database for testing purposes. For now it tests
     the lobby cog feature. Change these to make the fixures more generalised for other 
@@ -46,7 +45,7 @@ async def init_database(engine):
     async with engine.begin() as session:
         await session.run_sync(Base.metadata.create_all)
 
-    async_session = sessionmaker(engine, expire_on_commit=True, class_=AsyncSession)
+    async_session = async_sessionmaker(engine, expire_on_commit=True, class_=AsyncSession)
 
     async with async_session() as session:
 
@@ -95,8 +94,8 @@ async def init_database(engine):
             game_id=game.id,
             guild_id=guild.id,
             game_size=5,
-            last_promotion_message_id=None,
-            last_promotion_datetime=None,
+            last_promotion_message_id=None, # type: ignore
+            last_promotion_datetime=None, # type: ignore
             history_thread_id=12,
             is_locked=False,
             owner_id=member.id
@@ -113,7 +112,7 @@ async def init_database(engine):
 @pytest_asyncio.fixture()
 async def session(engine):
     async with engine.begin() as conn:
-        async_session = sessionmaker(
+        async_session = async_sessionmaker(
             expire_on_commit=False,
             class_=AsyncSession,
             bind=conn

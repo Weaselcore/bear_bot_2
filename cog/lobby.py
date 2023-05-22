@@ -33,7 +33,14 @@ from manager.lobby_service import LobbyManager
 from repository.db_config import Base
 from repository.game_repo import GamePostgresRepository
 from repository.lobby_repo import LobbyPostgresRepository
-from repository.tables import GameModel, GuildModel, LobbyModel, MemberLobbyModel, MemberModel, QueueMemberLobbyModel
+from repository.lobby_table import (
+    GuildModel,
+    LobbyModel,
+    MemberLobbyModel,
+    MemberModel,
+    QueueMemberLobbyModel,
+    GameModel
+)
 
 load_dotenv()
 

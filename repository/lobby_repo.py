@@ -10,7 +10,7 @@ from exceptions.lobby_exceptions import (
     LobbyNotFound,
     MemberNotFound
 )
-from repository.tables import (
+from repository.lobby_table import (
     GuildModel,
     LobbyModel,
     MemberLobbyModel,

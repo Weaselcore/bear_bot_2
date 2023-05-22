@@ -410,7 +410,10 @@ class TestRepository:
             lobby_channel_id=34,
             guild_id=2,
             guild_name="test",
-            user_id=321
+            user_id=321,
+            game_id=1,
+            max_size=2,
+            description="test",
         )
         result = await lobbydal.get_lobbies_count()
         assert result == 2

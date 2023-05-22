@@ -24,7 +24,6 @@ pylama = "*"
 types-aiofiles = "*"
 pytest-async-sqlalchemy = "*"
 pytest-asyncio = "*"
-ruff = "*"
 black = "*"
 
 [requires]
