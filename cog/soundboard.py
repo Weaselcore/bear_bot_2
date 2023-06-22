@@ -107,6 +107,7 @@ class SoundBoardCog(commands.GroupCog, name="soundboard"):
             if count == 25:
                 soundboard_view_list.append(view)
                 view = SoundBoardView()
+                count = 0
         else:  # Send the last view
             soundboard_view_list.append(view)
         return soundboard_view_list
