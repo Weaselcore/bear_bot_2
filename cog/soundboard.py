@@ -98,9 +98,12 @@ class SoundBoardCog(commands.GroupCog, name="soundboard"):
         soundboard_view_list = []
         view = SoundBoardView()
         count = 1
-        file_iterator = Path("data/sound_bites").iterdir()
+        file_generator = Path("data/sound_bites").iterdir()
 
-        for file in file_iterator:
+        # Sort all at once for now. TODO: Use database later.
+        sorted_files = sorted(file_generator, key=lambda a: a.name)
+
+        for file in sorted_files:
             view.add_item(SoundButton(self.bot, file.stem))
             count += 1
             # If there are more than 25 buttons, create a new view
