@@ -117,7 +117,7 @@ class LobbyEmbed(Embed):
             for _ in range(int(game_size) - lobby_length):
                 self.add_field(
                     name='Empty',
-                    value='⠀⠀⤷ 😩 Fill me daddy',
+                    value='⠀⠀⤷ 😢 Empty Slot',
                     inline=False
                 )
 
