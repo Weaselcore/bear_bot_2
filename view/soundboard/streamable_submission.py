@@ -1,12 +1,14 @@
-import aiofiles
-import aiohttp
-from datetime import timedelta
-from discord import Interaction
-from discord.ui import TextInput, Modal
-from discord.ext import commands
-import ffmpeg
 import os
 import time
+from datetime import timedelta
+
+import aiofiles
+import aiohttp
+from discord import Interaction
+from discord.ext import commands
+from discord.ui import Modal, TextInput
+
+import ffmpeg
 
 
 class StreamableSubmission(Modal, title="Soundboard Submission"):

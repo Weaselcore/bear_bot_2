@@ -1,7 +1,9 @@
 import os
-import ffmpeg
+
 import discord
 from discord.ext import commands
+
+import ffmpeg
 
 
 class UploadSubmission(discord.ui.Modal, title="Soundboard Submission"):

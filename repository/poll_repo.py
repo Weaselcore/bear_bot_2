@@ -1,13 +1,8 @@
 from sqlalchemy import delete, join, select
-from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from repository.poll_table import (
-    PollAnswerModel,
-    PollGuildModel,
-    PollMemberAnswerModel,
-    PollModel,
-    VoteType
-)
+from repository.poll_table import (PollAnswerModel, PollGuildModel,
+                                   PollMemberAnswerModel, PollModel, VoteType)
 
 
 class PollRepository:
