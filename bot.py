@@ -106,4 +106,4 @@ in a very Mit manner."
         # Start the bot.
         await bot.start(os.environ['TOKEN'])
 
-asyncio.run(main(), debug=True)
+asyncio.run(main(), debug=False)
