@@ -1,11 +1,13 @@
 import asyncio
-from datetime import datetime
 import os
-from dotenv import load_dotenv
+from datetime import datetime
+
 import pytest
 import pytest_asyncio
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from dotenv import load_dotenv
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
+
 from repository.db_config import Base
 from repository.tables import GameModel, GuildModel, LobbyModel, MemberModel
 

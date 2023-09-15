@@ -1,4 +1,4 @@
-from discord import app_commands, Interaction, User, Embed, colour
+from discord import Embed, Interaction, User, app_commands, colour
 from discord.ext import commands
 
 

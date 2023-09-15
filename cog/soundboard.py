@@ -1,18 +1,13 @@
-import aiohttp
 from pathlib import Path
-from discord.ext import commands
-from discord import (
-    Interaction,
-    app_commands,
-    CategoryChannel,
-    VoiceClient,
-    Member,
-    VoiceState
-)
+
+import aiohttp
 import discord
+from discord import (CategoryChannel, Interaction, Member, VoiceClient,
+                     VoiceState, app_commands)
+from discord.ext import commands
+
 from view.soundboard.sound_board import SoundBoardView, SoundButton
 from view.soundboard.streamable_submission import StreamableSubmission
-
 from view.soundboard.upload_submission import UploadSubmission
 
 

@@ -1,8 +1,8 @@
-from time import gmtime, strftime
-from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta
+from time import gmtime, strftime
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from repository.lobby_repo import LobbyPostgresRepository
 

@@ -2,9 +2,9 @@ import asyncio
 import time
 
 import discord
+import openai
 from discord import app_commands
 from discord.ext import commands
-import openai
 
 TITLE_FIELD_NAME_LIMIT=256
 DESCRIPTION_LIMIT=4096

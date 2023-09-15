@@ -1,9 +1,11 @@
 from collections.abc import Sequence
+
 import discord
 
 from embeds.game_embed import GameEmbedManager
 from repository.game_repo import GamePostgresRepository
 from repository.tables import GameModel
+
 
 class GameManager:
 

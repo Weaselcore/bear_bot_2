@@ -1,9 +1,11 @@
-from datetime import datetime
 import enum
+from datetime import datetime
 from turtle import color
-from repository.db_config import Base
-from sqlalchemy.orm import mapped_column, Mapped
+
 from sqlalchemy import ForeignKey, func
+from sqlalchemy.orm import Mapped, mapped_column
+
+from repository.db_config import Base
 
 
 class VoteType(enum.Enum):
