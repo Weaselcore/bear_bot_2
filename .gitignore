@@ -9,3 +9,5 @@ data/sound_bites/*
 games.json
 discord.log
 Pipfile.lock
+
+*.log
