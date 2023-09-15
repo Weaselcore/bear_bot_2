@@ -15,11 +15,13 @@ class MyClient(commands.Bot):
         super().__init__(command_prefix="/", intents=intents, help_command=None, )
 
     async def setup_hook(self) -> None:
+        await self.load_extension('cog.scheduler')
+        await asyncio.sleep(5)
+        await self.load_extension('cog.reminder')
         await self.load_extension('cog.lobby')
         await self.load_extension('cog.soundboard')
         await self.load_extension('cog.poll')
         await self.load_extension('cog.utils')
-        await self.load_extension('cog.scheduler')
 
     async def close(self) -> None:
         await super().close()
