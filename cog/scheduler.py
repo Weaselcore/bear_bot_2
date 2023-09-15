@@ -1,5 +1,4 @@
 import asyncio
-from datetime import datetime, timedelta
 import logging
 
 from discord import utils
@@ -40,18 +39,13 @@ class SchedulerCog(commands.Cog):
 
         self.task = bot.loop.create_task(self.scheduler())
         self.logger.info("Scheduler Cog has been initialised.")
-        self.schedule_item(
-            SchedulerTask(
-                expires_at=datetime.now()+timedelta(seconds=10),
-                task=lambda: print("hi")
-            )
-        )
 
     async def scheduler(self) -> None:
         await self.bot.wait_until_ready()
 
         while not self.bot.is_closed():
             self.current_schedule = await self.get_oldest_schedule()
+            print(self.current_schedule)
             self.logger.info(
                 f"New task waiting to execute at {self.current_schedule.expires_at.strftime('%d/%m/%Y-%H:%M:%S')}")
             await utils.sleep_until(self.current_schedule.expires_at)
@@ -73,16 +67,19 @@ class SchedulerCog(commands.Cog):
             self.schedules.append(item)
             # Resume the function that gets blocked by self.has_schedule event
             self.has_schedule.set()
-            self.logger.info("Scheduler has now resumed as an item has been added.")
+            self.logger.info(
+                "Scheduler has now resumed as an item has been added.")
             return
 
         self.schedules.append(item)
+        self.logger.info(
+                "Item has been added.")
 
         if self.current_schedule is not None and item < self.current_schedule:
             # Restart scheduler if theres a task with a closer expiry time.
             self.task.cancel()
             self.logger.info(
-                f"Current task has been canceled, task: {self.task.get_name()}.")
+                f"Current task has been canceled, restarting schduler.")
             self.task = self.bot.loop.create_task(self.scheduler())
             self.logger.info("Scheduler has restarted.")
 
