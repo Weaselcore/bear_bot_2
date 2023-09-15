@@ -30,7 +30,7 @@ engine = create_async_engine(
     DATABASE_URL,
     pool_size=3,
     future=True,
-    echo=True,
+    echo=False,
 )
 
 
