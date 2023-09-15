@@ -17,6 +17,7 @@ class MyClient(commands.Bot):
         await self.load_extension('cog.lobby')
         await self.load_extension('cog.soundboard')
         await self.load_extension('cog.poll')
+        await self.load_extension('cog.utils')
 
     async def close(self) -> None:
         await super().close()
@@ -47,7 +48,8 @@ async def main():
 
         @bot.event
         async def on_ready():
-            print(f'Logged in as {bot.user} (ID: {bot.user.id})') # type: ignore
+            # type: ignore
+            print(f'Logged in as {bot.user} (ID: {bot.user.id})')
             print('------')
 
         # Register the commands.
