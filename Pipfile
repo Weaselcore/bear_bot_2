@@ -17,6 +17,7 @@ types-cachetools = "*"
 cachetools = "*"
 asyncache = "*"
 tzdata = "*"
+human-readable = "*"
 
 [dev-packages]
 autopep8 = "*"
