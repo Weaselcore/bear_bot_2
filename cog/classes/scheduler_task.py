@@ -7,3 +7,6 @@ from typing import Callable
 class SchedulerTask:
     expires_at: datetime
     task: Callable[..., None]
+
+    def __lt__(self, other):
+        return self.expires_at < other.expires_at
