@@ -19,6 +19,7 @@ class MyClient(commands.Bot):
         await self.load_extension('cog.soundboard')
         await self.load_extension('cog.poll')
         await self.load_extension('cog.utils')
+        await self.load_extension('cog.scheduler')
 
     async def close(self) -> None:
         await super().close()
