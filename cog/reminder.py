@@ -1,5 +1,6 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
 from functools import partial
 
 import human_readable
@@ -39,7 +40,7 @@ class ReminderCog(commands.Cog):
         return scheduler
 
     async def _reminder_callback(self, reminder: str, channel: TextChannel, user: User):
-        await channel.send(f"Reminder: {reminder} <@{user}>")
+        await channel.send(f"Reminder: {reminder} <@{user.id}>")
 
     @app_commands.command(
         description="Create a reminder",
@@ -49,29 +50,47 @@ class ReminderCog(commands.Cog):
         self,
         interaction: Interaction,
         reminder: str,
+        years: int | None,
+        months: int | None,
+        weeks: int | None,
         days: int | None,
         hours: int | None,
         minutes: int | None,
         seconds: int | None,
     ):
-        delta_expiry = timedelta(
-            days=days or 0, hours=hours or 0, minutes=minutes or 0, seconds=seconds or 0
+
+        delta_expiry = relativedelta(
+            years=years or 0,
+            months=months or 0,
+            weeks=weeks or 0,
+            days=days or 0,
+            hours=hours or 0,
+            minutes=minutes or 0,
+            seconds=seconds or 0
         )
-        datetime_expiry = datetime.now() + delta_expiry
+
+        current_date = datetime.now()
+
+        datetime_expiry = current_date + delta_expiry
+
+        end_date = current_date + delta_expiry
+        # Convert the relativedelta to a timedelta for the human_readable library.
+        delta = end_date - current_date
 
         try:
             scheduler = self._get_scheduler()
-            await interaction.response.send_message(
-                embed=Embed(
-                    colour=Colour.random(),
-                    title=f"Reminder for {interaction.user.display_name}",
-                    description=reminder.capitalize(),
-                    timestamp=datetime_expiry,
-                ).add_field(
-                    name="When:",
-                    value=f"⠀⠀⤷ **{human_readable.precise_delta(delta_expiry)}**",
-                )
+            embed = Embed(
+                colour=Colour.random(),
+                title=f"Reminder for {interaction.user.display_name}",
+                description=reminder.capitalize(),
+                timestamp=datetime_expiry,
+            ).add_field(
+                name="When:",
+                value=f"⠀⠀⤷ **{human_readable.precise_delta(delta)}**",
             )
+
+            await interaction.response.send_message(
+                embed=embed)
             # TODO: Save to database and register task
             scheduler.schedule_item(
                 SchedulerTask(
