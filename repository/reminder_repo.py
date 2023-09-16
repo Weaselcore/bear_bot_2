@@ -42,7 +42,6 @@ class ReminderRepository:
             async with session.begin():
                 reminder = ReminderModel(
                     owner_id=owner_id,
-                    mention_ids=mention_ids,
                     expire_at=expire_at,
                     guild_id=guild_model.id or guild_id
                 )
