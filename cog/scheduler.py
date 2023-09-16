@@ -50,7 +50,7 @@ class SchedulerCog(commands.Cog):
                 f"New task waiting to execute at {self.current_schedule.expires_at.strftime('%d/%m/%Y-%H:%M:%S')}"
             )
             await utils.sleep_until(self.current_schedule.expires_at)
-            if isinstance(self.current_schedule.task, Coroutine):
+            if asyncio.iscoroutinefunction(self.current_schedule.task):
                 await self.current_schedule.task()
                 self.logger.info("Asynchronous task has been executed")
             else:
