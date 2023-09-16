@@ -17,7 +17,6 @@ class ReminderModel(Base):
     id: Mapped[int] = mapped_column(
         primary_key=True, autoincrement=True, init=False)
     owner_id: Mapped[int] = mapped_column(nullable=False)
-    mention_ids: Mapped[list[int]] = mapped_column(nullable=True)
     expire_at: Mapped[datetime] = mapped_column(nullable=False)
     has_triggered: Mapped[bool] = mapped_column(default=False)
     guild_id: Mapped[int] = mapped_column(ForeignKey(
