@@ -9,7 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from repository.db_config import Base
-from repository.table.game_lobby_tables import GameModel, GuildModel, LobbyModel, MemberModel
+from repository.table.game_lobby_tables import (
+    GameModel,
+    GuildModel,
+    LobbyModel,
+    MemberModel,
+)
 
 """These fixtures are used to create a database for testing purposes. For now it tests
     the lobby cog feature. Change these to make the fixures more generalised for other 
@@ -18,6 +23,7 @@ from repository.table.game_lobby_tables import GameModel, GuildModel, LobbyModel
 
 load_dotenv()
 
+
 @pytest.fixture(scope="session", autouse=True)
 def event_loop():
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -25,9 +31,11 @@ def event_loop():
     yield loop
     loop.close()
 
+
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def engine():
-    async_engine = create_async_engine("postgresql+asyncpg://{}:{}@{}:{}/{}".format(
+    async_engine = create_async_engine(
+        "postgresql+asyncpg://{}:{}@{}:{}/{}".format(
             os.environ["TEST_PG_USER"],
             os.environ["TEST_PG_PASSWORD"],
             os.environ["TEST_PG_HOST"],
@@ -42,24 +50,21 @@ async def engine():
         await conn.run_sync(Base.metadata.drop_all)
     async_engine.sync_engine.dispose()
 
+
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def init_database(engine):
-
     async with engine.begin() as session:
         await session.run_sync(Base.metadata.create_all)
 
     async_session = sessionmaker(engine, expire_on_commit=True, class_=AsyncSession)
 
     async with async_session() as session:
-
-
         member = MemberModel(id=123)
         session.add(member)
 
         member2 = MemberModel(id=321)
         session.add(member2)
 
-        
         guild = GuildModel(
             id=1,
             name="test",
@@ -101,24 +106,22 @@ async def init_database(engine):
             last_promotion_datetime=None,
             history_thread_id=12,
             is_locked=False,
-            owner_id=member.id
+            owner_id=member.id,
         )
-        
+
         lobby.members.append(member)
         lobby.queue_members.append(member2)
 
         session.add(lobby)
 
         await session.commit()
-    
+
 
 @pytest_asyncio.fixture()
 async def session(engine):
     async with engine.begin() as conn:
         async_session = sessionmaker(
-            expire_on_commit=False,
-            class_=AsyncSession,
-            bind=conn
+            expire_on_commit=False, class_=AsyncSession, bind=conn
         )
         yield async_session
         await conn.rollback()

@@ -8,11 +8,9 @@ class UtilsCog(commands.GroupCog, name="utils"):
 
     @app_commands.command(description="Display user's profile picture", name="dp")
     async def dp(self, interaction: Interaction, user: User):
-
         await interaction.response.send_message(
             embed=Embed(
-                title=f"{user.display_name}'s DP",
-                color=colour.Color.random()
+                title=f"{user.display_name}'s DP", color=colour.Color.random()
             ).set_image(
                 url=user.display_avatar.url,
             ),

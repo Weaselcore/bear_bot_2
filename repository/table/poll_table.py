@@ -41,9 +41,7 @@ class PollAnswerModel(Base):
     __tablename__ = "poll_answer"
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, init=False)
     answer: Mapped[str] = mapped_column(nullable=False)
-    poll_id: Mapped[int] = mapped_column(
-        ForeignKey("poll.id", ondelete="CASCADE")
-    )
+    poll_id: Mapped[int] = mapped_column(ForeignKey("poll.id", ondelete="CASCADE"))
     owner_id: Mapped[int] = mapped_column(nullable=False)
     url: Mapped[str] = mapped_column(nullable=True, default=None)
     created_datetime: Mapped[datetime] = mapped_column(default=func.now())

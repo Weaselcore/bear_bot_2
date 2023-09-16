@@ -14,15 +14,14 @@ def set_logger(logger: logging.Logger) -> None:
     logger.setLevel(logging.INFO)
 
     handler = logging.handlers.RotatingFileHandler(
-        filename='scheduler.log',
-        encoding='utf-8',
+        filename="scheduler.log",
+        encoding="utf-8",
         maxBytes=32 * 1024 * 1024,  # 32 MiB
         backupCount=5,  # Rotate through 5 files
     )
-    dt_fmt = '%Y-%m-%d %H:%M:%S'
+    dt_fmt = "%Y-%m-%d %H:%M:%S"
     formatter = logging.Formatter(
-        '[{asctime}] [{levelname:<8}] {name}: {message}',
-        dt_fmt, style='{'
+        "[{asctime}] [{levelname:<8}] {name}: {message}", dt_fmt, style="{"
     )
     handler.setFormatter(formatter)
     logger.addHandler(handler)
@@ -48,7 +47,8 @@ class SchedulerCog(commands.Cog):
             self.current_schedule = await self.get_oldest_schedule()
             print(self.current_schedule)
             self.logger.info(
-                f"New task waiting to execute at {self.current_schedule.expires_at.strftime('%d/%m/%Y-%H:%M:%S')}")
+                f"New task waiting to execute at {self.current_schedule.expires_at.strftime('%d/%m/%Y-%H:%M:%S')}"
+            )
             await utils.sleep_until(self.current_schedule.expires_at)
             if isinstance(self.current_schedule.task, Coroutine):
                 await self.current_schedule.task()
@@ -72,19 +72,16 @@ class SchedulerCog(commands.Cog):
             self.schedules.append(item)
             # Resume the function that gets blocked by self.has_schedule event
             self.has_schedule.set()
-            self.logger.info(
-                "Scheduler has now resumed as an item has been added.")
+            self.logger.info("Scheduler has now resumed as an item has been added.")
             return
 
         self.schedules.append(item)
-        self.logger.info(
-                "Item has been added.")
+        self.logger.info("Item has been added.")
 
         if self.current_schedule is not None and item < self.current_schedule:
             # Restart scheduler if theres a task with a closer expiry time.
             self.task.cancel()
-            self.logger.info(
-                f"Current task has been canceled, restarting schduler.")
+            self.logger.info(f"Current task has been canceled, restarting schduler.")
             self.task = self.bot.loop.create_task(self.scheduler())
             self.logger.info("Scheduler has restarted.")
 

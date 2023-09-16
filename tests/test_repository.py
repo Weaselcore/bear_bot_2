@@ -326,8 +326,9 @@ class TestRepository:
     async def test_get_session_time(self):
         date_time = datetime.now()
         duration = date_time - (date_time - timedelta(minutes=5))
-        result = "Session Duration: " + \
-            strftime("%H:%M:%S", gmtime(duration.total_seconds()))
+        result = "Session Duration: " + strftime(
+            "%H:%M:%S", gmtime(duration.total_seconds())
+        )
         assert result == "Session Duration: 00:05:00"
 
     @pytest.mark.asyncio
@@ -410,7 +411,7 @@ class TestRepository:
             lobby_channel_id=34,
             guild_id=2,
             guild_name="test",
-            user_id=321
+            user_id=321,
         )
         result = await lobbydal.get_lobbies_count()
         assert result == 2

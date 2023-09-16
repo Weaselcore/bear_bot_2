@@ -19,7 +19,7 @@ class UploadSubmission(discord.ui.Modal, title="Soundboard Submission"):
         label="File Name:",
         placeholder="Enter a name for the soundbite file",
         max_length=15,
-        min_length=1
+        min_length=1,
     )
 
     async def on_submit(self, interaction: discord.Interaction):
@@ -34,18 +34,14 @@ class UploadSubmission(discord.ui.Modal, title="Soundboard Submission"):
             os.remove(temp_output)
 
         if not self.file.filename.endswith(".mp3"):
-            await self.file.save(temp_output) # type: ignore
-            await self.bot.loop.run_in_executor(
-                None,
-                convert
-            )
+            await self.file.save(temp_output)  # type: ignore
+            await self.bot.loop.run_in_executor(None, convert)
         else:
-            await self.file.save(output) # type: ignore
+            await self.file.save(output)  # type: ignore
 
-        print(ffmpeg.probe(output)) # type: ignore
+        print(ffmpeg.probe(output))  # type: ignore
         # Send message
         await interaction.response.send_message(
-            content=f"File saved as {name_input}!",
-            ephemeral=True
+            content=f"File saved as {name_input}!", ephemeral=True
         )
         self.bot.dispatch("soundboard_update", interaction)

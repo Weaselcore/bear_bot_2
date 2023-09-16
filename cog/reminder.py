@@ -14,15 +14,14 @@ def set_logger(logger: logging.Logger) -> None:
     logger.setLevel(logging.INFO)
 
     handler = logging.handlers.RotatingFileHandler(
-        filename='reminder.log',
-        encoding='utf-8',
+        filename="reminder.log",
+        encoding="utf-8",
         maxBytes=32 * 1024 * 1024,  # 32 MiB
         backupCount=5,  # Rotate through 5 files
     )
-    dt_fmt = '%Y-%m-%d %H:%M:%S'
+    dt_fmt = "%Y-%m-%d %H:%M:%S"
     formatter = logging.Formatter(
-        '[{asctime}] [{levelname:<8}] {name}: {message}',
-        dt_fmt, style='{'
+        "[{asctime}] [{levelname:<8}] {name}: {message}", dt_fmt, style="{"
     )
     handler.setFormatter(formatter)
     logger.addHandler(handler)
@@ -38,13 +37,13 @@ class ReminderCog(commands.Cog):
         if scheduler is None:
             raise ValueError("SchedulerCog is not active or loaded.")
         return scheduler
-    
+
     async def _reminder_callback(self, reminder: str, channel: TextChannel, user: User):
         await channel.send(f"Reminder: {reminder} <@{user}>")
 
     @app_commands.command(
         description="Create a reminder",
-        name='remind',
+        name="remind",
     )
     async def remind(
         self,
@@ -53,13 +52,10 @@ class ReminderCog(commands.Cog):
         days: int | None,
         hours: int | None,
         minutes: int | None,
-        seconds: int | None
+        seconds: int | None,
     ):
         delta_expiry = timedelta(
-            days=days or 0,
-            hours=hours or 0,
-            minutes=minutes or 0,
-            seconds=seconds or 0
+            days=days or 0, hours=hours or 0, minutes=minutes or 0, seconds=seconds or 0
         )
         datetime_expiry = datetime.now() + delta_expiry
 
@@ -70,17 +66,22 @@ class ReminderCog(commands.Cog):
                     colour=Colour.random(),
                     title=f"Reminder for {interaction.user.display_name}",
                     description=reminder.capitalize(),
-                    timestamp=datetime_expiry
+                    timestamp=datetime_expiry,
                 ).add_field(
                     name="When:",
-                    value=f"⠀⠀⤷ **{human_readable.precise_delta(delta_expiry)}**"
+                    value=f"⠀⠀⤷ **{human_readable.precise_delta(delta_expiry)}**",
                 )
             )
             # TODO: Save to database and register task
             scheduler.schedule_item(
                 SchedulerTask(
                     expires_at=datetime_expiry,
-                    task=partial(self._reminder_callback, reminder, interaction.channel, interaction.user)
+                    task=partial(
+                        self._reminder_callback,
+                        reminder,
+                        interaction.channel,
+                        interaction.user,
+                    ),
                 )
             )
         except ValueError:

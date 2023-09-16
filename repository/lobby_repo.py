@@ -4,10 +4,19 @@ from datetime import datetime, timedelta
 from sqlalchemy import Result, delete, func, text, update
 from sqlalchemy.future import select
 
-from exceptions.lobby_exceptions import (GuildNotFound, LobbyCreationError,
-                                         LobbyNotFound, MemberNotFound)
-from repository.table.game_lobby_tables import (GuildModel, LobbyModel, MemberLobbyModel,
-                               MemberModel, QueueMemberLobbyModel)
+from exceptions.lobby_exceptions import (
+    GuildNotFound,
+    LobbyCreationError,
+    LobbyNotFound,
+    MemberNotFound,
+)
+from repository.table.game_lobby_tables import (
+    GuildModel,
+    LobbyModel,
+    MemberLobbyModel,
+    MemberModel,
+    QueueMemberLobbyModel,
+)
 
 
 class LobbyPostgresRepository:
@@ -17,18 +26,14 @@ class LobbyPostgresRepository:
     async def get_lobby(self, lobby_id: int) -> LobbyModel:
         async with self.database() as session:
             result: Result = await session.execute(
-                select(
-                    LobbyModel
-                ).where(
-                    LobbyModel.id == lobby_id
-                )
+                select(LobbyModel).where(LobbyModel.id == lobby_id)
             )
             lobby = result.scalars().first()
 
             if not lobby:
                 raise LobbyNotFound(lobby_id)
             return lobby
-        
+
     async def get_next_lobby_id(self) -> int:
         async with self.database() as session:
             result: Result = await session.execute(
@@ -50,23 +55,15 @@ class LobbyPostgresRepository:
     async def get_all_lobbies_by_guild(self, guild_id: int) -> list[LobbyModel | None]:
         async with self.database() as session:
             result: Result = await session.execute(
-                select(
-                    LobbyModel
-                ).where(
-                    LobbyModel.id == guild_id
-                )
+                select(LobbyModel).where(LobbyModel.id == guild_id)
             )
             return result.scalars().unique().all()  # type: ignore
 
     async def get_lobbies_by_member(self, member_id: int) -> list[LobbyModel | None]:
         async with self.database() as session:
             result: Result = await session.execute(
-                select(
-                    LobbyModel
-                ).filter(
-                    LobbyModel.members.any(
-                        MemberModel.id == member_id
-                    )
+                select(LobbyModel).filter(
+                    LobbyModel.members.any(MemberModel.id == member_id)
                 )
             )
             return result.scalars().unique().all()  # type: ignore
@@ -113,9 +110,7 @@ class LobbyPostgresRepository:
                 created_datetime=datetime.utcnow(),
             )
             # Add owner to the lobby
-            lobby_data.members.append(
-                member
-            )
+            lobby_data.members.append(member)
             session.add(lobby_data)
             await session.commit()
 
@@ -126,10 +121,9 @@ class LobbyPostgresRepository:
     async def get_guild_id(self, lobby_id: int) -> int:
         async with self.database() as session:
             result: Result = await session.execute(
-                select(  # type: ignore
-                    LobbyModel.guild_id
-                ).where(
-                    LobbyModel.id == lobby_id)
+                select(LobbyModel.guild_id).where(  # type: ignore
+                    LobbyModel.id == lobby_id
+                )
             )
             guild_id = result.scalars().first()
             if not guild_id:
@@ -139,11 +133,7 @@ class LobbyPostgresRepository:
     async def get_guild(self, guild_id: int) -> GuildModel:
         async with self.database() as session:
             result: Result = await session.execute(
-                select(
-                    GuildModel
-                ).where(
-                    GuildModel.id == guild_id
-                )
+                select(GuildModel).where(GuildModel.id == guild_id)
             )
             guild = result.scalars().first()
             if not guild:
@@ -152,23 +142,13 @@ class LobbyPostgresRepository:
 
     async def delete_lobby(self, lobby_id: int) -> None:
         async with self.database() as session:
-            await session.execute(
-                delete(
-                    LobbyModel
-                ).where(
-                    LobbyModel.id == lobby_id
-                )
-            )
+            await session.execute(delete(LobbyModel).where(LobbyModel.id == lobby_id))
             await session.commit()
 
     async def get_thread_id(self, lobby_id: int) -> int | None:
         async with self.database() as session:
             result: Result = await session.execute(
-                select(
-                    LobbyModel.history_thread_id
-                ).where(
-                    LobbyModel.id == lobby_id
-                )
+                select(LobbyModel.history_thread_id).where(LobbyModel.id == lobby_id)
             )
             history_thread_id = result.scalars().first()
             return history_thread_id
@@ -176,24 +156,16 @@ class LobbyPostgresRepository:
     async def set_thread_id(self, lobby_id: int, thread_id: int) -> None:
         async with self.database() as session:
             await session.execute(
-                update(  # type: ignore
-                    LobbyModel
-                ).where(
-                    LobbyModel.id == lobby_id
-                ).values(
-                    history_thread_id=thread_id
-                )
+                update(LobbyModel)  # type: ignore
+                .where(LobbyModel.id == lobby_id)
+                .values(history_thread_id=thread_id)
             )
             await session.commit()
 
     async def get_game_id(self, lobby_id: int) -> int:
         async with self.database() as session:
             result: Result = await session.execute(
-                select(
-                    LobbyModel.game_id
-                ).where(
-                    LobbyModel.id == lobby_id
-                )
+                select(LobbyModel.game_id).where(LobbyModel.id == lobby_id)
             )
             game_id = result.scalars().first()
             if not game_id:
@@ -203,13 +175,10 @@ class LobbyPostgresRepository:
     async def set_game_id(self, lobby_id: int, game_id: int) -> int:
         async with self.database() as session:
             result = await session.execute(
-                update(  # type: ignore
-                    LobbyModel
-                ).where(
-                    LobbyModel.id == lobby_id
-                ).values(
-                    game_id=game_id
-                ).returning(LobbyModel.game_id)
+                update(LobbyModel)  # type: ignore
+                .where(LobbyModel.id == lobby_id)
+                .values(game_id=game_id)
+                .returning(LobbyModel.game_id)
             )
             await session.commit()
             return result.scalars().first()
@@ -217,11 +186,7 @@ class LobbyPostgresRepository:
     async def get_gamesize(self, lobby_id: int) -> int:
         async with self.database() as session:
             result: Result = await session.execute(
-                select(
-                    LobbyModel.game_size
-                ).where(
-                    LobbyModel.id == lobby_id
-                )
+                select(LobbyModel.game_size).where(LobbyModel.id == lobby_id)
             )
             gamesize = result.scalars().first()
             if not gamesize:
@@ -231,15 +196,10 @@ class LobbyPostgresRepository:
     async def set_gamesize(self, lobby_id: int, game_size: int) -> int:
         async with self.database() as session:
             result = await session.execute(
-                update(  # type: ignore
-                    LobbyModel
-                ).where(
-                    LobbyModel.id == lobby_id
-                ).values(
-                    game_size=game_size
-                ).returning(
-                    LobbyModel.game_size
-                )
+                update(LobbyModel)  # type: ignore
+                .where(LobbyModel.id == lobby_id)
+                .values(game_size=game_size)
+                .returning(LobbyModel.game_size)
             )
             await session.commit()
             game_size = result.scalars().first()
@@ -250,24 +210,17 @@ class LobbyPostgresRepository:
     async def get_description(self, lobby_id: int) -> str | None:
         async with self.database() as session:
             result: Result = await session.execute(
-                select(
-                    LobbyModel.description
-                ).where(
-                    LobbyModel.id == lobby_id
-                )
+                select(LobbyModel.description).where(LobbyModel.id == lobby_id)
             )
             return result.scalars().first()
 
     async def set_description(self, lobby_id: int, description: str) -> str:
         async with self.database() as session:
             result: Result = await session.execute(
-                update(  # type: ignore
-                    LobbyModel
-                ).where(
-                    LobbyModel.id == lobby_id
-                ).values(
-                    description=description
-                ).returning(
+                update(LobbyModel)  # type: ignore
+                .where(LobbyModel.id == lobby_id)
+                .values(description=description)
+                .returning(
                     LobbyModel.description,
                 )
             )
@@ -280,13 +233,9 @@ class LobbyPostgresRepository:
     async def get_owner(self, lobby_id: int) -> MemberModel:
         async with self.database() as session:
             result: Result = await session.execute(
-                select(  # type: ignore
-                    MemberModel
-                ).filter(
-                    LobbyModel.owner_id == MemberModel.id
-                ).filter(
-                    LobbyModel.id == lobby_id
-                )
+                select(MemberModel)  # type: ignore
+                .filter(LobbyModel.owner_id == MemberModel.id)
+                .filter(LobbyModel.id == lobby_id)
             )
             owner = result.scalars().first()
             if not owner:
@@ -307,15 +256,10 @@ class LobbyPostgresRepository:
     async def search_new_owner(self, lobby_id: int) -> int | None:
         async with self.database() as session:
             result = await session.execute(
-                select(  # type: ignore
-                    MemberModel
-                ).filter(
-                    MemberLobbyModel.lobby_id == lobby_id
-                ).filter(
-                    MemberLobbyModel.member_id == MemberModel.id
-                ).order_by(
-                    MemberLobbyModel.join_datetime
-                )
+                select(MemberModel)  # type: ignore
+                .filter(MemberLobbyModel.lobby_id == lobby_id)
+                .filter(MemberLobbyModel.member_id == MemberModel.id)
+                .order_by(MemberLobbyModel.join_datetime)
             )
             members = result.scalars().fetchmany()
             owner = await self.get_owner(lobby_id)
@@ -332,11 +276,7 @@ class LobbyPostgresRepository:
     async def get_member(self, member_id: int) -> MemberModel:
         async with self.database() as session:
             result: Result = await session.execute(
-                select(
-                    MemberModel
-                ).filter(
-                    MemberModel.id == member_id
-                )
+                select(MemberModel).filter(MemberModel.id == member_id)
             )
             member = result.scalars().first()
             if not member:
@@ -346,46 +286,31 @@ class LobbyPostgresRepository:
     async def get_members(self, lobby_id: int) -> Sequence[MemberModel]:
         async with self.database() as session:
             result: Result = await session.execute(
-                select(  # type: ignore
-                    MemberModel
-                ).filter(
-                    MemberLobbyModel.lobby_id == lobby_id
-                ).filter(
-                    MemberLobbyModel.member_id == MemberModel.id
-                )
+                select(MemberModel)  # type: ignore
+                .filter(MemberLobbyModel.lobby_id == lobby_id)
+                .filter(MemberLobbyModel.member_id == MemberModel.id)
             )
             return result.scalars().all()
 
     async def get_queue_member(
-        self,
-        lobby_id: int,
-        member_id: int
+        self, lobby_id: int, member_id: int
     ) -> MemberModel | None:
         async with self.database() as session:
             member = await self.get_member(member_id)
             if not member:
                 raise MemberNotFound(member_id)
             result: Result = await session.execute(
-                select(  # type: ignore
-                    MemberModel
-                ).filter(
-                    QueueMemberLobbyModel.lobby_id == lobby_id
-                ).filter(
-                    QueueMemberLobbyModel.member_id == member.id
-                ).filter(
-                    QueueMemberLobbyModel.member_id == MemberModel.id
-                )
+                select(MemberModel)  # type: ignore
+                .filter(QueueMemberLobbyModel.lobby_id == lobby_id)
+                .filter(QueueMemberLobbyModel.member_id == member.id)
+                .filter(QueueMemberLobbyModel.member_id == MemberModel.id)
             )
             return result.scalars().first()
 
     async def is_lobby_locked(self, lobby_id: int) -> bool:
         async with self.database() as session:
             result: Result = await session.execute(
-                select(
-                    LobbyModel.is_locked
-                ).where(
-                    LobbyModel.id == lobby_id
-                )
+                select(LobbyModel.is_locked).where(LobbyModel.id == lobby_id)
             )
 
             is_lobby_locked = result.scalars().first()
@@ -398,15 +323,10 @@ class LobbyPostgresRepository:
     async def set_is_lobby_locked(self, lobby_id: int, is_locked: bool) -> bool:
         async with self.database() as session:
             result: Result = await session.execute(
-                update(  # type: ignore
-                    LobbyModel
-                ).where(
-                    LobbyModel.id == lobby_id
-                ).values(
-                    is_locked=is_locked
-                ).returning(
-                    LobbyModel.is_locked
-                )
+                update(LobbyModel)  # type: ignore
+                .where(LobbyModel.id == lobby_id)
+                .values(is_locked=is_locked)
+                .returning(LobbyModel.is_locked)
             )
             is_lobby_locked = result.scalars().first()
             if is_lobby_locked is None:
@@ -417,11 +337,7 @@ class LobbyPostgresRepository:
     async def get_lobby_channel_id(self, lobby_id: int) -> int:
         async with self.database() as session:
             result: Result = await session.execute(
-                select(
-                    LobbyModel.lobby_channel_id
-                ).where(
-                    LobbyModel.id == lobby_id
-                )
+                select(LobbyModel.lobby_channel_id).where(LobbyModel.id == lobby_id)
             )
             lobby_channel_id = result.scalars().first()
             if not lobby_channel_id:
@@ -431,11 +347,7 @@ class LobbyPostgresRepository:
     async def get_original_channel_id(self, lobby_id: int) -> int:
         async with self.database() as session:
             result: Result = await session.execute(
-                select(
-                    LobbyModel.original_channel_id
-                ).where(
-                    LobbyModel.id == lobby_id
-                )
+                select(LobbyModel.original_channel_id).where(LobbyModel.id == lobby_id)
             )
             original_channel_id = result.scalars().first()
             if not original_channel_id:
@@ -445,9 +357,7 @@ class LobbyPostgresRepository:
     async def get_control_panel_message_id(self, lobby_id: int) -> int:
         async with self.database() as session:
             result: Result = await session.execute(
-                select(
-                    LobbyModel.control_panel_message_id
-                ).where(
+                select(LobbyModel.control_panel_message_id).where(
                     LobbyModel.id == lobby_id
                 )
             )
@@ -457,29 +367,19 @@ class LobbyPostgresRepository:
             return control_panel_message_id
 
     async def set_control_panel_message_id(
-        self,
-        lobby_id: int,
-        control_panel_message_id: int
+        self, lobby_id: int, control_panel_message_id: int
     ) -> None:
         async with self.database() as session:
             await session.execute(
-                update(  # type: ignore
-                    LobbyModel
-                ).where(
-                    LobbyModel.id == lobby_id
-                ).values(
-                    control_panel_message_id=control_panel_message_id
-                )
+                update(LobbyModel)  # type: ignore
+                .where(LobbyModel.id == lobby_id)
+                .values(control_panel_message_id=control_panel_message_id)
             )
 
     async def get_embed_message_id(self, lobby_id: int) -> int | None:
         async with self.database() as session:
             result: Result = await session.execute(
-                select(
-                    LobbyModel.embed_message_id
-                ).where(
-                    LobbyModel.id == lobby_id
-                )
+                select(LobbyModel.embed_message_id).where(LobbyModel.id == lobby_id)
             )
             embed_message_id = result.scalars().first()
             return embed_message_id
@@ -487,65 +387,47 @@ class LobbyPostgresRepository:
     async def set_embed_message_id(self, lobby_id: int, embed_message_id: int) -> None:
         async with self.database() as session:
             await session.execute(
-                update(  # type: ignore
-                    LobbyModel
-                ).where(
-                    LobbyModel.id == lobby_id
-                ).values(
-                    embed_message_id=embed_message_id
-                )
+                update(LobbyModel)  # type: ignore
+                .where(LobbyModel.id == lobby_id)
+                .values(embed_message_id=embed_message_id)
             )
             await session.commit()
 
     async def get_queue_message_id(self, lobby_id: int):
         async with self.database() as session:
             result: Result = await session.execute(
-                select(
-                    LobbyModel.queue_message_id
-                ).where(
-                    LobbyModel.id == lobby_id
-                )
+                select(LobbyModel.queue_message_id).where(LobbyModel.id == lobby_id)
             )
             return result.scalars().first()
 
     async def set_queue_message_id(self, lobby_id: int, queue_message_id: int) -> None:
         async with self.database() as session:
             await session.execute(
-                update(  # type: ignore
-                    LobbyModel
-                ).where(
-                    LobbyModel.id == lobby_id
-                ).values(
-                    queue_message_id=queue_message_id
-                )
+                update(LobbyModel)  # type: ignore
+                .where(LobbyModel.id == lobby_id)
+                .values(queue_message_id=queue_message_id)
             )
             await session.commit()
 
     async def get_last_promotion_message_id(self, lobby_id: int) -> int | None:
         async with self.database() as session:
             result: Result = await session.execute(
-                select(
-                    LobbyModel.last_promotion_message_id
-                ).where(
+                select(LobbyModel.last_promotion_message_id).where(
                     LobbyModel.id == lobby_id
                 )
             )
             return result.scalars().first()
 
     async def set_last_promotion_message_id(
-        self,
-        lobby_id: int,
-        lobby_message_id: int
+        self, lobby_id: int, lobby_message_id: int
     ) -> None:
         async with self.database() as session:
             await session.execute(
-                update(  # type: ignore
-                    LobbyModel
-                ).where(
-                    LobbyModel.id == lobby_id
-                ).values(
+                update(LobbyModel)  # type: ignore
+                .where(LobbyModel.id == lobby_id)
+                .values(
                     last_promotion_message_id=lobby_message_id,
-                    last_promotion_datetime=datetime.now()
+                    last_promotion_datetime=datetime.now(),
                 )
             )
             await session.commit()
@@ -553,9 +435,7 @@ class LobbyPostgresRepository:
     async def can_promote(self, lobby_id: int) -> bool:
         async with self.database() as session:
             result: Result = await session.execute(
-                select(
-                    LobbyModel.last_promotion_datetime
-                ).where(
+                select(LobbyModel.last_promotion_datetime).where(
                     LobbyModel.id == lobby_id
                 )
             )
@@ -564,8 +444,9 @@ class LobbyPostgresRepository:
             if not last_promotion_datetime:
                 return True
 
-            if last_promotion_datetime is None or \
-                    (datetime.now() - last_promotion_datetime) > timedelta(minutes=10):
+            if last_promotion_datetime is None or (
+                datetime.now() - last_promotion_datetime
+            ) > timedelta(minutes=10):
                 return True
             else:
                 return False
@@ -573,26 +454,19 @@ class LobbyPostgresRepository:
     async def has_joined(self, lobby_id: int, member_id: int) -> bool:
         async with self.database() as session:
             exists_in_memberlobby: Result = await session.execute(
-                select(  # type: ignore
-                    MemberLobbyModel.member_id
-                ).filter(
-                    MemberLobbyModel.lobby_id == lobby_id
-                ).filter(
-                    MemberLobbyModel.member_id == member_id
-                )
+                select(MemberLobbyModel.member_id)  # type: ignore
+                .filter(MemberLobbyModel.lobby_id == lobby_id)
+                .filter(MemberLobbyModel.member_id == member_id)
             )
             exists_in_queuememberlobby: Result = await session.execute(
-                select(  # type: ignore
-                    QueueMemberLobbyModel.member_id
-                ).filter(
-                    QueueMemberLobbyModel.lobby_id == lobby_id
-                ).filter(
-                    QueueMemberLobbyModel.member_id == member_id
-                )
+                select(QueueMemberLobbyModel.member_id)  # type: ignore
+                .filter(QueueMemberLobbyModel.lobby_id == lobby_id)
+                .filter(QueueMemberLobbyModel.member_id == member_id)
             )
             has_joined_in_memberlobby = exists_in_memberlobby.scalars().first()
-            has_joined_in_queuememberlobby = exists_in_queuememberlobby.\
-                scalars().first()
+            has_joined_in_queuememberlobby = (
+                exists_in_queuememberlobby.scalars().first()
+            )
 
             if has_joined_in_memberlobby or has_joined_in_queuememberlobby:
                 return True
@@ -630,15 +504,10 @@ class LobbyPostgresRepository:
     async def get_queue_members(self, lobby_id: int) -> list[MemberModel]:
         async with self.database() as session:
             result = await session.execute(
-                select(  # type: ignore
-                    MemberModel
-                ).filter(
-                    QueueMemberLobbyModel.lobby_id == lobby_id
-                ).filter(
-                    QueueMemberLobbyModel.member_id == MemberModel.id
-                ).order_by(
-                    QueueMemberLobbyModel.join_datetime
-                )
+                select(MemberModel)  # type: ignore
+                .filter(QueueMemberLobbyModel.lobby_id == lobby_id)
+                .filter(QueueMemberLobbyModel.member_id == MemberModel.id)
+                .order_by(QueueMemberLobbyModel.join_datetime)
             )
             return result.scalars().fetchall()
 
@@ -684,14 +553,13 @@ class LobbyPostgresRepository:
         is_ready = await self.get_member_state(lobby_id, member_id)
         async with self.database() as session:
             result: Result = await session.execute(
-                update(  # type: ignore
-                    MemberLobbyModel
-                ).where(
+                update(MemberLobbyModel)  # type: ignore
+                .where(
                     MemberLobbyModel.member_id == member_id,
-                    MemberLobbyModel.lobby_id == lobby_id
-                ).values(
-                    ready=not is_ready
-                ).returning(
+                    MemberLobbyModel.lobby_id == lobby_id,
+                )
+                .values(ready=not is_ready)
+                .returning(
                     MemberLobbyModel.ready,
                 )
             )
@@ -708,13 +576,9 @@ class LobbyPostgresRepository:
                 raise MemberNotFound(member_id)
 
             result: Result = await session.execute(
-                select(  # type: ignore
-                    MemberLobbyModel
-                ).filter(
-                    MemberLobbyModel.member_id == member.id
-                ).filter(
-                    MemberLobbyModel.lobby_id == lobby_id
-                )
+                select(MemberLobbyModel)  # type: ignore
+                .filter(MemberLobbyModel.member_id == member.id)
+                .filter(MemberLobbyModel.lobby_id == lobby_id)
             )
             member_lobby_model = result.scalars().first()
 
@@ -726,11 +590,7 @@ class LobbyPostgresRepository:
     async def is_full(self, lobby_id: int) -> bool:
         async with self.database() as session:
             result: Result = await session.execute(
-                select(
-                    LobbyModel
-                ).filter(
-                    LobbyModel.id == lobby_id
-                )
+                select(LobbyModel).filter(LobbyModel.id == lobby_id)
             )
             lobby = result.scalars().first()
 
@@ -745,30 +605,21 @@ class LobbyPostgresRepository:
     async def get_session_time(self, lobby_id: int) -> datetime:
         async with self.database() as session:
             result: Result = await session.execute(
-                select(
-                    LobbyModel.created_datetime
-                ).filter(
-                    LobbyModel.id == lobby_id
-                )
+                select(LobbyModel.created_datetime).filter(LobbyModel.id == lobby_id)
             )
             created_datetime = result.scalars().first()
 
             if not created_datetime:
                 raise LobbyNotFound(lobby_id)
-            
+
             return created_datetime
 
     async def has_joined_vc(self, lobby_id: int, member_id: int) -> bool:
         async with self.database() as session:
-
             result: Result = await session.execute(
-                select(  # type: ignore
-                    MemberLobbyModel.has_joined_vc
-                ).filter(
-                    MemberLobbyModel.lobby_id == lobby_id
-                ).filter(
-                    MemberLobbyModel.member_id == member_id
-                )
+                select(MemberLobbyModel.has_joined_vc)  # type: ignore
+                .filter(MemberLobbyModel.lobby_id == lobby_id)
+                .filter(MemberLobbyModel.member_id == member_id)
             )
             has_joined_vc = result.scalars().first()
 
@@ -777,24 +628,15 @@ class LobbyPostgresRepository:
             return has_joined_vc
 
     async def set_has_joined_vc(
-            self,
-            lobby_id: int,
-            member_id: int,
-            has_joined_vc: bool
-        ) -> bool:
+        self, lobby_id: int, member_id: int, has_joined_vc: bool
+    ) -> bool:
         async with self.database() as session:
             result: Result = await session.execute(
-                update(  # type: ignore
-                    MemberLobbyModel
-                ).values(
-                    has_joined_vc=has_joined_vc
-                ).filter(
-                    MemberLobbyModel.lobby_id == lobby_id
-                ).filter(
-                    MemberLobbyModel.member_id == member_id
-                ).returning(
-                    MemberLobbyModel.has_joined_vc
-                )
+                update(MemberLobbyModel)  # type: ignore
+                .values(has_joined_vc=has_joined_vc)
+                .filter(MemberLobbyModel.lobby_id == lobby_id)
+                .filter(MemberLobbyModel.member_id == member_id)
+                .returning(MemberLobbyModel.has_joined_vc)
             )
             updated_has_joined_vc = result.scalars().first()
 
@@ -805,26 +647,18 @@ class LobbyPostgresRepository:
     async def get_members_not_ready(self, lobby_id: int) -> Sequence[int]:
         async with self.database() as session:
             result: Result = await session.execute(
-                select(  # type: ignore
-                    MemberLobbyModel.member_id
-                ).filter(
-                    MemberLobbyModel.lobby_id == lobby_id
-                ).filter(
-                    MemberLobbyModel.ready == False # noqa
-                )
+                select(MemberLobbyModel.member_id)  # type: ignore
+                .filter(MemberLobbyModel.lobby_id == lobby_id)
+                .filter(MemberLobbyModel.ready == False)  # noqa
             )
             return result.scalars().all()
 
     async def get_members_ready(self, lobby_id: int) -> Sequence[int]:
         async with self.database() as session:
             result: Result = await session.execute(
-                select(  # type: ignore
-                    MemberLobbyModel.member_id
-                ).filter(
-                    MemberLobbyModel.lobby_id == lobby_id
-                ).filter(
-                    MemberLobbyModel.ready == True # noqa
-                )
+                select(MemberLobbyModel.member_id)  # type: ignore
+                .filter(MemberLobbyModel.lobby_id == lobby_id)
+                .filter(MemberLobbyModel.ready == True)  # noqa
             )
             members = result.scalars().all()
             print(members)
@@ -833,9 +667,7 @@ class LobbyPostgresRepository:
     async def is_owner_of_lobby(self, member_id: int) -> bool:
         async with self.database() as session:
             result: Result = await session.execute(
-                select(  # type: ignore
-                    LobbyModel
-                ).filter(
+                select(LobbyModel).filter(  # type: ignore
                     LobbyModel.owner_id == member_id
                 )
             )
@@ -844,9 +676,9 @@ class LobbyPostgresRepository:
     async def get_lobbies_count(self) -> int:
         async with self.database() as session:
             result: Result = await session.execute(
-                select(  # type: ignore
-                    func.count(LobbyModel.id)
-                ). select_from(LobbyModel)
+                select(func.count(LobbyModel.id)).select_from(  # type: ignore
+                    LobbyModel
+                )
             )
             count = result.scalar()
             return count if count else 0
@@ -854,9 +686,7 @@ class LobbyPostgresRepository:
     async def get_lobby_by_owner_id(self, owner_id: int) -> LobbyModel:
         async with self.database() as session:
             result: Result = await session.execute(
-                select(  # type: ignore
-                    LobbyModel
-                ).filter(
+                select(LobbyModel).filter(  # type: ignore
                     LobbyModel.owner_id == owner_id
                 )
             )
@@ -868,9 +698,7 @@ class LobbyPostgresRepository:
     async def get_lobby_id_by_owner_id(self, owner_id: int) -> int:
         async with self.database() as session:
             result: Result = await session.execute(
-                select(  # type: ignore
-                    LobbyModel.id
-                ).filter(
+                select(LobbyModel.id).filter(  # type: ignore
                     LobbyModel.owner_id == owner_id
                 )
             )

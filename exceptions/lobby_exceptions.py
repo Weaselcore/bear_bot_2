@@ -32,6 +32,7 @@ class LobbyChannelNotFound(Exception):
     def __str__(self) -> str:
         return self.message
 
+
 class LobbyCreationError(Exception):
     def __init__(self, message: str):
         self.message = message
