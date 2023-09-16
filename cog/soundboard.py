@@ -2,14 +2,8 @@ from pathlib import Path
 
 import aiohttp
 import discord
-from discord import (
-    CategoryChannel,
-    Interaction,
-    Member,
-    VoiceClient,
-    VoiceState,
-    app_commands,
-)
+from discord import (CategoryChannel, Interaction, Member, VoiceClient,
+                     VoiceState, app_commands)
 from discord.ext import commands
 
 from view.soundboard.sound_board import SoundBoardView, SoundButton

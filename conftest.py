@@ -9,12 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from repository.db_config import Base
-from repository.table.game_lobby_tables import (
-    GameModel,
-    GuildModel,
-    LobbyModel,
-    MemberModel,
-)
+from repository.table.game_lobby_tables import (GameModel, GuildModel,
+                                                LobbyModel, MemberModel)
 
 """These fixtures are used to create a database for testing purposes. For now it tests
     the lobby cog feature. Change these to make the fixures more generalised for other 
