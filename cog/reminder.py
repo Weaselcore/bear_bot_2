@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta
+from functools import partial
 import logging
 
-from discord import Colour, Embed, Interaction, app_commands
+from discord import Colour, Embed, Interaction, TextChannel, User, app_commands
 from discord.ext import commands
 import human_readable
 from cog.classes.scheduler_task import SchedulerTask
@@ -37,6 +38,9 @@ class ReminderCog(commands.Cog):
         if scheduler is None:
             raise ValueError("SchedulerCog is not active or loaded.")
         return scheduler
+    
+    async def _reminder_callback(self, reminder: str, channel: TextChannel, user: User):
+        await channel.send(f"Reminder: {reminder} <@{user}>")
 
     @app_commands.command(
         description="Create a reminder",
@@ -76,7 +80,7 @@ class ReminderCog(commands.Cog):
             scheduler.schedule_item(
                 SchedulerTask(
                     expires_at=datetime_expiry,
-                    task=lambda: print(reminder)
+                    task=partial(self._reminder_callback, reminder, interaction.channel, interaction.user)
                 )
             )
         except ValueError:

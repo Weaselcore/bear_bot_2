@@ -6,7 +6,7 @@ from sqlalchemy.future import select
 
 from exceptions.lobby_exceptions import (GuildNotFound, LobbyCreationError,
                                          LobbyNotFound, MemberNotFound)
-from repository.tables import (GuildModel, LobbyModel, MemberLobbyModel,
+from repository.table.game_lobby_tables import (GuildModel, LobbyModel, MemberLobbyModel,
                                MemberModel, QueueMemberLobbyModel)
 
 

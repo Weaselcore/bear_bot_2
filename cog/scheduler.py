@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from typing import Coroutine
 
 from discord import utils
 from discord.ext import commands
@@ -49,8 +50,12 @@ class SchedulerCog(commands.Cog):
             self.logger.info(
                 f"New task waiting to execute at {self.current_schedule.expires_at.strftime('%d/%m/%Y-%H:%M:%S')}")
             await utils.sleep_until(self.current_schedule.expires_at)
-            self.current_schedule.task()
-            self.logger.info("Task has been executed")
+            if isinstance(self.current_schedule.task, Coroutine):
+                await self.current_schedule.task()
+                self.logger.info("Asynchronous task has been executed")
+            else:
+                self.current_schedule.task()
+                self.logger.info("Synchronous task has been executed")
             self.remove_schedule(self.current_schedule)
 
     async def get_oldest_schedule(self):

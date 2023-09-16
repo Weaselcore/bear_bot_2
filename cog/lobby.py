@@ -20,7 +20,7 @@ from manager.lobby_service import LobbyManager
 from repository.db_config import Base
 from repository.game_repo import GamePostgresRepository
 from repository.lobby_repo import LobbyPostgresRepository
-from repository.tables import (GameModel, GuildModel, LobbyModel,
+from repository.table.game_lobby_tables import (GameModel, GuildModel, LobbyModel,
                                MemberLobbyModel, MemberModel,
                                QueueMemberLobbyModel)
 

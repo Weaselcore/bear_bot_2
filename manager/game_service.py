@@ -4,7 +4,7 @@ import discord
 
 from embeds.game_embed import GameEmbedManager
 from repository.game_repo import GamePostgresRepository
-from repository.tables import GameModel
+from repository.table.game_lobby_tables import GameModel
 
 
 class GameManager:

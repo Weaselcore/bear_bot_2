@@ -2,7 +2,7 @@ from collections.abc import Sequence
 
 from sqlalchemy import Result, delete, insert, select, update
 
-from repository.tables import GameModel, GuildModel
+from repository.table.game_lobby_tables import GameModel, GuildModel
 
 
 class GamePostgresRepository:

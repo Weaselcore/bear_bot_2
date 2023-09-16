@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from manager.poll_service import PollManager
 from repository.db_config import Base
 from repository.poll_repo import PollRepository
-from repository.poll_table import (PollAnswerModel, PollGuildModel,
+from repository.table.poll_table import (PollAnswerModel, PollGuildModel,
                                    PollMemberAnswerModel, PollModel, VoteType)
 
 load_dotenv()
