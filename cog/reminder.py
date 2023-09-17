@@ -1,13 +1,13 @@
 import logging
-from datetime import datetime
 import os
+from datetime import datetime
 from pathlib import Path
-from dateutil.relativedelta import relativedelta
 
+import human_readable
+from dateutil.relativedelta import relativedelta
 from discord import Interaction, app_commands
 from discord.ext import commands
 from dotenv import load_dotenv
-import human_readable
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from manager.reminder_service import ReminderManager
@@ -40,6 +40,7 @@ async_session = async_sessionmaker(
     engine,
     expire_on_commit=False,
 )
+
 
 def set_logger(logger: logging.Logger) -> None:
     logger.setLevel(logging.INFO)
@@ -84,7 +85,6 @@ class ReminderCog(commands.GroupCog, group_name="reminder"):
         minutes: int | None,
         seconds: int | None,
     ):
-
         delta_expiry = relativedelta(
             years=years or 0,
             months=months or 0,
@@ -92,7 +92,7 @@ class ReminderCog(commands.GroupCog, group_name="reminder"):
             days=days or 0,
             hours=hours or 0,
             minutes=minutes or 0,
-            seconds=seconds or 0
+            seconds=seconds or 0,
         )
 
         current_date = datetime.now()
@@ -107,7 +107,7 @@ class ReminderCog(commands.GroupCog, group_name="reminder"):
             owner_id=interaction.user.id,
             guild=interaction.guild,
             expire_at=datetime_expiry,
-            delta=delta
+            delta=delta,
         )
 
     @app_commands.command(
@@ -116,9 +116,16 @@ class ReminderCog(commands.GroupCog, group_name="reminder"):
     )
     async def list_reminders(self, interaction: Interaction):
         message = "*You have no active reminders.*"
-        reminders = await self.reminder_manager.get_all_active_reminders_by_user_id(interaction.user.id)
+        reminders = await self.reminder_manager.get_all_active_reminders_by_user_id(
+            interaction.user.id
+        )
         if len(reminders) != 0:
-            message = '\n'.join([f"[ ID:{reminder.id} ] **{reminder.reminder}**: {human_readable.precise_delta(reminder.expire_at - datetime.now())}" for reminder in reminders])
+            message = "\n".join(
+                [
+                    f"[ ID:{reminder.id} ] **{reminder.reminder}**: {human_readable.precise_delta(reminder.expire_at - datetime.now())}"
+                    for reminder in reminders
+                ]
+            )
 
         await interaction.response.send_message(message)
 
@@ -128,9 +135,9 @@ class ReminderCog(commands.GroupCog, group_name="reminder"):
     )
     async def delete_reminder(self, interaction: Interaction, id: int):
         await self.reminder_manager.delete_reminder(
-            interaction=interaction,
-            reminder_id=id
+            interaction=interaction, reminder_id=id
         )
+
 
 async def setup(bot: commands.Bot) -> None:
     # Create tables
@@ -140,7 +147,6 @@ async def setup(bot: commands.Bot) -> None:
             tables=[
                 ReminderModel.__table__,
                 ReminderGuildModel.__table__,
-
             ],
         )
     # Create dependencies

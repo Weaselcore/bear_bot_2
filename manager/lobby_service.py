@@ -7,8 +7,7 @@ import discord
 
 from embeds.lobby_embed import LobbyEmbedManager
 from repository.lobby_repo import LobbyPostgresRepository, MemberNotFound
-from repository.table.game_lobby_tables import (GuildModel, LobbyModel,
-                                                MemberModel)
+from repository.table.game_lobby_tables import GuildModel, LobbyModel, MemberModel
 
 
 class LobbyManager:

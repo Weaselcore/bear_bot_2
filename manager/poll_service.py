@@ -4,9 +4,12 @@ from discord import Colour, Embed, Guild
 from discord.ext import commands
 
 from repository.poll_repo import PollRepository
-from repository.table.poll_table import (PollAnswerModel,
-                                         PollMemberAnswerModel, PollModel,
-                                         VoteType)
+from repository.table.poll_table import (
+    PollAnswerModel,
+    PollMemberAnswerModel,
+    PollModel,
+    VoteType,
+)
 
 
 class PollManager:

@@ -1,4 +1,5 @@
 from datetime import datetime
+
 from discord import Guild
 from sqlalchemy import Result, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -22,20 +23,19 @@ class ReminderRepository:
         async with self.database() as session:
             async with session.begin():
                 result: Result = await session.execute(
-                    select(ReminderModel).where(
-                        ReminderModel.guild_id == guild_id)
+                    select(ReminderModel).where(ReminderModel.guild_id == guild_id)
                 )
                 return list(result.scalars().unique().all())
-    
-    async def get_all_active_reminders_by_user_id(self, user_id: int) -> list[ReminderModel]:
+
+    async def get_all_active_reminders_by_user_id(
+        self, user_id: int
+    ) -> list[ReminderModel]:
         async with self.database() as session:
             async with session.begin():
                 result: Result = await session.execute(
-                    select(
-                        ReminderModel
-                    ).where(
+                    select(ReminderModel).where(
                         ReminderModel.owner_id == user_id,
-                        ReminderModel.has_triggered == False
+                        ReminderModel.has_triggered == False,
                     )
                 )
                 return list(result.scalars().unique().all())
@@ -78,7 +78,7 @@ class ReminderRepository:
                     channel_id=channel_id,
                     reminder=reminder,
                     expire_at=expire_at,
-                    guild_id=guild_id or guild_model.id
+                    guild_id=guild_id or guild_model.id,
                 )
                 session.add(reminder_model)
                 await session.commit()
@@ -92,8 +92,7 @@ class ReminderRepository:
             async with session.begin():
                 reminder = await session.get(ReminderModel, id)
                 if reminder is None:
-                    raise ValueError(
-                        f"Reminder could not be found with id: {id}")
+                    raise ValueError(f"Reminder could not be found with id: {id}")
                 return reminder
 
     async def remove_reminder(

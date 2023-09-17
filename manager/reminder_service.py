@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta
 from functools import partial
 from typing import Any, Coroutine
+
+import human_readable
 from discord import Colour, Embed, Guild, Interaction
 from discord.ext import commands
-import human_readable
 
 from cog.classes.scheduler_task import SchedulerTask
 from cog.scheduler import SchedulerCog
@@ -26,11 +27,7 @@ class ReminderManager:
         return scheduler
 
     async def _reminder_callback(
-        self,
-        reminder: str,
-        channel_id: int,
-        user_id: int,
-        id: int
+        self, reminder: str, channel_id: int, user_id: int, id: int
     ):
         channel = self.bot.get_channel(channel_id)
         user = self.bot.get_user(user_id)
@@ -58,8 +55,12 @@ class ReminderManager:
     async def get_all_reminders_by_guild_id(self, guild_id: int) -> list[ReminderModel]:
         return await self.repository.get_all_reminders_by_guild_id(guild_id=guild_id)
 
-    async def get_all_active_reminders_by_user_id(self, user_id: int) -> list[ReminderModel]:
-        return await self.repository.get_all_active_reminders_by_user_id(user_id=user_id)
+    async def get_all_active_reminders_by_user_id(
+        self, user_id: int
+    ) -> list[ReminderModel]:
+        return await self.repository.get_all_active_reminders_by_user_id(
+            user_id=user_id
+        )
 
     async def create_reminder(
         self,
@@ -68,7 +69,7 @@ class ReminderManager:
         owner_id: int,
         guild: Guild,
         expire_at: datetime,
-        delta: timedelta
+        delta: timedelta,
     ) -> int:
         # Add entry to database
         reminder_id = await self.repository.add_reminder(
@@ -76,23 +77,26 @@ class ReminderManager:
             reminder=reminder,
             owner_id=owner_id,
             guild=guild,
-            expire_at=expire_at
+            expire_at=expire_at,
         )
         # Add entry to scheduler
         try:
             scheduler = self._get_scheduler()
-            embed = Embed(
-                colour=Colour.random(),
-                title=f"Reminder for {interaction.user.display_name}",
-                description=reminder.capitalize(),
-                timestamp=expire_at,
-            ).add_field(
-                name="When:",
-                value=f"⠀⠀⤷ **{human_readable.precise_delta(delta)}**",
-            ).set_footer(text=f"[ ID: {reminder_id} ]")
+            embed = (
+                Embed(
+                    colour=Colour.random(),
+                    title=f"Reminder for {interaction.user.display_name}",
+                    description=reminder.capitalize(),
+                    timestamp=expire_at,
+                )
+                .add_field(
+                    name="When:",
+                    value=f"⠀⠀⤷ **{human_readable.precise_delta(delta)}**",
+                )
+                .set_footer(text=f"[ ID: {reminder_id} ]")
+            )
             # Send response to interaction
-            await interaction.response.send_message(
-                embed=embed)
+            await interaction.response.send_message(embed=embed)
             # Schedule reminder to scheduler
             scheduler.schedule_item(
                 SchedulerTask(
@@ -102,7 +106,7 @@ class ReminderManager:
                         reminder=reminder,
                         channel_id=interaction.channel.id,
                         user_id=interaction.user.id,
-                        id=reminder_id
+                        id=reminder_id,
                     ),
                 )
             )
@@ -133,12 +137,14 @@ class ReminderManager:
                         reminder=reminder_model.reminder,
                         channel_id=reminder_model.channel_id,
                         user_id=reminder_model.owner_id,
-                        id=reminder_model.id
-                    )
+                        id=reminder_model.id,
+                    ),
                 )
             )
         except ValueError:
-            await interaction.response.send_message("Sorry, reminder with this ID doesn't exist.")
+            await interaction.response.send_message(
+                "Sorry, reminder with this ID doesn't exist."
+            )
 
     async def populate_scheduler(self):
         await self.bot.wait_until_ready()
@@ -159,7 +165,7 @@ class ReminderManager:
                         reminder=reminder.reminder,
                         channel=channel,
                         user=user,
-                        id=reminder.id
-                    )
+                        id=reminder.id,
+                    ),
                 )
             )

@@ -1,9 +1,9 @@
 import asyncio
 import logging
+from pathlib import Path
 
 from discord import utils
 from discord.ext import commands
-from pathlib import Path
 
 from cog.classes.scheduler_task import SchedulerTask
 
@@ -74,9 +74,11 @@ class SchedulerCog(commands.Cog):
             self.schedules.append(item)
             # Resume the function that gets blocked by self.has_schedule event
             self.has_schedule.set()
-            self.logger.info(f"Scheduler has now resumed as an item with ID: {item.id} has been added.")
+            self.logger.info(
+                f"Scheduler has now resumed as an item with ID: {item.id} has been added."
+            )
             return
-        
+
         # If replace attribute is True, find old id and replace it.
         if item.replace is True:
             self.remove_schedule(item=item)
@@ -94,7 +96,9 @@ class SchedulerCog(commands.Cog):
     def remove_schedule(self, item: SchedulerTask) -> None:
         try:
             old_schedule_list = self.schedules.copy()
-            self.schedules = [schedule for schedule in self.schedules if schedule.id != item.id]
+            self.schedules = [
+                schedule for schedule in self.schedules if schedule.id != item.id
+            ]
             if len(old_schedule_list) > len(self.schedules):
                 self.logger.info(f"Item with ID: {item.id} has been removed.")
             else:

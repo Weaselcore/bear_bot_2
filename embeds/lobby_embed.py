@@ -2,8 +2,16 @@ from collections.abc import Sequence
 from datetime import datetime
 from enum import Enum
 
-from discord import (Color, Embed, Member, Message, PartialMessage,
-                     TextChannel, Thread, User)
+from discord import (
+    Color,
+    Embed,
+    Member,
+    Message,
+    PartialMessage,
+    TextChannel,
+    Thread,
+    User,
+)
 from discord.ui import View
 
 
