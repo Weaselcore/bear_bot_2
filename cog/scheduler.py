@@ -1,9 +1,9 @@
 import asyncio
 import logging
-from typing import Coroutine
 
 from discord import utils
 from discord.ext import commands
+from pathlib import Path
 
 from cog.classes.scheduler_task import SchedulerTask
 
@@ -13,8 +13,10 @@ from cog.classes.scheduler_task import SchedulerTask
 def set_logger(logger: logging.Logger) -> None:
     logger.setLevel(logging.INFO)
 
+    log_dir = Path("logs")
+
     handler = logging.handlers.RotatingFileHandler(
-        filename="scheduler.log",
+        filename=log_dir / "scheduler.log",
         encoding="utf-8",
         maxBytes=32 * 1024 * 1024,  # 32 MiB
         backupCount=5,  # Rotate through 5 files
@@ -32,7 +34,7 @@ class SchedulerCog(commands.Cog):
         self.bot = bot
         self.logger = logging.getLogger("scheduler")
         set_logger(self.logger)
-        self.current_schedule = None
+        self.current_schedule: SchedulerTask | None = None
         self.schedules: list[SchedulerTask] = []
         # A "boolean" that can set/get if there is a schedule, waited if there is none.
         self.has_schedule = asyncio.Event()
@@ -72,11 +74,15 @@ class SchedulerCog(commands.Cog):
             self.schedules.append(item)
             # Resume the function that gets blocked by self.has_schedule event
             self.has_schedule.set()
-            self.logger.info("Scheduler has now resumed as an item has been added.")
+            self.logger.info(f"Scheduler has now resumed as an item with ID: {item.id} has been added.")
             return
+        
+        # If replace attribute is True, find old id and replace it.
+        if item.replace is True:
+            self.remove_schedule(item=item)
 
         self.schedules.append(item)
-        self.logger.info("Item has been added.")
+        self.logger.info(f"Item with ID: {item.id} has been added.")
 
         if self.current_schedule is not None and item < self.current_schedule:
             # Restart scheduler if theres a task with a closer expiry time.
@@ -87,13 +93,18 @@ class SchedulerCog(commands.Cog):
 
     def remove_schedule(self, item: SchedulerTask) -> None:
         try:
-            self.schedules.remove(item)
+            old_schedule_list = self.schedules.copy()
+            self.schedules = [schedule for schedule in self.schedules if schedule.id != item.id]
+            if len(old_schedule_list) > len(self.schedules):
+                self.logger.info(f"Item with ID: {item.id} has been removed.")
+            else:
+                self.logger.info(f"Item with ID: {item.id} attempted to be removed.")
         except ValueError:
             pass
         else:
             if len(self.schedules) == 0:
                 # Blocks the function governed by the self.has_schedule event
-                self.logger.info("Scheduler is now clearing event.")
+                self.logger.info("Scheduler is now clearing event. Will now be paused.")
                 self.has_schedule.clear()
 
     async def cog_load(self):
