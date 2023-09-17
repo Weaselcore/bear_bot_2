@@ -1,21 +1,53 @@
 import logging
 from datetime import datetime
+import os
+from pathlib import Path
 from dateutil.relativedelta import relativedelta
-from functools import partial
 
-import human_readable
-from discord import Colour, Embed, Interaction, TextChannel, User, app_commands
+from discord import Interaction, app_commands
 from discord.ext import commands
+from dotenv import load_dotenv
+import human_readable
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from cog.classes.scheduler_task import SchedulerTask
-from cog.scheduler import SchedulerCog
+from manager.reminder_service import ReminderManager
+from repository.db_config import Base
+from repository.reminder_repo import ReminderRepository
+from repository.table.reminder_table import ReminderGuildModel, ReminderModel
 
+load_dotenv()
+
+# Construct database url from environment variables
+DATABASE_URL = "postgresql+asyncpg://{}:{}@{}:{}/{}".format(
+    os.environ["R_PG_USER"],
+    os.environ["R_PG_PASSWORD"],
+    os.environ["R_PG_HOST"],
+    os.environ["R_PG_PORT"],
+    os.environ["R_PG_DATABASE"],
+)
+
+# Create database engine
+engine = create_async_engine(
+    DATABASE_URL,
+    pool_size=3,
+    future=True,
+    echo=False,
+)
+
+
+# This is the database session factory, invoking this variable creates a new session
+async_session = async_sessionmaker(
+    engine,
+    expire_on_commit=False,
+)
 
 def set_logger(logger: logging.Logger) -> None:
     logger.setLevel(logging.INFO)
 
+    log_dir = Path("logs")
+
     handler = logging.handlers.RotatingFileHandler(
-        filename="reminder.log",
+        filename=log_dir / "reminder.log",
         encoding="utf-8",
         maxBytes=32 * 1024 * 1024,  # 32 MiB
         backupCount=5,  # Rotate through 5 files
@@ -28,25 +60,19 @@ def set_logger(logger: logging.Logger) -> None:
     logger.addHandler(handler)
 
 
-class ReminderCog(commands.Cog):
-    def __init__(self, bot: commands.Bot) -> None:
+class ReminderCog(commands.GroupCog, group_name="reminder"):
+    def __init__(self, bot: commands.Bot, reminder_manager: ReminderManager) -> None:
         self.bot = bot
+        self.reminder_manager = reminder_manager
         print("ReminderCog loaded")
 
-    def _get_scheduler(self) -> SchedulerCog:
-        scheduler = self.bot.get_cog("SchedulerCog")
-        if scheduler is None:
-            raise ValueError("SchedulerCog is not active or loaded.")
-        return scheduler
-
-    async def _reminder_callback(self, reminder: str, channel: TextChannel, user: User):
-        await channel.send(f"Reminder: {reminder} <@{user.id}>")
+        bot.loop.create_task(reminder_manager.populate_scheduler())
 
     @app_commands.command(
         description="Create a reminder",
-        name="remind",
+        name="create",
     )
-    async def remind(
+    async def create_reminders(
         self,
         interaction: Interaction,
         reminder: str,
@@ -70,47 +96,58 @@ class ReminderCog(commands.Cog):
         )
 
         current_date = datetime.now()
-
         datetime_expiry = current_date + delta_expiry
-
         end_date = current_date + delta_expiry
         # Convert the relativedelta to a timedelta for the human_readable library.
         delta = end_date - current_date
 
-        try:
-            scheduler = self._get_scheduler()
-            embed = Embed(
-                colour=Colour.random(),
-                title=f"Reminder for {interaction.user.display_name}",
-                description=reminder.capitalize(),
-                timestamp=datetime_expiry,
-            ).add_field(
-                name="When:",
-                value=f"⠀⠀⤷ **{human_readable.precise_delta(delta)}**",
-            )
+        await self.reminder_manager.create_reminder(
+            interaction=interaction,
+            reminder=reminder,
+            owner_id=interaction.user.id,
+            guild=interaction.guild,
+            expire_at=datetime_expiry,
+            delta=delta
+        )
 
-            await interaction.response.send_message(
-                embed=embed)
-            # TODO: Save to database and register task
-            scheduler.schedule_item(
-                SchedulerTask(
-                    expires_at=datetime_expiry,
-                    task=partial(
-                        self._reminder_callback,
-                        reminder,
-                        interaction.channel,
-                        interaction.user,
-                    ),
-                )
-            )
-        except ValueError:
-            await interaction.response.send_message(
-                "Scheduler Cog has not been initialised, event scheduling is disabled."
-            )
+    @app_commands.command(
+        description="List all your reminders",
+        name="list",
+    )
+    async def list_reminders(self, interaction: Interaction):
+        message = "*You have no active reminders.*"
+        reminders = await self.reminder_manager.get_all_active_reminders_by_user_id(interaction.user.id)
+        if len(reminders) != 0:
+            message = '\n'.join([f"[ ID:{reminder.id} ] **{reminder.reminder}**: {human_readable.precise_delta(reminder.expire_at - datetime.now())}" for reminder in reminders])
 
+        await interaction.response.send_message(message)
+
+    @app_commands.command(
+        description="Delete a reminder",
+        name="delete",
+    )
+    async def delete_reminder(self, interaction: Interaction, id: int):
+        await self.reminder_manager.delete_reminder(
+            interaction=interaction,
+            reminder_id=id
+        )
 
 async def setup(bot: commands.Bot) -> None:
-    await bot.add_cog(ReminderCog(bot))
+    # Create tables
+    async with engine.begin() as conn:
+        await conn.run_sync(
+            Base.metadata.create_all,
+            tables=[
+                ReminderModel.__table__,
+                ReminderGuildModel.__table__,
+
+            ],
+        )
+    # Create dependencies
+    reminder_repository = ReminderRepository(async_session)
+    reminder_manager = ReminderManager(bot=bot, repository=reminder_repository)
+
+    await bot.add_cog(ReminderCog(bot, reminder_manager))
 
 
 async def teardown(bot: commands.Bot) -> None:
