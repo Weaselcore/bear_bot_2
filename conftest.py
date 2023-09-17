@@ -1,8 +1,9 @@
 import asyncio
 import os
-from dotenv import load_dotenv
+
 import pytest
 import pytest_asyncio
+from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -14,6 +15,7 @@ from repository.db_config import Base
 """
 
 load_dotenv()
+
 
 @pytest.fixture(scope="session", autouse=True)
 def event_loop():
@@ -42,6 +44,7 @@ async def engine():
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
     async_engine.sync_engine.dispose()
+
 
 @pytest_asyncio.fixture()
 async def session(engine):

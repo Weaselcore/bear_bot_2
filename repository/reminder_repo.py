@@ -6,9 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from repository.table.reminder_table import ReminderGuildModel, ReminderModel
 
+
 class Guild(Protocol):
     id: int
     name: str
+
 
 class ReminderRepository:
     def __init__(self, database: async_sessionmaker[AsyncSession]):
