@@ -2,6 +2,7 @@ import asyncio
 import logging
 import logging.handlers
 import os
+from pathlib import Path
 from typing import Literal
 
 import discord
@@ -35,8 +36,12 @@ async def main():
     logger = logging.getLogger("discord")
     logger.setLevel(logging.INFO)
 
+    log_dir = Path("logs")
+    # Ensure the directory exists; create it if it doesn't
+    log_dir.mkdir(parents=True, exist_ok=True)
+
     handler = logging.handlers.RotatingFileHandler(
-        filename="discord.log",
+        filename=log_dir / "discord.log",
         encoding="utf-8",
         maxBytes=32 * 1024 * 1024,  # 32 MiB
         backupCount=5,  # Rotate through 5 files
