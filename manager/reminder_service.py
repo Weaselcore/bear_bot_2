@@ -1,13 +1,12 @@
 from datetime import datetime, timedelta
 from functools import partial
 from typing import Any, Coroutine
-from discord import Colour, Embed, Guild, Interaction, TextChannel, User
+from discord import Colour, Embed, Guild, Interaction
 from discord.ext import commands
-from discord.utils import find
 import human_readable
+
 from cog.classes.scheduler_task import SchedulerTask
 from cog.scheduler import SchedulerCog
-
 from repository.reminder_repo import ReminderRepository
 from repository.table.reminder_table import ReminderModel
 
