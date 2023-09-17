@@ -4,22 +4,9 @@ from collections.abc import Sequence
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from discord import (
-    ButtonStyle,
-    CategoryChannel,
-    Client,
-    Color,
-    Embed,
-    Interaction,
-    Member,
-    PermissionOverwrite,
-    Role,
-    SelectOption,
-    TextStyle,
-    app_commands,
-    threads,
-    utils,
-)
+from discord import (ButtonStyle, CategoryChannel, Client, Color, Embed,
+                     Interaction, Member, PermissionOverwrite, Role,
+                     SelectOption, TextStyle, app_commands, threads, utils)
 from discord.ext import commands, tasks
 from discord.ui import Button, Modal, Select, TextInput, View, button
 from dotenv import load_dotenv
@@ -33,14 +20,10 @@ from manager.lobby_service import LobbyManager
 from repository.db_config import Base
 from repository.game_repo import GamePostgresRepository
 from repository.lobby_repo import LobbyPostgresRepository
-from repository.table.game_lobby_tables import (
-    GameModel,
-    GuildModel,
-    LobbyModel,
-    MemberLobbyModel,
-    MemberModel,
-    QueueMemberLobbyModel,
-)
+from repository.table.game_lobby_tables import (GameModel, GuildModel,
+                                                LobbyModel, MemberLobbyModel,
+                                                MemberModel,
+                                                QueueMemberLobbyModel)
 
 load_dotenv()
 

@@ -4,19 +4,11 @@ from datetime import datetime, timedelta
 from sqlalchemy import Result, delete, func, text, update
 from sqlalchemy.future import select
 
-from exceptions.lobby_exceptions import (
-    GuildNotFound,
-    LobbyCreationError,
-    LobbyNotFound,
-    MemberNotFound,
-)
-from repository.table.game_lobby_tables import (
-    GuildModel,
-    LobbyModel,
-    MemberLobbyModel,
-    MemberModel,
-    QueueMemberLobbyModel,
-)
+from exceptions.lobby_exceptions import (GuildNotFound, LobbyCreationError,
+                                         LobbyNotFound, MemberNotFound)
+from repository.table.game_lobby_tables import (GuildModel, LobbyModel,
+                                                MemberLobbyModel, MemberModel,
+                                                QueueMemberLobbyModel)
 
 
 class LobbyPostgresRepository:
