@@ -412,6 +412,9 @@ class TestRepository:
             guild_id=2,
             guild_name="test",
             user_id=321,
+            game_id=1,
+            max_size=5,
+            description=""
         )
         result = await lobbydal.get_lobbies_count()
         assert result == 2
