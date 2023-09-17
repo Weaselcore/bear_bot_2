@@ -1,11 +1,14 @@
 from datetime import datetime
+from typing import Protocol
 
-from discord import Guild
 from sqlalchemy import Result, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from repository.table.reminder_table import ReminderGuildModel, ReminderModel
 
+class Guild(Protocol):
+    id: int
+    name: str
 
 class ReminderRepository:
     def __init__(self, database: async_sessionmaker[AsyncSession]):
@@ -107,7 +110,7 @@ class ReminderRepository:
                     await session.commit()
                     return id
                 except ValueError:
-                    raise
+                    raise ValueError(f"Reminder could not be found with id: {id}")
 
     async def update_reminder_has_triggered(self, id: int):
         async with self.database() as session:
@@ -117,4 +120,4 @@ class ReminderRepository:
                     reminder.has_triggered = True
                     await session.commit()
                 except ValueError:
-                    raise
+                    raise ValueError(f"Reminder could not be found with id: {id}")

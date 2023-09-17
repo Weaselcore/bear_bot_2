@@ -3,7 +3,6 @@ from time import gmtime, strftime
 
 import pytest
 import pytest_asyncio
-from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
 
@@ -11,8 +10,6 @@ from repository.db_config import Base
 from repository.lobby_repo import LobbyPostgresRepository
 from repository.table.game_lobby_tables import (GameModel, GuildModel,
                                                 LobbyModel, MemberModel)
-
-load_dotenv()
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
