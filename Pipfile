@@ -17,6 +17,8 @@ types-cachetools = "*"
 cachetools = "*"
 asyncache = "*"
 tzdata = "*"
+human-readable = "*"
+python-dateutil = "*"
 
 [dev-packages]
 autopep8 = "*"

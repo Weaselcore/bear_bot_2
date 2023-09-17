@@ -8,20 +8,20 @@ from discord.ui import View
 
 
 class UpdateEmbedType(Enum):
-    LEAVE = 'LEAVE'
-    JOIN = 'JOIN'
-    READY = 'READY'
-    DESCRIPTION_CHANGE = 'DESCRIPTION_CHANGE'
-    SIZE_CHANGE = 'SIZE_CHANGE'
-    GAME_CHANGE = 'GAME_CHANGE'
-    LOCK = 'LOCK'
-    UNLOCK = 'UNLOCK'
-    DELETE = 'DELETE'
-    OWNER_CHANGE = 'OWNER_CHANGE'
-    OWNER_ADD = 'OWNER_ADD'
-    OWNER_REMOVE = 'OWNER_REMOVE'
-    OWNER_READY = 'OWNER_READY'
-    CLEAN_UP = 'CLEAN_UP'
+    LEAVE = "LEAVE"
+    JOIN = "JOIN"
+    READY = "READY"
+    DESCRIPTION_CHANGE = "DESCRIPTION_CHANGE"
+    SIZE_CHANGE = "SIZE_CHANGE"
+    GAME_CHANGE = "GAME_CHANGE"
+    LOCK = "LOCK"
+    UNLOCK = "UNLOCK"
+    DELETE = "DELETE"
+    OWNER_CHANGE = "OWNER_CHANGE"
+    OWNER_ADD = "OWNER_ADD"
+    OWNER_REMOVE = "OWNER_REMOVE"
+    OWNER_READY = "OWNER_READY"
+    CLEAN_UP = "CLEAN_UP"
 
 
 class UpdateEmbedColour(Enum):
@@ -42,20 +42,20 @@ class UpdateEmbedColour(Enum):
 
 
 class UpdateEmbedMessage(Enum):
-    LEAVE = 'has left the lobby! 💨'
-    JOIN = 'has joined the lobby! 🏃‍♂️'
-    READY = 'is ready! 🟢'
-    OWNER_CHANGE = 'has changed the lobby owner to'
-    DESCRIPTION_CHANGE = 'has changed the lobby description to'
-    SIZE_CHANGE = 'has changed the lobby size to'
-    GAME_CHANGE = 'has changed the lobby game to'
-    LOCK = 'has locked the lobby! 🔒'
-    UNLOCK = 'has unlocked the lobby! 🔓'
-    DELETE = 'has deleted their lobby! 🛑'
-    OWNER_ADD = 'has added someone to the lobby! 🏃‍♂️ :'
-    OWNER_REMOVE = 'has removed someone from the lobby! 💨 :'
+    LEAVE = "has left the lobby! 💨"
+    JOIN = "has joined the lobby! 🏃‍♂️"
+    READY = "is ready! 🟢"
+    OWNER_CHANGE = "has changed the lobby owner to"
+    DESCRIPTION_CHANGE = "has changed the lobby description to"
+    SIZE_CHANGE = "has changed the lobby size to"
+    GAME_CHANGE = "has changed the lobby game to"
+    LOCK = "has locked the lobby! 🔒"
+    UNLOCK = "has unlocked the lobby! 🔓"
+    DELETE = "has deleted their lobby! 🛑"
+    OWNER_ADD = "has added someone to the lobby! 🏃‍♂️ :"
+    OWNER_REMOVE = "has removed someone from the lobby! 💨 :"
     OWNER_READY = "has updated someone's status! ℹ :"
-    CLEAN_UP = 'has cleaned up lobby'
+    CLEAN_UP = "has cleaned up lobby"
 
 
 class LobbyEmbed(Embed):
@@ -69,23 +69,22 @@ class LobbyEmbed(Embed):
         members: list[Member],
         member_ready: Sequence[int],
         game_size: int,
-
     ):
         # Setup slots and owner field
         super().__init__(
-            description='Description: None',
+            description="Description: None",
         )
 
         self.set_author(
             name=f"👑 Lobby Owner: {owner.display_name}",
-            icon_url=owner.display_avatar.url
+            icon_url=owner.display_avatar.url,
         )
 
         # Set description
         if description is not None:
-            self.description = f'```Description: {description}```'
+            self.description = f"```Description: {description}```"
         else:
-            self.description = 'Description: None'
+            self.description = "Description: None"
 
         # Set colour based on status
         if is_locked:
@@ -101,42 +100,32 @@ class LobbyEmbed(Embed):
                 name=member.display_name,
                 value=f'⠀⠀⤷ **Status**: \
             {"Ready" if member.id in member_ready else "Not Ready"}',
-                inline=False
+                inline=False,
             )
 
         # Fill in open slots
         lobby_length = len(members)
         if lobby_length < int(game_size):
             for _ in range(int(game_size) - lobby_length):
-                self.add_field(
-                    name='Empty',
-                    value='⠀⠀⤷ 😢 Empty Slot',
-                    inline=False
-                )
+                self.add_field(name="Empty", value="⠀⠀⤷ 😢 Empty Slot", inline=False)
 
         # Add footer with lobby id and fill/ready status.
-        footer = f'[Lobby ID:  {lobby_id}] [🎮 {lobby_length}/{game_size} slots filled, \
-    ✅ {len(member_ready)}/{game_size} ready]'
+        footer = f"[Lobby ID:  {lobby_id}] [🎮 {lobby_length}/{game_size} slots filled, \
+    ✅ {len(member_ready)}/{game_size} ready]"
         self.set_footer(text=footer)
 
 
 class QueueEmbed(Embed):
     def __init__(self, queue_members: list[Member]):
-        super().__init__(
-            description='Queue',
-            color=Color.yellow()
-        )
+        super().__init__(description="Queue", color=Color.yellow())
 
         for count, member in enumerate(queue_members):
             self.add_field(
-                name=f'#{count + 1} Member',
-                value=member.display_name,
-                inline=False
+                name=f"#{count + 1} Member", value=member.display_name, inline=False
             )
 
 
 class LobbyEmbedManager:
-
     UPDATE_TYPES = UpdateEmbedType
 
     @staticmethod
@@ -148,7 +137,6 @@ class LobbyEmbedManager:
         footer_string: str | None = None,
         pings: str | None = None,
     ) -> None:
-
         message = None
         default_footer = True
         new_field = False
@@ -161,14 +149,14 @@ class LobbyEmbedManager:
             case UpdateEmbedType.READY:
                 message = UpdateEmbedMessage.READY.value
             case UpdateEmbedType.OWNER_CHANGE:
-                message = f'{UpdateEmbedMessage.OWNER_CHANGE.value} {additional_string}'
+                message = f"{UpdateEmbedMessage.OWNER_CHANGE.value} {additional_string}"
             case UpdateEmbedType.DESCRIPTION_CHANGE:
-                message = f'{UpdateEmbedMessage.DESCRIPTION_CHANGE.value} \
-                    **{additional_string}**'
+                message = f"{UpdateEmbedMessage.DESCRIPTION_CHANGE.value} \
+                    **{additional_string}**"
             case UpdateEmbedType.SIZE_CHANGE:
-                message = f'{UpdateEmbedMessage.SIZE_CHANGE.value} {additional_string}'
+                message = f"{UpdateEmbedMessage.SIZE_CHANGE.value} {additional_string}"
             case UpdateEmbedType.GAME_CHANGE:
-                message = f'{UpdateEmbedMessage.GAME_CHANGE.value} {additional_string}'
+                message = f"{UpdateEmbedMessage.GAME_CHANGE.value} {additional_string}"
             case UpdateEmbedType.LOCK:
                 message = UpdateEmbedMessage.LOCK.value
             case UpdateEmbedType.UNLOCK:
@@ -179,13 +167,13 @@ class LobbyEmbedManager:
                 if additional_string != "" or additional_string is not None:
                     new_field = True
             case UpdateEmbedType.OWNER_ADD:
-                message = f'{UpdateEmbedMessage.OWNER_ADD.value} {additional_string}'
+                message = f"{UpdateEmbedMessage.OWNER_ADD.value} {additional_string}"
             case UpdateEmbedType.OWNER_REMOVE:
-                message = f'{UpdateEmbedMessage.OWNER_REMOVE.value} {additional_string}'
+                message = f"{UpdateEmbedMessage.OWNER_REMOVE.value} {additional_string}"
             case UpdateEmbedType.OWNER_READY:
-                message = f'{UpdateEmbedMessage.OWNER_READY.value} {additional_string}'
+                message = f"{UpdateEmbedMessage.OWNER_READY.value} {additional_string}"
             case UpdateEmbedType.CLEAN_UP:
-                message = f'{UpdateEmbedMessage.CLEAN_UP.value} {additional_string}! 🧹'
+                message = f"{UpdateEmbedMessage.CLEAN_UP.value} {additional_string}! 🧹"
                 default_footer = False
             case _:
                 raise NotImplementedError
@@ -193,7 +181,7 @@ class LobbyEmbedManager:
         embed = Embed(
             title=title,
             description=message,
-            color=UpdateEmbedColour[update_type.value].value
+            color=UpdateEmbedColour[update_type.value].value,
         )
 
         # Set footer with current time
@@ -207,11 +195,7 @@ class LobbyEmbedManager:
 
         # Add new field if needed
         if new_field:
-            embed.add_field(
-                name='Reason:',
-                value=additional_string,
-                inline=False
-            )
+            embed.add_field(name="Reason:", value=additional_string, inline=False)
 
         await destination.send(content=pings, embed=embed)
 
@@ -226,9 +210,8 @@ class LobbyEmbedManager:
         member_ready: list[int],
         game_size: int,
         channel: TextChannel | Thread,
-        view: View
+        view: View,
     ) -> int | None:
-
         embed = LobbyEmbed(
             lobby_id=lobby_id,
             owner=owner,
@@ -253,11 +236,10 @@ class LobbyEmbedManager:
         members: list[Member],
         member_ready: Sequence[int],
         game_size: int,
-        message: Message | PartialMessage |  None,
+        message: Message | PartialMessage | None,
     ) -> None:
-
         if description is None:
-            description = 'No description provided.'
+            description = "No description provided."
 
         embed = LobbyEmbed(
             lobby_id=lobby_id,
