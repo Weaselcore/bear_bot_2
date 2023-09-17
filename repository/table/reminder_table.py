@@ -16,9 +16,11 @@ class ReminderModel(Base):
     __tablename__ = "reminder"
     id: Mapped[int] = mapped_column(
         primary_key=True, autoincrement=True, init=False)
+    reminder: Mapped[str] = mapped_column(nullable=False)
     owner_id: Mapped[int] = mapped_column(nullable=False)
+    channel_id: Mapped[int] =mapped_column(nullable=False)
     expire_at: Mapped[datetime] = mapped_column(nullable=False)
-    has_triggered: Mapped[bool] = mapped_column(default=False)
     guild_id: Mapped[int] = mapped_column(ForeignKey(
         "reminder_guild.id", ondelete="CASCADE"
     ))
+    has_triggered: Mapped[bool] = mapped_column(default=False)
