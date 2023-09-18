@@ -9,7 +9,6 @@ from discord import (ButtonStyle, CategoryChannel, Client, Color, Embed,
                      SelectOption, TextStyle, app_commands, threads, utils)
 from discord.ext import commands, tasks
 from discord.ui import Button, Modal, Select, TextInput, View, button
-from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from embeds.game_embed import GameEmbedManager
@@ -25,7 +24,6 @@ from repository.table.game_lobby_tables import (GameModel, GuildModel,
                                                 MemberModel,
                                                 QueueMemberLobbyModel)
 
-load_dotenv()
 
 # Construct database url from environment variables
 DATABASE_URL = "postgresql+asyncpg://{}:{}@{}:{}/{}".format(

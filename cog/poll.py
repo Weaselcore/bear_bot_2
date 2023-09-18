@@ -5,7 +5,6 @@ from discord import (ButtonStyle, Color, Embed, Guild, Interaction, Member,
                      TextChannel, app_commands, utils)
 from discord.ext import commands, tasks
 from discord.ui import Button, Modal, TextInput, View
-from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from manager.poll_service import PollManager
@@ -15,7 +14,6 @@ from repository.table.poll_table import (PollAnswerModel, PollGuildModel,
                                          PollMemberAnswerModel, PollModel,
                                          VoteType)
 
-load_dotenv()
 
 # Construct database url from environment variables
 DATABASE_URL = "postgresql+asyncpg://{}:{}@{}:{}/{}".format(

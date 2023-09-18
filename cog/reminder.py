@@ -7,7 +7,6 @@ import human_readable
 from dateutil.relativedelta import relativedelta
 from discord import Interaction, app_commands
 from discord.ext import commands
-from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from manager.reminder_service import ReminderManager
@@ -15,7 +14,6 @@ from repository.db_config import Base
 from repository.reminder_repo import ReminderRepository
 from repository.table.reminder_table import ReminderGuildModel, ReminderModel
 
-load_dotenv()
 
 # Construct database url from environment variables
 DATABASE_URL = "postgresql+asyncpg://{}:{}@{}:{}/{}".format(
