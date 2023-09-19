@@ -1,6 +1,7 @@
 from sqlalchemy import BIGINT
+from sqlalchemy.ext.asyncio import (AsyncEngine, AsyncSession,
+                                    async_sessionmaker, create_async_engine)
 from sqlalchemy.orm import DeclarativeBase, MappedAsDataclass
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
 
 class Base(MappedAsDataclass, DeclarativeBase, repr=True):
@@ -8,7 +9,6 @@ class Base(MappedAsDataclass, DeclarativeBase, repr=True):
 
 
 class DatabaseManager:
-
     @staticmethod
     async def create_tables(tables: list[Base], engine: AsyncEngine) -> None:
         # Create all tables if they don't exist
@@ -44,7 +44,7 @@ class DatabaseManager:
 
     @staticmethod
     def create_async_session_maker(
-        engine: AsyncEngine
+        engine: AsyncEngine,
     ) -> async_sessionmaker[AsyncSession]:
         return async_sessionmaker(
             engine,

@@ -158,8 +158,7 @@ class NumberTransformer(app_commands.Transformer):
                 for i in range(1, max_players):
                     if str(i).startswith(str(value)):
                         list_of_options.append(
-                            app_commands.Choice(
-                                name=str(i + 1), value=str(i + 1))
+                            app_commands.Choice(name=str(i + 1), value=str(i + 1))
                         )
             return list_of_options
         except ValueError:
@@ -361,8 +360,7 @@ class DescriptionModal(Modal, title="Edit Description"):
     async def on_submit(self, interaction: Interaction):
         await interaction.response.defer()
         await self.lobby_manager.set_description(self.lobby_id, self.answer.value)
-        interaction.client.dispatch(
-            "update_lobby_embed", self.lobby_id)  # type: ignore
+        interaction.client.dispatch("update_lobby_embed", self.lobby_id)  # type: ignore
 
 
 class DeletionConfirmationModal(Modal, title="Are you sure? Reason optional."):
@@ -371,8 +369,7 @@ class DeletionConfirmationModal(Modal, title="Are you sure? Reason optional."):
         self.lobby_id = lobby_id
         self.lobby_manager = lobby_manager
 
-    reason = TextInput(label="Reason", max_length=150,
-                       required=False)  # type: ignore
+    reason = TextInput(label="Reason", max_length=150, required=False)  # type: ignore
 
     async def on_submit(self, interaction: Interaction):
         await interaction.response.defer()
@@ -393,8 +390,7 @@ class OwnerSelectView(View):
     ):
         super().__init__()
         self.list_of_users = list_of_users
-        self.add_item(self.OwnerDropdown(
-            lobby_id, list_of_users, lobby_manager))
+        self.add_item(self.OwnerDropdown(lobby_id, list_of_users, lobby_manager))
 
     class OwnerDropdown(Select):
         def __init__(
@@ -468,8 +464,7 @@ class ButtonView(View):
         else:
             await self.lobby_manager.add_member(self.lobby_id, interaction.user.id)
 
-        interaction.client.dispatch(
-            "update_lobby_embed", self.lobby_id)  # type: ignore
+        interaction.client.dispatch("update_lobby_embed", self.lobby_id)  # type: ignore
 
     @button(label="Ready", style=ButtonStyle.green, custom_id="ready_button")
     async def ready(self, interaction: Interaction, button: Button):
@@ -497,8 +492,7 @@ class ButtonView(View):
         await interaction.edit_original_response(view=self)
 
         # Update lobby embed
-        interaction.client.dispatch(
-            "update_lobby_embed", self.lobby_id)  # type: ignore
+        interaction.client.dispatch("update_lobby_embed", self.lobby_id)  # type: ignore
 
     @button(label="Leave", style=ButtonStyle.red, custom_id="leave_button")
     async def leave(self, interaction: Interaction, button: Button):
@@ -555,8 +549,7 @@ class ButtonView(View):
         await interaction.edit_original_response(view=self)
 
         # Update lobby embed
-        interaction.client.dispatch(
-            "update_lobby_embed", self.lobby_id)  # type: ignore
+        interaction.client.dispatch("update_lobby_embed", self.lobby_id)  # type: ignore
 
     @button(label="Lock", style=ButtonStyle.danger, custom_id="lock_button")
     async def lock(self, interaction: Interaction, button: Button):
@@ -581,8 +574,7 @@ class ButtonView(View):
         await interaction.edit_original_response(view=self)
 
         # Update lobby embed
-        interaction.client.dispatch(
-            "update_lobby_embed", self.lobby_id)  # type: ignore
+        interaction.client.dispatch("update_lobby_embed", self.lobby_id)  # type: ignore
 
     @button(
         label="Change Leader",
@@ -850,8 +842,7 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
 
         await interaction.response.defer()
         assert interaction.guild is not None
-        lobby_category_channel = utils.get(
-            interaction.guild.channels, name="Lobbies")
+        lobby_category_channel = utils.get(interaction.guild.channels, name="Lobbies")
 
         if not lobby_category_channel:
             print("Lobby Category Channel does not exist, creating one...")
@@ -1088,8 +1079,7 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
             ephemeral=True,
         )
         # Send message to the user
-        interaction.client.dispatch(
-            "update_lobby_embed", lobby_id)  # type: ignore
+        interaction.client.dispatch("update_lobby_embed", lobby_id)  # type: ignore
 
     @app_commands.command(
         description="Lobby Owner: Remove user from the lobby", name="userkick"
@@ -1141,8 +1131,7 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
                 dispatching request to server!",
             ephemeral=True,
         )
-        interaction.client.dispatch(
-            "update_lobby_embed", lobby_id)  # type: ignore
+        interaction.client.dispatch("update_lobby_embed", lobby_id)  # type: ignore
 
     @app_commands.command(
         description="Lobby Owner: Toggle ready for a user in the lobby",
@@ -1189,12 +1178,10 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
             ephemeral=True,
         )
 
-        interaction.client.dispatch(
-            "update_lobby_embed", lobby_id)  # type: ignore
+        interaction.client.dispatch("update_lobby_embed", lobby_id)  # type: ignore
 
 
 async def setup(bot: commands.Bot):
-
     # Create all tables if they don't exist
     await DatabaseManager.create_tables(
         engine=engine,
@@ -1204,8 +1191,8 @@ async def setup(bot: commands.Bot):
             MemberLobbyModel,
             MemberModel,
             QueueMemberLobbyModel,
-            GameModel
-        ]
+            GameModel,
+        ],
     )
 
     lobby_embed_manager = LobbyEmbedManager()

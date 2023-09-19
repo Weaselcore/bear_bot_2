@@ -13,7 +13,6 @@ from repository.table.poll_table import (PollAnswerModel, PollGuildModel,
                                          PollMemberAnswerModel, PollModel,
                                          VoteType)
 
-
 # Construct database url from environment variables
 engine = DatabaseManager.create_engine(
     username=os.environ["P_PG_USER"],
@@ -648,7 +647,6 @@ class PollCog(commands.GroupCog, group_name="poll"):
 
 
 async def setup(bot: commands.Bot):
-
     # Create all tables if they don't exist
     await DatabaseManager.create_tables(
         engine=engine,
@@ -657,7 +655,7 @@ async def setup(bot: commands.Bot):
             PollGuildModel,
             PollMemberAnswerModel,
             PollModel,
-        ]
+        ],
     )
 
     poll_repository = PollRepository(async_session)

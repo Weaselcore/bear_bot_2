@@ -6,8 +6,8 @@ from dateutil.relativedelta import relativedelta
 from discord import Interaction, app_commands
 from discord.ext import commands
 
-from manager.reminder_service import ReminderManager
 from cog.classes.utils import set_logger
+from manager.reminder_service import ReminderManager
 from repository.db_config import DatabaseManager
 from repository.reminder_repo import ReminderRepository
 from repository.table.reminder_table import ReminderGuildModel, ReminderModel
@@ -111,7 +111,7 @@ async def setup(bot: commands.Bot) -> None:
         tables=[
             ReminderModel,
             ReminderGuildModel,
-        ]
+        ],
     )
 
     # Create dependencies
