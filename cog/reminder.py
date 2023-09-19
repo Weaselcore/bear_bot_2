@@ -1,66 +1,33 @@
-import logging
 import os
 from datetime import datetime
-from pathlib import Path
 
 import human_readable
 from dateutil.relativedelta import relativedelta
 from discord import Interaction, app_commands
 from discord.ext import commands
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from manager.reminder_service import ReminderManager
-from repository.db_config import Base
+from cog.classes.utils import set_logger
+from repository.db_config import DatabaseManager
 from repository.reminder_repo import ReminderRepository
 from repository.table.reminder_table import ReminderGuildModel, ReminderModel
 
-
 # Construct database url from environment variables
-DATABASE_URL = "postgresql+asyncpg://{}:{}@{}:{}/{}".format(
-    os.environ["R_PG_USER"],
-    os.environ["R_PG_PASSWORD"],
-    os.environ["R_PG_HOST"],
-    os.environ["R_PG_PORT"],
-    os.environ["R_PG_DATABASE"],
+engine = DatabaseManager.create_engine(
+    username=os.environ["R_PG_USER"],
+    password=os.environ["R_PG_PASSWORD"],
+    host=os.environ["R_PG_HOST"],
+    port=os.environ["R_PG_PORT"],
+    database_name=os.environ["R_PG_DATABASE"],
 )
-
-# Create database engine
-engine = create_async_engine(
-    DATABASE_URL,
-    pool_size=3,
-    future=True,
-    echo=False,
-)
-
 
 # This is the database session factory, invoking this variable creates a new session
-async_session = async_sessionmaker(
-    engine,
-    expire_on_commit=False,
-)
-
-
-def set_logger(logger: logging.Logger) -> None:
-    logger.setLevel(logging.INFO)
-
-    log_dir = Path("logs")
-
-    handler = logging.handlers.RotatingFileHandler(
-        filename=log_dir / "reminder.log",
-        encoding="utf-8",
-        maxBytes=32 * 1024 * 1024,  # 32 MiB
-        backupCount=5,  # Rotate through 5 files
-    )
-    dt_fmt = "%Y-%m-%d %H:%M:%S"
-    formatter = logging.Formatter(
-        "[{asctime}] [{levelname:<8}] {name}: {message}", dt_fmt, style="{"
-    )
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
+async_session = DatabaseManager.create_async_session_maker(engine=engine)
 
 
 class ReminderCog(commands.GroupCog, group_name="reminder"):
     def __init__(self, bot: commands.Bot, reminder_manager: ReminderManager) -> None:
+        self.logger = set_logger(logger_name="reminder")
         self.bot = bot
         self.reminder_manager = reminder_manager
         print("ReminderCog loaded")
@@ -139,14 +106,14 @@ class ReminderCog(commands.GroupCog, group_name="reminder"):
 
 async def setup(bot: commands.Bot) -> None:
     # Create tables
-    async with engine.begin() as conn:
-        await conn.run_sync(
-            Base.metadata.create_all,
-            tables=[
-                ReminderModel.__table__,
-                ReminderGuildModel.__table__,
-            ],
-        )
+    await DatabaseManager.create_tables(
+        engine=engine,
+        tables=[
+            ReminderModel,
+            ReminderGuildModel,
+        ]
+    )
+
     # Create dependencies
     reminder_repository = ReminderRepository(async_session)
     reminder_manager = ReminderManager(bot=bot, repository=reminder_repository)
