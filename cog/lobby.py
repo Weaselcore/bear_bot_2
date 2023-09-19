@@ -9,14 +9,13 @@ from discord import (ButtonStyle, CategoryChannel, Client, Color, Embed,
                      SelectOption, TextStyle, app_commands, threads, utils)
 from discord.ext import commands, tasks
 from discord.ui import Button, Modal, Select, TextInput, View, button
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from embeds.game_embed import GameEmbedManager
 from embeds.lobby_embed import LobbyEmbedManager
 from exceptions.lobby_exceptions import LobbyNotFound, MemberNotFound
 from manager.game_service import GameManager
 from manager.lobby_service import LobbyManager
-from repository.db_config import Base
+from repository.db_config import DatabaseManager
 from repository.game_repo import GamePostgresRepository
 from repository.lobby_repo import LobbyPostgresRepository
 from repository.table.game_lobby_tables import (GameModel, GuildModel,
@@ -24,30 +23,17 @@ from repository.table.game_lobby_tables import (GameModel, GuildModel,
                                                 MemberModel,
                                                 QueueMemberLobbyModel)
 
-
 # Construct database url from environment variables
-DATABASE_URL = "postgresql+asyncpg://{}:{}@{}:{}/{}".format(
-    os.environ["PG_USER"],
-    os.environ["PG_PASSWORD"],
-    os.environ["PG_HOST"],
-    os.environ["PG_PORT"],
-    os.environ["PG_DATABASE"],
+engine = DatabaseManager.create_engine(
+    username=os.environ["PG_USER"],
+    password=os.environ["PG_PASSWORD"],
+    host=os.environ["PG_HOST"],
+    port=os.environ["PG_PORT"],
+    database_name=os.environ["PG_DATABASE"],
 )
-
-# Create database engine
-engine = create_async_engine(
-    DATABASE_URL,
-    pool_size=3,
-    future=True,
-    echo=False,
-)
-
 
 # This is the database session factory, invoking this variable creates a new session
-async_session = async_sessionmaker(
-    engine,
-    expire_on_commit=False,
-)
+async_session = DatabaseManager.create_async_session_maker(engine=engine)
 
 # Predicate for commands
 
@@ -992,7 +978,8 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
         """Removes a game from the lobby module"""
         # Check if the game exists
         try:
-            game_model = await self.game_manager.get_game(int(game))  # type: ignore
+            # type: ignore
+            game_model = await self.game_manager.get_game(int(game))
         except (ValueError, TypeError):
             # Send message to the user
             await interaction.response.send_message(
@@ -1000,7 +987,8 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
             )
             return
 
-        deleted = await self.game_manager.remove_game(int(game))  # type: ignore
+        # type: ignore
+        deleted = await self.game_manager.remove_game(int(game))
         if deleted:
             # Send message to the user
             await interaction.response.send_message(
@@ -1195,18 +1183,17 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
 
 async def setup(bot: commands.Bot):
     # Create all tables if they don't exist
-    async with engine.begin() as conn:
-        await conn.run_sync(
-            Base.metadata.create_all,
-            tables=[
-                GuildModel.__table__,
-                LobbyModel.__table__,
-                MemberLobbyModel.__table__,
-                MemberModel.__table__,
-                QueueMemberLobbyModel.__table__,
-                GameModel.__table__,
-            ],
-        )
+    await DatabaseManager.create_tables(
+        engine=engine,
+        tables=[
+            GuildModel,
+            LobbyModel,
+            MemberLobbyModel,
+            MemberModel,
+            QueueMemberLobbyModel,
+            GameModel,
+        ],
+    )
 
     lobby_embed_manager = LobbyEmbedManager()
 

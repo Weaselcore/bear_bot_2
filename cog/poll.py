@@ -5,39 +5,25 @@ from discord import (ButtonStyle, Color, Embed, Guild, Interaction, Member,
                      TextChannel, app_commands, utils)
 from discord.ext import commands, tasks
 from discord.ui import Button, Modal, TextInput, View
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from manager.poll_service import PollManager
-from repository.db_config import Base
+from repository.db_config import DatabaseManager
 from repository.poll_repo import PollRepository
 from repository.table.poll_table import (PollAnswerModel, PollGuildModel,
                                          PollMemberAnswerModel, PollModel,
                                          VoteType)
 
-
 # Construct database url from environment variables
-DATABASE_URL = "postgresql+asyncpg://{}:{}@{}:{}/{}".format(
-    os.environ["P_PG_USER"],
-    os.environ["P_PG_PASSWORD"],
-    os.environ["P_PG_HOST"],
-    os.environ["P_PG_PORT"],
-    os.environ["P_PG_DATABASE"],
+engine = DatabaseManager.create_engine(
+    username=os.environ["P_PG_USER"],
+    password=os.environ["P_PG_PASSWORD"],
+    host=os.environ["P_PG_HOST"],
+    port=os.environ["P_PG_PORT"],
+    database_name=os.environ["P_PG_DATABASE"],
 )
-
-# Create database engine
-engine = create_async_engine(
-    DATABASE_URL,
-    pool_size=3,
-    future=True,
-    echo=False,
-)
-
 
 # This is the database session factory, invoking this variable creates a new session
-async_session = async_sessionmaker(
-    engine,
-    expire_on_commit=False,
-)
+async_session = DatabaseManager.create_async_session_maker(engine=engine)
 
 
 class PollTransformError(app_commands.AppCommandError):
@@ -661,16 +647,17 @@ class PollCog(commands.GroupCog, group_name="poll"):
 
 
 async def setup(bot: commands.Bot):
-    async with engine.begin() as conn:
-        await conn.run_sync(
-            Base.metadata.create_all,
-            tables=[
-                PollAnswerModel.__table__,
-                PollGuildModel.__table__,
-                PollMemberAnswerModel.__table__,
-                PollModel.__table__,
-            ],
-        )
+    # Create all tables if they don't exist
+    await DatabaseManager.create_tables(
+        engine=engine,
+        tables=[
+            PollAnswerModel,
+            PollGuildModel,
+            PollMemberAnswerModel,
+            PollModel,
+        ],
+    )
+
     poll_repository = PollRepository(async_session)
     poll_manager = PollManager(bot, poll_repository)
 

@@ -1,39 +1,16 @@
 import asyncio
-import logging
-from pathlib import Path
 
 from discord import utils
 from discord.ext import commands
 
 from cog.classes.scheduler_task import SchedulerTask
-
-# TODO: Make this a util function that will take the file name from cog.
-
-
-def set_logger(logger: logging.Logger) -> None:
-    logger.setLevel(logging.INFO)
-
-    log_dir = Path("logs")
-
-    handler = logging.handlers.RotatingFileHandler(
-        filename=log_dir / "scheduler.log",
-        encoding="utf-8",
-        maxBytes=32 * 1024 * 1024,  # 32 MiB
-        backupCount=5,  # Rotate through 5 files
-    )
-    dt_fmt = "%Y-%m-%d %H:%M:%S"
-    formatter = logging.Formatter(
-        "[{asctime}] [{levelname:<8}] {name}: {message}", dt_fmt, style="{"
-    )
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
+from cog.classes.utils import set_logger
 
 
 class SchedulerCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
-        self.logger = logging.getLogger("scheduler")
-        set_logger(self.logger)
+        self.logger = set_logger(logger_name="scheduler")
         self.current_schedule: SchedulerTask | None = None
         self.schedules: list[SchedulerTask] = []
         # A "boolean" that can set/get if there is a schedule, waited if there is none.
