@@ -25,18 +25,18 @@ Allows members on the server to create lobbies as channels to rally others for a
 
   ### Commands
   - Initialise lobby with:
-    - ```/lobby [game] [size]```
+    - ```/lobby create [game] [size] (description)```
   - The information used by the lobby command is validated using the game info added to the game table, games can be added by members using the command below.
-    - ```/gameadd [game_name] @[role] [max_size] (game_url)``` - Adds game info for the lobby
+    - ```/lobby gameadd [game_name] @[role] [max_size] (game_url)``` - Adds game info for the lobby
   - Game entries can be removed by:
-    - ```/gameremove [game]```
+    - ```/lobby gameremove [game]```
   - To list all games on the server:
-    - ```/listgames```
+    - ```/lobby listgames```
 
   - Comes with lobby owner commands:
-    - ```/userjoin @[member]``` - Adds member in the server to the lobby
-    - ```/userkick @[member]``` - Removes member from the lobby
-    - ```/userready @[member]``` - Toggles member ready state
+    - ```/lobby userjoin @[member]``` - Adds member in the server to the lobby
+    - ```/lobby userkick @[member]``` - Removes member from the lobby
+    - ```/lobby userready @[member]``` - Toggles member ready state
 
     ---
     
@@ -55,11 +55,19 @@ Allows members on the server to create soundbites which can be played in a voice
 
 ### Commands
   - Comes with commands to add soundbites.
-    - ```/upload [file]``` - Uploads a sound for the soundboard, limited by server upload limit.
-    - ```/streamable [streamable_url]``` - Downloads a streamable video and strips the audio based on the timestamp given.
+    - ```/soundboard upload [file]``` - Uploads a sound for the soundboard, limited by server upload limit.
+    - ```/soundboard streamable [streamable_url]``` - Downloads a streamable video and strips the audio based on the timestamp given.
+
+  - Command to delete soundbite.
+    - ```/soundboard delete [name]``` - Delete soundbite based on autocompleted name.
 
   - Soundboard persists on bot restart but if something wrong occurs, it can be reinitialised using:
-    - ```/createsoundboardchannel```
+    - ```/soundboard createsoundboardchannel```
+
+  - You can invoke audio player states with these commands:
+    - ```/soundboard play [name]```
+    and
+    - ```/soundboard stop```
 
     ---
 
