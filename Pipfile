@@ -19,6 +19,7 @@ asyncache = "*"
 tzdata = "*"
 human-readable = "*"
 python-dateutil = "*"
+pytz = "*"
 
 [dev-packages]
 autopep8 = "*"
