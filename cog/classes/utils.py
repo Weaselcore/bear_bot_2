@@ -1,4 +1,5 @@
 import logging
+from logging import handlers
 from pathlib import Path
 
 
@@ -7,7 +8,7 @@ def set_logger(logger_name: str) -> logging.Logger:
     logger.setLevel(level=logging.INFO)
 
     log_dir = Path("logs")
-    handler = logging.handlers.RotatingFileHandler(
+    handler = handlers.RotatingFileHandler(
         filename=log_dir / f"{logger_name}.log",
         encoding="utf-8",
         maxBytes=32 * 1024 * 1024,  # 32 MiB
