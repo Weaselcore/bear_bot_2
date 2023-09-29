@@ -19,6 +19,11 @@ class SoundBoardCog(commands.GroupCog, name="soundboard"):
         self.ffmpeg_path = Path("ffmpeg.exe")
 
         # Creates partially persistent view when cog is loaded
+        self.bot.add_view(
+            view=ControlPanelView(bot=self.bot)
+        )
+
+        # Creates partially persistent view when cog is loaded
         for view in self.create_soundboard_view():
             # Will only add view if it already exist
             # TODO: Use db to store differences to determine if view needs to be updated
@@ -117,9 +122,8 @@ class SoundBoardCog(commands.GroupCog, name="soundboard"):
         if not interaction.guild:
             raise ValueError("Interaction does not have a guild.")
 
-        voice_client = interaction.guild.voice_client
-
-        assert isinstance(voice_client, VoiceClient)
+        if interaction.guild.voice_client is None:
+            return
 
         if voice_client.is_playing():  # type: ignore
             voice_client.stop()  # type: ignore
