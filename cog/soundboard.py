@@ -154,9 +154,10 @@ class SoundBoardCog(commands.GroupCog, name="soundboard"):
         description="Server boost: T1 - 25mb, T2 - 50mb, T3 - 100mb", name="upload"
     )
     async def upload(self, interaction: Interaction, file: discord.Attachment):
-
         if isinstance(interaction.channel, discord.DMChannel):
-            await interaction.response.send_message("Sorry, please use this command on a server.")
+            await interaction.response.send_message(
+                "Sorry, please use this command on a server."
+            )
             return
 
         await interaction.response.send_modal(
