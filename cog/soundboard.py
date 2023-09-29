@@ -2,10 +2,12 @@ from pathlib import Path
 
 import aiohttp
 import discord
-from discord import (CategoryChannel, Interaction, Member, VoiceClient,
+from discord import (CategoryChannel, FFmpegPCMAudio, Interaction, Member,
+                     PCMVolumeTransformer, VoiceChannel, VoiceClient,
                      VoiceState, app_commands)
 from discord.ext import commands
 
+from cog.classes.soundboard.control_panel import ControlPanelView
 from view.soundboard.sound_board import SoundBoardView, SoundButton
 from view.soundboard.streamable_submission import StreamableSubmission
 from view.soundboard.upload_submission import UploadSubmission
@@ -16,6 +18,9 @@ class SoundBoardCog(commands.GroupCog, name="soundboard"):
         self.bot: commands.Bot = bot
         self.soundboard_channel: discord.TextChannel | None = None
         self.ffmpeg_path = Path("ffmpeg.exe")
+
+        # Creates partially persistent view when cog is loaded
+        self.bot.add_view(view=ControlPanelView(bot=self.bot))
 
         # Creates partially persistent view when cog is loaded
         for view in self.create_soundboard_view():
@@ -54,36 +59,73 @@ class SoundBoardCog(commands.GroupCog, name="soundboard"):
 
         voice_client = interaction.guild.voice_client
 
+        assert isinstance(interaction.user, Member)
+        assert isinstance(interaction.user.voice, VoiceState)
+        assert isinstance(interaction.user.voice.channel, VoiceChannel)
+
         # Check if bot is connected to a voice channel
         if not voice_client:
-            voice_client = (
-                await interaction.user.voice.channel.connect()
-            )  # type: ignore
+            voice_client = await interaction.user.voice.channel.connect()
 
         # Check if bot is in the same voice channel as the user
         if self.bot.user not in interaction.channel.members:  # type: ignore
-            voice_client = (
-                await interaction.user.voice.channel.connect()
-            )  # type: ignore
+            voice_client = await interaction.user.voice.channel.connect()
 
         if not voice_client:
             return ValueError("Voice client could not be connected.")
 
-        if voice_client.is_playing():  # type: ignore
-            voice_client.stop()  # type: ignore
+        assert isinstance(voice_client, VoiceClient)
+
+        if voice_client.is_playing():
+            voice_client.stop()
 
         # Prepare audio source
         file_path = Path(f"data/sound_bites/{custom_id}.mp3")
-        source = discord.PCMVolumeTransformer(
-            discord.FFmpegPCMAudio(
+        source = PCMVolumeTransformer(
+            FFmpegPCMAudio(
                 source=file_path,  # type: ignore
             ),
             volume=0.55,
         )
 
+        assert interaction.channel is not None
+
         voice_client.play(  # type: ignore
             source=source,
         )
+
+    @commands.Cog.listener()
+    async def on_disconnect(self, interaction: Interaction):
+        """Custom listener for when bot is going to stop audio."""
+
+        if not interaction.guild:
+            raise ValueError("Interaction does not have a guild.")
+
+        voice_client = interaction.guild.voice_client
+
+        if not voice_client:
+            return
+
+        assert isinstance(voice_client, VoiceClient)
+
+        if voice_client.is_playing():
+            voice_client.stop()
+
+        await voice_client.disconnect(force=False)
+        voice_client.cleanup()
+
+    @commands.Cog.listener()
+    async def on_stop(self, interaction: Interaction):
+        """Custom listener for when bot is going to stop audio."""
+
+        if not interaction.guild:
+            raise ValueError("Interaction does not have a guild.")
+
+        if interaction.guild.voice_client is None:
+            return
+
+        if voice_client.is_playing():  # type: ignore
+            voice_client.stop()  # type: ignore
 
     def create_soundboard_view(self) -> list[SoundBoardView]:
         soundboard_view_list = []
@@ -135,7 +177,10 @@ class SoundBoardCog(commands.GroupCog, name="soundboard"):
             new_channel = await channel.clone()
             await channel.delete()
 
+        control_panel_view = ControlPanelView(self.bot)
         soundboard_view_list = self.create_soundboard_view()
+
+        await new_channel.send(view=control_panel_view)
 
         for view in soundboard_view_list:
             if isinstance(new_channel, discord.TextChannel):
