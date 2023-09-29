@@ -151,7 +151,7 @@ class SoundBoardCog(commands.GroupCog, name="soundboard"):
                 )
 
     @app_commands.command(
-        description="Server boost: T1 - 8mb, T2 - 50mb, T3 - 100mb", name="upload"
+        description="Server boost: T1 - 25mb, T2 - 50mb, T3 - 100mb", name="upload"
     )
     async def upload(self, interaction: Interaction, file: discord.Attachment):
         # TODO: check guild level for size limit.
