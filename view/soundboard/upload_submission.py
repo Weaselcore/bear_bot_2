@@ -13,7 +13,7 @@ class UploadSubmission(discord.ui.Modal, title="Soundboard Submission"):
         self.file = file
         self.bite_file_path = "data/sound_bites/"
         self.temp_file_path = "data/temp/"
-        self.name_input.default = self.file.filename
+        self.name_input.default = self.file.filename[:15]
 
     name_input: discord.ui.TextInput = discord.ui.TextInput(
         label="File Name:",
