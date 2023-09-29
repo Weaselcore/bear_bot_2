@@ -190,7 +190,7 @@ class SoundBoardCog(commands.GroupCog, name="soundboard"):
 
         # Confirmation message
         if interaction is not None:
-            if interaction.type.value == 2:
+            if interaction.type.value == 2 and not interaction.response.is_done():
                 await interaction.response.send_message(
                     content="Soundboard updated.", ephemeral=True
                 )
