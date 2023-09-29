@@ -1,6 +1,6 @@
-from discord.ui import Button, View
-from discord.ext.commands import Bot
 from discord import ButtonStyle, Interaction
+from discord.ext.commands import Bot
+from discord.ui import Button, View
 
 """
 Persistent View requirements:
@@ -10,7 +10,6 @@ Persistent View requirements:
 
 
 class StopButton(Button):
-
     def __init__(self, bot: Bot, view: "ControlPanelView"):
         super().__init__(
             style=ButtonStyle.red,
@@ -26,7 +25,6 @@ class StopButton(Button):
 
 
 class DisconnectButton(Button):
-
     def __init__(self, bot: Bot, view: "ControlPanelView"):
         super().__init__(
             style=ButtonStyle.red,
@@ -42,7 +40,6 @@ class DisconnectButton(Button):
 
 
 class ControlPanelView(View):
-
     def __init__(self, bot: Bot):
         super().__init__(timeout=None)
         self.bot = bot

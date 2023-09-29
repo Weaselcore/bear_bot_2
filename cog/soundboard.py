@@ -2,11 +2,12 @@ from pathlib import Path
 
 import aiohttp
 import discord
-from discord import (CategoryChannel, FFmpegPCMAudio, Interaction, Member, PCMVolumeTransformer, VoiceChannel, VoiceClient,
+from discord import (CategoryChannel, FFmpegPCMAudio, Interaction, Member,
+                     PCMVolumeTransformer, VoiceChannel, VoiceClient,
                      VoiceState, app_commands)
 from discord.ext import commands
-from cog.classes.soundboard.control_panel import ControlPanelView
 
+from cog.classes.soundboard.control_panel import ControlPanelView
 from view.soundboard.sound_board import SoundBoardView, SoundButton
 from view.soundboard.streamable_submission import StreamableSubmission
 from view.soundboard.upload_submission import UploadSubmission
@@ -19,9 +20,7 @@ class SoundBoardCog(commands.GroupCog, name="soundboard"):
         self.ffmpeg_path = Path("ffmpeg.exe")
 
         # Creates partially persistent view when cog is loaded
-        self.bot.add_view(
-            view=ControlPanelView(bot=self.bot)
-        )
+        self.bot.add_view(view=ControlPanelView(bot=self.bot))
 
         # Creates partially persistent view when cog is loaded
         for view in self.create_soundboard_view():
@@ -57,7 +56,7 @@ class SoundBoardCog(commands.GroupCog, name="soundboard"):
         # Fetch voice client
         if not interaction.guild:
             raise ValueError("Interaction does not have a guild.")
-        
+
         voice_client = interaction.guild.voice_client
 
         assert isinstance(interaction.user, Member)
@@ -69,12 +68,12 @@ class SoundBoardCog(commands.GroupCog, name="soundboard"):
             voice_client = await interaction.user.voice.channel.connect()
 
         # Check if bot is in the same voice channel as the user
-        if self.bot.user not in interaction.channel.members: # type: ignore
+        if self.bot.user not in interaction.channel.members:  # type: ignore
             voice_client = await interaction.user.voice.channel.connect()
 
         if not voice_client:
             return ValueError("Voice client could not be connected.")
-        
+
         assert isinstance(voice_client, VoiceClient)
 
         if voice_client.is_playing():
@@ -86,7 +85,7 @@ class SoundBoardCog(commands.GroupCog, name="soundboard"):
             FFmpegPCMAudio(
                 source=file_path,  # type: ignore
             ),
-            volume=0.55
+            volume=0.55,
         )
 
         assert interaction.channel is not None
@@ -111,7 +110,7 @@ class SoundBoardCog(commands.GroupCog, name="soundboard"):
 
         if voice_client.is_playing():
             voice_client.stop()
-        
+
         await voice_client.disconnect(force=False)
         voice_client.cleanup()
 
