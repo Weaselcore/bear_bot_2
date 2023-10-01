@@ -29,6 +29,9 @@ class SchedulerCog(commands.Cog):
                 f"New task waiting to execute at {self.current_schedule.expires_at.strftime('%d/%m/%Y-%H:%M:%S')}"
             )
             await utils.sleep_until(self.current_schedule.expires_at)
+            if self.current_schedule is not None and self.current_schedule not in self.schedules:
+                self.logger.info(f"Task {self.current_schedule.id} has been deleted, finding next task.")
+                continue
             if asyncio.iscoroutinefunction(self.current_schedule.task):
                 await self.current_schedule.task()
                 self.logger.info("Asynchronous task has been executed")
@@ -82,7 +85,7 @@ class SchedulerCog(commands.Cog):
                 self.logger.info(f"Item with ID: {item.id} attempted to be removed.")
         except ValueError:
             pass
-        else:
+        finally:
             if len(self.schedules) == 0:
                 # Blocks the function governed by the self.has_schedule event
                 self.logger.info("Scheduler is now clearing event. Will now be paused.")
