@@ -3,7 +3,7 @@ import os
 import urllib.parse
 
 import aiohttp
-from discord import (FFmpegPCMAudio, Interaction, Member, PCMVolumeTransformer,
+from discord import (DMChannel, FFmpegPCMAudio, Interaction, Member, PCMVolumeTransformer,
                      VoiceChannel, VoiceClient, VoiceState, app_commands)
 from discord.ext import commands
 
@@ -65,6 +65,12 @@ class PiperCog(commands.GroupCog, name="piper"):
                 ephemeral=True,
             )
             return
+        
+        if isinstance(interaction.channel, DMChannel):
+            await interaction.response.send_message(
+                content="Sorry, you need to use this feature in a server.",
+            )
+            return            
 
         if interaction.user.voice is None:
             await interaction.response.send_message(
