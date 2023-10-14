@@ -65,7 +65,7 @@ class PiperCog(commands.GroupCog, name="piper"):
                 ephemeral=True,
             )
             return
-        
+
         if interaction.user.voice is None:
             await interaction.response.send_message(
                 content="Sorry, you need to be in a voice channel to use this feature.",
