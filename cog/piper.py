@@ -3,8 +3,9 @@ import os
 import urllib.parse
 
 import aiohttp
-from discord import (FFmpegPCMAudio, Interaction, Member, PCMVolumeTransformer,
-                     VoiceChannel, VoiceClient, VoiceState, app_commands)
+from discord import (DMChannel, FFmpegPCMAudio, Interaction, Member,
+                     PCMVolumeTransformer, VoiceChannel, VoiceClient,
+                     VoiceState, app_commands)
 from discord.ext import commands
 
 
@@ -62,6 +63,19 @@ class PiperCog(commands.GroupCog, name="piper"):
         if soundboard_cog is None:
             await interaction.response.send_message(
                 content="Sorry, the audio player functionality has been disabled.",
+                ephemeral=True,
+            )
+            return
+
+        if isinstance(interaction.channel, DMChannel):
+            await interaction.response.send_message(
+                content="Sorry, you need to use this feature in a server.",
+            )
+            return
+
+        if interaction.user.voice is None:
+            await interaction.response.send_message(
+                content="Sorry, you need to be in a voice channel to use this feature.",
                 ephemeral=True,
             )
             return
