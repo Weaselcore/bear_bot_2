@@ -1,12 +1,13 @@
-from typing import Any
-
-
 class LobbyNotFound(Exception):
-    def __init__(self, lobby_id: Any):
-        self.message = f"Lobby with {lobby_id} not found"
+    def __init__(self, lobby_id: int):
+        self.message = f"Lobby with {lobby_id} not found."
 
     def __str__(self) -> str:
         return self.message
+    
+
+class LobbyNotFoundByOwnerId(Exception):
+    pass
 
 
 class MemberNotFound(Exception):
@@ -39,3 +40,11 @@ class LobbyCreationError(Exception):
 
     def __str__(self) -> str:
         return self.message
+    
+
+class DeletedLobby(Exception):
+    """Exception raised for empty JSON response."""
+    pass
+
+class DeletedGame(Exception):
+    pass

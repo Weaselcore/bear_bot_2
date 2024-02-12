@@ -1,2 +1,0 @@
-class GameEmbedManager:
-    pass

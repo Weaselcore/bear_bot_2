@@ -2,32 +2,47 @@ from datetime import datetime
 from pydantic import BaseModel
 
 
-class Member(BaseModel):
+class MemberModel(BaseModel):
     id: int
-    join_date: datetime
+    join_date: datetime = datetime.utcnow()
 
 
-class Guild(BaseModel):
+class GuildModel(BaseModel):
     id: int
     name: str
 
 
-class Game(BaseModel):
-    id: int
-    icon_url: str
+class GameModel(BaseModel):
+    id: int | None
+    name: str
     max_size: int
     role: int
     guild_id: int
+    icon_url: str | None
 
 
-class Lobby(BaseModel):
+class MemberLobbyModel(BaseModel):
+    lobby_id: int
+    member_id: int
+    has_joined_vc: bool
+    join_datetime: datetime
+    ready: bool
+
+
+class QueueMemberLobbyModel(BaseModel):
+    lobby_id: int
+    member_id: int
+    join_datetime: datetime
+
+
+class LobbyModel(BaseModel):
     id: int
-    description: str
-    control_panel_message_id: int
-    created_timezone: datetime
+    description: str | None
+    created_datetime: datetime
     embed_message_id: int
     game_id: int
     game_size: int
+    guild_id: int
     history_thread_id: int
     is_locked: bool
     last_promotion_datetime: datetime
@@ -36,18 +51,22 @@ class Lobby(BaseModel):
     original_channel_id: int
     owner_id: int
     queue_message_id: int
-    member: list[Member]
+    member_lobbies: list[MemberLobbyModel]
+    queue_member_lobbies: list[QueueMemberLobbyModel]
 
 
-class MemberLobby:
-    lobby_id: int
-    member_id: int
-    has_joined_vc: bool
-    join_datetime: datetime
-    ready: bool
+class InsertLobbyModel(BaseModel):
+    original_channel_id: int
+    guild_id: int
+    owner_id: int
+    game_id: int
+    game_size: int
+    description: str | None
 
 
-class QueueMemberLobby:
-    lobby_id: int
-    member_id: int
-    join_datetime: datetime
+class InsertGameModel(BaseModel):
+    name: str
+    max_size: int
+    role: int
+    guild_id: int
+    icon_url: str | None

@@ -1,4 +1,3 @@
-from collections.abc import Sequence
 from datetime import datetime
 from enum import Enum
 
@@ -67,7 +66,7 @@ class LobbyEmbed(Embed):
         is_locked: bool,
         is_full: bool,
         members: list[Member],
-        member_ready: Sequence[int],
+        member_ready: list[int],
         game_size: int,
     ):
         # Setup slots and owner field
@@ -234,7 +233,7 @@ class LobbyEmbedManager:
         is_locked: bool,
         is_full: bool,
         members: list[Member],
-        member_ready: Sequence[int],
+        member_ready: list[int],
         game_size: int,
         message: Message | PartialMessage | None,
     ) -> None:
