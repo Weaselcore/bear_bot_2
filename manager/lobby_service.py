@@ -67,7 +67,6 @@ class LobbyManager:
         history_thread = await guild.fetch_channel(thread_id)
         if not history_thread:
             raise ValueError("History thread not found")
-        return history_thread  # type: ignore
 
     async def get_channel(self, guild_id: int, channel_id: int) -> discord.TextChannel:
         guild = await self._get_guild(guild_id)
@@ -117,6 +116,7 @@ class LobbyManager:
         self,
         original_channel_id: int,
         guild_id: int,
+        guild_name: str,
         owner_id: int,
         game_id: int,
         max_size: int,
@@ -126,6 +126,7 @@ class LobbyManager:
             InsertLobbyModel(
                 original_channel_id=original_channel_id,
                 guild_id=guild_id,
+                guild_name=guild_name,
                 owner_id=owner_id,
                 game_id=game_id,
                 game_size=max_size,
@@ -154,20 +155,21 @@ class LobbyManager:
     """Update functions"""
 
     async def _update_model_instance(
-        self, instance: Union[LobbyModel, MemberModel, GameModel], model_cls: Type[BaseModel]
-    ) -> None:
+        self, instance: Union[LobbyModel, MemberModel, GameModel], model_cls: Type[BaseModel], lobby_id = None
+    ) -> Union[LobbyModel, MemberModel, GameModel]:
         # Post the updated model instance to the appropriate function based on model type
-        if isinstance(model_cls, LobbyModel):
-            await self._api_manager.post_lobby(instance)
-        elif isinstance(model_cls, MemberModel):
-            await self._api_manager.post_member(instance)
-        elif isinstance(model_cls, GameModel):
-            await self._api_manager.post_game(instance)
+        if model_cls is LobbyModel:
+            return await self._api_manager.put_lobby(instance)
+        elif model_cls is MemberModel:
+            return await self._api_manager.put_member(lobby_id, instance)
+        elif model_cls is GameModel:
+            return await self._api_manager.put_game(instance)
         else:
             self.logger.warning(f"No specific handler found for {model_cls.__name__}.")
+            raise NotImplementedError
 
-    async def update_lobby(self, lobby: LobbyModel):
-        await self._update_model_instance(lobby, LobbyModel)
+    async def update_lobby(self, lobby: LobbyModel) -> LobbyModel:
+        return await self._update_model_instance(lobby, LobbyModel)
 
     async def update_game_id(self, lobby_id: int, game_id: int) -> int:
         lobby = await self._api_manager.get_lobby(lobby_id)
@@ -212,6 +214,12 @@ class LobbyManager:
         is_member = any(member.member_id == member_id for member in lobby.member_lobbies)
         
         if is_member:
+            await self.embed_manager.send_update_embed(
+                update_type=self.embed_manager.UPDATE_TYPES.OWNER_CHANGE,
+                title=f"{(await self.get_member(lobby.guild_id, lobby.owner_id)).display_name}",
+                destination=await self.get_thread(lobby.guild_id, lobby.history_thread_id),
+                additional_string=f"<@{member_id}>"
+            )
             lobby.owner_id = member_id
             await self.update_lobby(lobby)
 
@@ -222,10 +230,9 @@ class LobbyManager:
     def print_lobby(self, lobby_id: int) -> None:
         print(self.get_lobby(lobby_id))
 
-    async def get_members(self, lobby_id: int) -> list[discord.Member]:
-        lobby = await self._api_manager.get_lobby(lobby_id)
+    async def get_members(self, lobby: LobbyModel) -> list[discord.Member]:
         list_of_members = [
-            await self.get_member(lobby_id, member.member_id) for member in lobby.member_lobbies
+            await self.get_member(lobby.guild_id, member.member_id) for member in lobby.member_lobbies
         ]
         final_list = list(filter(None, list_of_members))
         return final_list
@@ -242,7 +249,7 @@ class LobbyManager:
         self, lobby_id: int, member_id: int, owner_added: bool = False
     ) -> None:
         lobby = await self.get_lobby(lobby_id)
-        member_model = await self._api_manager.post_member(MemberModel(id=member_id))
+        member_model = await self._api_manager.post_member(lobby.id, MemberModel(id=member_id))
         member = await self.get_member(lobby.guild_id, member_model.id)
         thread = await self.get_thread(lobby.guild_id, lobby_id)
         if not owner_added:
@@ -286,16 +293,16 @@ class LobbyManager:
     async def set_member_state(
         self, lobby_id: int, member_id: int, owner_set: bool = False
     ) -> bool:
-        updated_state = await self._api_manager.toggle_member_ready(
+        updated_state = (await self._api_manager.toggle_member_ready(
             member_id, lobby_id
-        )
+        )).ready
 
         lobby = await self.get_lobby(lobby_id)
         thread = await self.get_thread(lobby.guild_id, lobby.history_thread_id)
         member = await self.get_member(lobby.guild_id, member_id)
         if not owner_set and updated_state:
-            member = await self.get_member(lobby_id, member_id)
-            pings = await self.get_unready_mentions(lobby_id)
+            member = await self.get_member(lobby.guild_id, member_id)
+            pings = await self.get_unready_mentions(lobby)
             pings += await self.get_owner_mention(lobby_id)
             await self.embed_manager.send_update_embed(
                 update_type=self.embed_manager.UPDATE_TYPES.READY,
@@ -310,9 +317,9 @@ class LobbyManager:
                 title=owner.display_name,
                 additional_string=member.display_name,
                 destination=thread,
-                pings=await self.get_unready_mentions(lobby_id),
+                pings=await self.get_unready_mentions(lobby),
             )
-        return updated_state.ready
+        return updated_state
 
     async def set_is_lobby_locked(self, lobby_id: int) -> bool:
         """Toggle the lock state of the lobby"""
@@ -330,7 +337,7 @@ class LobbyManager:
                 update_type=self.embed_manager.UPDATE_TYPES.LOCK,
                 title=owner.display_name,
                 destination=thread,
-                pings=await self.get_all_mentions(lobby_id),
+                pings=await self.get_all_mentions(lobby),
             )
         elif not updated_is_locked:
             await self.embed_manager.send_update_embed(
@@ -417,30 +424,28 @@ class LobbyManager:
             "%H:%M:%S", gmtime(duration.total_seconds())
         )
 
-    async def can_promote(self, lobby_id: int) -> bool:
+    async def can_promote(self, lobby: LobbyModel) -> bool:
         """Check if last promotion message is older than 10 minutes"""
-        lobby = await self._api_manager.get_lobby(lobby_id)
         last_promotion_datetime = lobby.last_promotion_datetime
         if not last_promotion_datetime:
-                return True
+            return True
 
         if last_promotion_datetime is None or (
-            datetime.now() - last_promotion_datetime
+            datetime.utcnow() - last_promotion_datetime.utcnow()
         ) > timedelta(minutes=10):
             return True
         else:
             return False
 
-    # TODO: Make this an endpoint
     async def get_lobbies_count(self) -> int:
         """Get the number of lobbies"""
         return len(await self._api_manager.get_lobbies())
 
-    async def get_unready_mentions(self, lobby_id: int) -> str:
-        members_to_ping = await self.get_members_status(lobby_id, False)
+    async def get_unready_mentions(self, lobby: LobbyModel) -> str:
+        members_to_ping = await self.get_members_status(lobby.id, False)
         if len(members_to_ping) == 0:
             return ""
-        mention_list = [f"<@{member}>" for member in members_to_ping]
+        mention_list = [f"<@{member.member_id}>" for member in members_to_ping]
         return ", ".join(mention_list)
 
     async def get_ready_mentions(self, lobby_id: int) -> str:
@@ -448,8 +453,8 @@ class LobbyManager:
         mention_list = [f"<@{member}>" for member in members_to_ping]
         return ", ".join(mention_list)
 
-    async def get_all_mentions(self, lobby_id: int) -> str:
-        members_to_ping = await self.get_members(lobby_id)
+    async def get_all_mentions(self, lobby: LobbyModel) -> str:
+        members_to_ping = await self.get_members(lobby)
         mention_list = [f"<@{member.id}>" for member in members_to_ping]
         return ", ".join(mention_list)
 
@@ -475,7 +480,7 @@ class LobbyManager:
             lobby_manager=self
         )
         lobby = await self._api_manager.get_lobby(lobby_id)
-        lobby_channel = await self.get_channel(lobby.guild_id, lobby.original_channel_id)
+        lobby_channel = await self.get_channel(lobby.guild_id, lobby.lobby_channel_id)
         description = lobby.description
         lobby_embed_message_id = await self.embed_manager.create_lobby_embed(
             lobby_id=lobby_id,
@@ -483,7 +488,7 @@ class LobbyManager:
             description=description,
             is_locked=False,
             is_full=False,
-            members=await self.get_members(lobby_id),
+            members=await self.get_members(lobby),
             member_ready=[],
             game_size=lobby.game_size,
             channel=lobby_channel,

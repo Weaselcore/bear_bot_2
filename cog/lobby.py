@@ -1,12 +1,10 @@
 import asyncio
-from collections.abc import Sequence
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from discord import (
     ButtonStyle,
     CategoryChannel,
-    Client,
     Color,
     Embed,
     Interaction,
@@ -23,7 +21,7 @@ from discord import (
 from discord.ext import commands, tasks
 from discord.ui import Button, Modal, Select, TextInput, View, button
 from api.lobby_api import LobbyApi
-from api.models import GameModel, LobbyModel
+from api.models import LobbyModel
 from api.session_manager import ClientSessionManager
 
 from embeds.lobby_embed import LobbyEmbedManager
@@ -136,7 +134,8 @@ class NumberTransformer(app_commands.Transformer):
                             app_commands.Choice(name=str(i + 1), value=str(i + 1))
                         )
             return list_of_options
-        except ValueError:
+        except ValueError as e:
+            print(e)
             return []
 
 
@@ -209,11 +208,11 @@ class OwnerSelectView(View):
             self.lobby_manager = lobby_manager
 
         async def callback(self, interaction: Interaction):
+            await interaction.response.defer()
             lobby = await self.lobby_manager.get_lobby(self.lobby_id)
             lobby_owner = await self.lobby_manager.get_member(
                 lobby.guild_id, lobby.owner_id
             )
-            await interaction.response.defer()
             if interaction.user != lobby_owner:
                 return
 
@@ -281,7 +280,7 @@ class ButtonView(View):
         interaction.client.dispatch("update_lobby_embed", self.lobby_id)  # type: ignore
 
     @button(label="Leave", style=ButtonStyle.red, custom_id="leave_button")
-    async def leave(self, interaction: Interaction, button: Button):
+    async def leave(self, interaction: Interaction, _: Button):
         await interaction.response.defer()
         # Check if user is in lobby
         if not await self.lobby_manager.has_joined(self.lobby_id, interaction.user.id):
@@ -333,9 +332,9 @@ class ButtonView(View):
         await self.lobby_manager.update_lobby(lobby)
 
         # Send button label
-        if is_locked:
+        if lobby.is_locked:
             button.label = "Unlock"
-        elif not is_locked:
+        else:
             button.label = "Lock"
             # TODO: Make this an endpoint for the backend
             # await self.lobby_manager.move_queue_members(self.lobby_id)
@@ -361,7 +360,7 @@ class ButtonView(View):
             return
 
         options = []
-        list_of_users = await self.lobby_manager.get_members(self.lobby_id)
+        list_of_users = await self.lobby_manager.get_members(lobby)
         list_of_users.remove(lobby_owner)
 
         if len(list_of_users) == 0:
@@ -422,9 +421,9 @@ class ButtonView(View):
                 self.lobby_manager = lobby_manager
                 self.interaction = interaction
 
-            async def create(self):
+            async def create(self, lobby: LobbyModel) -> None:
                 channel = await self.lobby_manager.get_channel(
-                    lobby.guild_id, self.lobby_id
+                    lobby.guild_id, lobby.lobby_channel_id
                 )
                 self.description = f"Click on lobby <#{channel.id}> to join!"
 
@@ -450,40 +449,47 @@ class ButtonView(View):
         # If user is not lobby owner, defer interaction
         await interaction.response.defer()
         if interaction.user != await self.lobby_manager.get_member(
-            lobby.guild_id, self.lobby_id
+            lobby.guild_id, lobby.owner_id
         ):
             return
         # If last promotion was older than 10 minutes, defer interaction
-        if not await self.lobby_manager.can_promote(self.lobby_id):
+        if not await self.lobby_manager.can_promote(lobby):
             return
 
         is_full = await self.lobby_manager.is_full(self.lobby_id)
+        
+        if is_full:
+            return
+        
         game = await self.lobby_manager.get_game(lobby.game_id)
         # If the lobby is not full, promote
-        if not is_full:
-            original_channel = await self.lobby_manager.get_channel(
-                lobby.guild_id, lobby.original_channel_id
-            )
+        original_channel = await self.lobby_manager.get_channel(
+            lobby.guild_id, lobby.original_channel_id
+        )
+
+        if lobby.last_promotion_message_id:
             last_message = await self.lobby_manager.get_message(
                 lobby.guild_id,
                 lobby.original_channel_id,
                 lobby.last_promotion_message_id
             )
             # If there was an older promotion, delete it
-            if last_message:
-                await last_message.delete()
-            promotional_embed = PromotionEmbed(
-                game_name=game.name,
-                lobby_id=self.lobby_id,
-                lobby_manager=self.lobby_manager,
-                interaction=interaction,
-            )
-            await promotional_embed.create()
-            message = await original_channel.send(
-                content=f"<@&{game.role}>", embed=promotional_embed
-            )
-            lobby.last_promotion_message_id = message.id
-            await self.lobby_manager.update_lobby(lobby)
+            await last_message.delete()
+
+        promotional_embed = PromotionEmbed(
+            game_name=game.name,
+            lobby_id=self.lobby_id,
+            lobby_manager=self.lobby_manager,
+            interaction=interaction,
+        )
+        await promotional_embed.create(lobby)
+
+        message = await original_channel.send(
+            content= f"<@&{game.role}>" if game.role else None , embed=promotional_embed
+        )
+        lobby.last_promotion_message_id = message.id
+        lobby.last_promotion_datetime = datetime.now()
+        await self.lobby_manager.update_lobby(lobby)
 
 
 class LobbyCog(commands.GroupCog, group_name="lobby"):
@@ -598,7 +604,7 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
             description=lobby.description,
             is_locked=lobby.is_locked,
             is_full=await self.lobby_manager.is_full(lobby_id),
-            members=await self.lobby_manager.get_members(lobby_id),
+            members=await self.lobby_manager.get_members(lobby),
             member_ready=list_of_member_int,
             game_size=lobby.game_size,
             message=embed_message,
@@ -641,15 +647,12 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
             )
 
         # Check if user has created a lobby previously.
-        try:
-            await self.lobby_manager.get_lobby_by_owner_id(interaction.user.id)
+        lobby = await self.lobby_manager.get_lobby_by_owner_id(interaction.user.id)
+        if lobby:
             await interaction.followup.send(
                 "You have already an owner of a lobby!", ephemeral=True
             )
             return
-        except LobbyNotFound:
-            # If lobby has not been found, continue
-            pass
 
         assert isinstance(lobby_category_channel, CategoryChannel)
         assert isinstance(interaction.channel, TextChannel)
@@ -657,6 +660,7 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
         lobby = await self.lobby_manager.create_lobby(
             original_channel_id=interaction.channel.id,
             guild_id=interaction.guild.id,
+            guild_name=interaction.guild.name,
             owner_id=interaction.user.id,
             game_id=game,
             max_size=size,
@@ -675,7 +679,7 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
         )
 
         lobby.lobby_channel_id = lobby_channel.id
-
+        # TODO: Move into embed manager class
         embed = Embed(
             title=f"{interaction.user.display_name} created a lobby ✨",
             description=f"Click <#{lobby_channel.id}> to join the lobby",
@@ -709,7 +713,7 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
         )
 
         lobby.history_thread_id = thread.id
-        await self.lobby_manager.update_lobby(lobby)
+        lobby = await self.lobby_manager.update_lobby(lobby)
 
         await self.lobby_manager.initialise_lobby_embed(lobby.id)
 
@@ -896,7 +900,7 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
                 dispatching request to server!",
             ephemeral=True,
         )
-        interaction.client.dispatch("update_lobby_embed", lobby_id)  # type: ignore
+        interaction.client.dispatch("update_lobby_embed", lobby.id)
 
     @app_commands.command(
         description="Lobby Owner: Toggle ready for a user in the lobby",
@@ -943,7 +947,7 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
             ephemeral=True,
         )
 
-        interaction.client.dispatch("update_lobby_embed", lobby_id)  # type: ignore
+        interaction.client.dispatch("update_lobby_embed", lobby.id)
 
 
 async def setup(bot: commands.Bot):

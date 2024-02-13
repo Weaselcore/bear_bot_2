@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 class MemberModel(BaseModel):
     id: int
-    join_date: datetime = datetime.utcnow()
+    join_datetime: datetime = datetime.now()
 
 
 class GuildModel(BaseModel):
@@ -16,7 +16,7 @@ class GameModel(BaseModel):
     id: int | None
     name: str
     max_size: int
-    role: int
+    role: int | None
     guild_id: int
     icon_url: str | None
 
@@ -39,18 +39,18 @@ class LobbyModel(BaseModel):
     id: int
     description: str | None
     created_datetime: datetime
-    embed_message_id: int
+    embed_message_id: int | None
     game_id: int
     game_size: int
     guild_id: int
-    history_thread_id: int
+    history_thread_id: int | None
     is_locked: bool
-    last_promotion_datetime: datetime
-    last_promotion_message_id: int
-    lobby_channel_id: int
+    last_promotion_datetime: datetime | None
+    last_promotion_message_id: int | None
+    lobby_channel_id: int  | None
     original_channel_id: int
     owner_id: int
-    queue_message_id: int
+    queue_message_id: int | None
     member_lobbies: list[MemberLobbyModel]
     queue_member_lobbies: list[QueueMemberLobbyModel]
 
@@ -58,6 +58,7 @@ class LobbyModel(BaseModel):
 class InsertLobbyModel(BaseModel):
     original_channel_id: int
     guild_id: int
+    guild_name: str
     owner_id: int
     game_id: int
     game_size: int
@@ -69,4 +70,4 @@ class InsertGameModel(BaseModel):
     max_size: int
     role: int
     guild_id: int
-    icon_url: str | None
+    icon_url: None | str

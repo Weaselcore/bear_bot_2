@@ -32,7 +32,7 @@ class LobbyApi:
         self, method: str, endpoint: str, model_cls: type, *args, **kwargs
     ):
         session = self._session_manager.session
-        headers = {"x-api-key": f"{LOBBY_API_AUTH_KEY}"}
+        headers = {"x-api-key": f"{LOBBY_API_AUTH_KEY}", "Content-Type": "application/json"}
         try:
             async with session.request(
                 method, BASE_API_URL + endpoint, headers=headers, *args, **kwargs
@@ -41,11 +41,11 @@ class LobbyApi:
                 content_type = response.headers.get("Content-Type", "")
                 if "application/json" in content_type:
                     data = await response.json()
-                    if data is None:
-                        if model_cls is LobbyModel:
-                            raise DeletedLobby("Lobby has been deleted.")
+                    if data is {}:
                         if model_cls is GameModel:
                             raise DeletedGame("Game has been deleted.")
+                        if model_cls is LobbyModel:
+                            raise DeletedLobby("Lobby has been deleted.")
                         return None  # Return None when data is None
                     if isinstance(data, list):
                         return [model_cls(**item) for item in data]
@@ -97,12 +97,12 @@ class LobbyApi:
 
     async def post_lobby(self, lobby: InsertLobbyModel) -> LobbyModel:
         return await self._request(
-            "POST", f"/api/Lobby", LobbyModel, json=lobby.model_dump_json()
+            "POST", f"/api/Lobby", LobbyModel, data=lobby.model_dump_json()
         )
 
-    async def put_lobby(self, lobby_id: int, lobby: LobbyModel) -> LobbyModel:
+    async def put_lobby(self, lobby: LobbyModel) -> LobbyModel:
         return await self._request(
-            "PUT", f"/api/Lobby/{lobby_id}", LobbyModel, json=lobby.model_dump_json()
+            "PUT", f"/api/Lobby/{lobby.id}", LobbyModel, data=lobby.model_dump_json()
         )
 
     async def delete_lobby(self, lobby_id: int) -> None:
@@ -112,17 +112,17 @@ class LobbyApi:
     MemberModel API methods
     """
 
-    async def post_member(self, member: MemberModel) -> MemberModel:
+    async def post_member(self, lobby_id: int, member: MemberModel) -> MemberModel:
         return await self._request(
-            "POST", "/api/Member", MemberModel, json=member.model_dump_json()
+            "POST", f"/api/Member/{lobby_id}", MemberModel, data=member.model_dump_json()
         )
 
     async def put_member(
-        self, member_id: int, lobby_id: int, member: MemberModel
+        self, lobby_id: int, member: MemberModel,
     ) -> MemberModel:
         return await self._request(
             "PUT",
-            f"/api/Member/{lobby_id}/{member_id}",
+            f"/api/Member/{lobby_id}/{member.id}",
             MemberModel,
             json=member.model_dump_json(),
         )
@@ -154,12 +154,12 @@ class LobbyApi:
 
     async def post_game(self, game: InsertGameModel) -> GameModel:
         return await self._request(
-            "POST", "/api/Game", GameModel, json=game.model_dump_json()
+            "POST", "/api/Game", GameModel, data=game.model_dump_json()
         )
 
-    async def put_game(self, game_id: int, game: GameModel) -> GameModel:
+    async def put_game(self, game: GameModel) -> GameModel:
         return await self._request(
-            "PUT", f"/api/Game/{game_id}", GameModel, json=game.model_dump_json()
+            "PUT", f"/api/Game/{game.id}", GameModel, data=game.model_dump_json()
         )
 
     async def delete_game(self, game_id: int) -> None:
