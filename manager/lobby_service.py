@@ -1,29 +1,33 @@
 from datetime import datetime, timedelta
 from time import gmtime, strftime
-from typing import Type, Union
+from typing import TypeVar
 from zoneinfo import ZoneInfo
 
 import discord
-from pydantic import BaseModel
 
 from api.lobby_api import LobbyApi
 from api.models import GameModel, InsertGameModel, InsertLobbyModel, LobbyModel, MemberLobbyModel, MemberModel
+from cog.classes.lobby.transformer_cache import TransformerCache
 from cog.classes.utils import set_logger
 from embeds.lobby_embed import LobbyEmbedManager
 from exceptions.lobby_exceptions import MemberNotFound
 
+InputType = TypeVar('InputType', LobbyModel, MemberModel, GameModel)
+OutputType = TypeVar('OutputType', LobbyModel, MemberModel, GameModel)
 
 class LobbyManager:
     def __init__(
         self,
         api_manager: LobbyApi,
-        embed_manager: LobbyEmbedManager,
         bot: discord.Client,
+        embed_manager: LobbyEmbedManager,
+        transformer_cache: TransformerCache
     ) -> None:
         self._api_manager = api_manager
         self.bot = bot
         self.embed_manager = embed_manager
         self.logger = set_logger("lobby_manager")
+        self.transformer_cache = transformer_cache
 
     """Cache retrieval functions"""
 
@@ -35,28 +39,7 @@ class LobbyManager:
         if not guild:
             raise ValueError("Guild not found")
         return guild
-
-    """Fetch functions"""
-
-    async def get_lobby(self, lobby_id: int) -> LobbyModel:
-        return await self._api_manager.get_lobby(lobby_id)
-
-    async def get_all_lobbies(self) -> list[LobbyModel]:
-        return await self._api_manager.get_lobbies()
     
-    async def get_lobby_by_owner_id(self, owner_id: int) -> LobbyModel:
-        return await self._api_manager.get_lobby_by_owner_id(owner_id)
-
-    async def get_guild_id(self, lobby_id: int) -> int:
-        lobby = await self._api_manager.get_lobby(lobby_id)
-        return lobby.guild_id
-    
-    async def get_games_by_guild_id(self, guild_id: int) -> list[GameModel]:
-        return await self._api_manager.get_games_by_guild_id(guild_id)
-    
-    async def get_game(self, game_id: int) -> GameModel:
-        return await self._api_manager.get_game(game_id)
-
     async def get_thread(self, guild_id: int, thread_id: int) -> discord.Thread:
         guild = await self._get_guild(guild_id)
 
@@ -67,6 +50,7 @@ class LobbyManager:
         history_thread = await guild.fetch_channel(thread_id)
         if not history_thread:
             raise ValueError("History thread not found")
+        return history_thread
 
     async def get_channel(self, guild_id: int, channel_id: int) -> discord.TextChannel:
         guild = await self._get_guild(guild_id)
@@ -109,6 +93,29 @@ class LobbyManager:
             return member_from_fetch
 
         raise MemberNotFound(member_id)
+
+    """Fetch functions"""
+
+    async def get_lobby(self, lobby_id: int) -> LobbyModel:
+        return await self._api_manager.get_lobby(lobby_id)
+
+    async def get_all_lobbies(self) -> list[LobbyModel]:
+        return await self._api_manager.get_lobbies()
+    
+    async def get_lobby_by_owner_id(self, owner_id: int) -> LobbyModel:
+        return await self._api_manager.get_lobby_by_owner_id(owner_id)
+
+    async def get_guild_id(self, lobby_id: int) -> int:
+        lobby = await self._api_manager.get_lobby(lobby_id)
+        return lobby.guild_id
+    
+    async def get_games_by_guild_id(self, guild_id: int) -> list[GameModel]:
+        games = await self._api_manager.get_games_by_guild_id(guild_id)
+        self.transformer_cache.set(str(guild_id), games)
+        return games
+    
+    async def get_game(self, game_id: int) -> GameModel:
+        return await self._api_manager.get_game(game_id)
 
     """Create functions"""
 
@@ -155,8 +162,8 @@ class LobbyManager:
     """Update functions"""
 
     async def _update_model_instance(
-        self, instance: Union[LobbyModel, MemberModel, GameModel], model_cls: Type[BaseModel], lobby_id = None
-    ) -> Union[LobbyModel, MemberModel, GameModel]:
+        self, instance: InputType, model_cls: InputType, lobby_id = None
+    ) -> OutputType:
         # Post the updated model instance to the appropriate function based on model type
         if model_cls is LobbyModel:
             return await self._api_manager.put_lobby(instance)
@@ -165,7 +172,7 @@ class LobbyManager:
         elif model_cls is GameModel:
             return await self._api_manager.put_game(instance)
         else:
-            self.logger.warning(f"No specific handler found for {model_cls.__name__}.")
+            self.logger.warning(f"No specific handler found for {model_cls.__str__}.")
             raise NotImplementedError
 
     async def update_lobby(self, lobby: LobbyModel) -> LobbyModel:

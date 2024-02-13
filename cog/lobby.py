@@ -23,15 +23,14 @@ from discord.ui import Button, Modal, Select, TextInput, View, button
 from api.lobby_api import LobbyApi
 from api.models import LobbyModel
 from api.session_manager import ClientSessionManager
+from cog.classes.utils import set_logger
 
 from embeds.lobby_embed import LobbyEmbedManager
 from exceptions.lobby_exceptions import DeletedGame, DeletedLobby, LobbyNotFound, MemberNotFound
 from manager.lobby_service import LobbyManager
+from cog.classes.lobby.transformer_cache import TransformerCache
 
-
-session_manager = ClientSessionManager()
-lobby_api = LobbyApi(session_manager)
-
+transformer_cache = TransformerCache()
 
 # Predicate for commands
 def is_lobby_thread():
@@ -56,7 +55,7 @@ class GameTransformer(app_commands.Transformer):
 
     async def transform(self, interaction: Interaction, argument: str) -> int:
         assert interaction.guild is not None
-        games = await lobby_api.get_games_by_guild_id(interaction.guild.id)
+        games = transformer_cache.get(str(interaction.guild.id))
         try:
             value = int(argument)
             for game in games:
@@ -73,7 +72,7 @@ class GameTransformer(app_commands.Transformer):
         assert interaction.guild is not None
         list_of_options: list[app_commands.Choice[int | float | str]] = []
 
-        games = await lobby_api.get_games_by_guild_id(interaction.guild.id)
+        games = transformer_cache.get(str(interaction.guild.id))
         # If there are no games available, return an empty list
         if len(games) == 0:
             return list_of_options
@@ -101,8 +100,10 @@ class NumberTransformer(app_commands.Transformer):
         assert interaction.guild is not None
         try:
             game_id = interaction.namespace["game"]
-            game = await lobby_api.get_game(int(game_id))
-            max_size = game.max_size
+            games = transformer_cache.get(str(interaction.guild.id))
+            # Find the GameModel with the matching game_id
+            game_model = next((game for game in games if game.id == int(game_id)), None)
+            max_size = game_model.max_size
             number = int(argument)
             if number < 2:
                 return 2
@@ -117,26 +118,32 @@ class NumberTransformer(app_commands.Transformer):
         self, interaction: Interaction, value: int | float | str, /
     ) -> list[app_commands.Choice[int | float | str]]:
         list_of_options: list[app_commands.Choice[int | float | str]] = []
+        assert interaction.guild is not None
         game_id = interaction.namespace["game"]
         if game_id is None:
             return list_of_options
         try:
-            max_players = (await lobby_api.get_game(int(game_id))).max_size
-            if value is None:
-                for i in range(1, max_players):
-                    list_of_options.append(
-                        app_commands.Choice(name=str(i + 1), value=str(i + 1))
-                    )
-            else:
-                for i in range(1, max_players):
-                    if str(i).startswith(str(value)):
+            games = transformer_cache.get(str(interaction.guild.id))
+            
+            # Find the GameModel with the matching game_id
+            game_model = next((game for game in games if game.id == int(game_id)), None)
+            if game_model is not None:
+                max_size = game_model.max_size
+                if value is None:
+                    for i in range(1, max_size):
                         list_of_options.append(
                             app_commands.Choice(name=str(i + 1), value=str(i + 1))
                         )
+                else:
+                    for i in range(1, max_size):
+                        if str(i).startswith(str(value)):
+                            list_of_options.append(
+                                app_commands.Choice(name=str(i + 1), value=str(i + 1))
+                            )
             return list_of_options
         except ValueError as e:
             print(e)
-            return []
+            return list_of_options
 
 
 class DescriptionModal(Modal, title="Edit Description"):
@@ -422,6 +429,7 @@ class ButtonView(View):
                 self.interaction = interaction
 
             async def create(self, lobby: LobbyModel) -> None:
+                assert lobby.lobby_channel_id is not None
                 channel = await self.lobby_manager.get_channel(
                     lobby.guild_id, lobby.lobby_channel_id
                 )
@@ -496,9 +504,11 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
     def __init__(self, bot: commands.Bot, lobby_manager: LobbyManager):
         self.bot = bot
         self.lobby_manager = lobby_manager
+        self.logger = set_logger("lobby_cog")
         print("LobbyCog loaded")
-
+        # Start tasks
         self.lobby_cleanup.start()
+        self.hydrate_cache.start()
 
     async def cog_app_command_error(self, interaction: Interaction, error: Exception):
         embed = None
@@ -584,7 +594,9 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
                 return
         except AttributeError:
             return
-
+        assert lobby.embed_message_id is not None
+        assert lobby.queue_message_id is not None
+        assert lobby.lobby_channel_id is not None
         embed_message = await self.lobby_manager.get_message(
             lobby.guild_id, lobby.lobby_channel_id, lobby.embed_message_id
         )
@@ -625,6 +637,16 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
         """Updates the lobby embed"""
         if not self.update_lobby_embed.is_running():
             self.update_lobby_embed.start(lobby_id)
+
+    @tasks.loop(count=1, reconnect=True)
+    async def hydrate_cache(self):
+        await self.bot.wait_until_ready()
+        # Hydrate cache
+        for guild in self.bot.guilds:
+            # Function implicitly caches
+            await self.lobby_manager.get_games_by_guild_id(guild.id)
+            self.logger.info(transformer_cache)
+
 
     @app_commands.command(description="Create lobby through UI", name="create")
     async def create_lobby(
@@ -793,9 +815,8 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
             title=f"Registered Games on {interaction.guild.name}",
             color=Color.green(),
         )
-
         for game in games:
-            role = interaction.guild.get_role(game.role)
+            role = interaction.guild.get_role(game.role) if game.role else None
             link = f"[Click here to view]({game.icon_url})" if game.icon_url else "None"
             embed.add_field(
                 name=game.name.upper(),
@@ -959,8 +980,9 @@ async def setup(bot: commands.Bot):
 
     lobby_manager = LobbyManager(
         api_manager=api_manager,
-        embed_manager=lobby_embed_manager,
         bot=bot,
+        embed_manager=lobby_embed_manager,
+        transformer_cache=transformer_cache
     )
 
     # Register persistent views per lobby on restart
@@ -976,12 +998,11 @@ async def setup(bot: commands.Bot):
                 ),
                 message_id=lobby.embed_message_id,
             )
-
     await bot.add_cog(LobbyCog(bot, lobby_manager))
-
 
 async def teardown(bot: commands.Bot):
     lobby_cog = bot.get_cog("LobbyCog")
+    transformer_cache.clear()
     if lobby_cog:
         # await cog.lobby_manager.close()
         # await cog.game_manager.close()
