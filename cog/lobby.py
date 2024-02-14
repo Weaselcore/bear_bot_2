@@ -20,15 +20,16 @@ from discord import (
 )
 from discord.ext import commands, tasks
 from discord.ui import Button, Modal, Select, TextInput, View, button
+
 from api.lobby_api import LobbyApi
 from api.models import LobbyModel
 from api.session_manager import ClientSessionManager
+from cog.classes.lobby.transformer_error import GameTransformError, NumberTransformError
+from cog.classes.lobby.transformer_cache import TransformerCache
 from cog.classes.utils import set_logger
-
 from embeds.lobby_embed import LobbyEmbedManager
 from exceptions.lobby_exceptions import DeletedGame, DeletedLobby, LobbyNotFound, MemberNotFound
 from manager.lobby_service import LobbyManager
-from cog.classes.lobby.transformer_cache import TransformerCache
 
 transformer_cache = TransformerCache()
 
@@ -41,14 +42,6 @@ def is_lobby_thread():
         return isinstance(interaction.channel, threads.Thread)
 
     return app_commands.check(predicate)
-
-
-class GameTransformError(app_commands.AppCommandError):
-    pass
-
-
-class NumberTransformError(app_commands.AppCommandError):
-    pass
 
 
 class GameTransformer(app_commands.Transformer):
@@ -1008,7 +1001,6 @@ async def teardown(bot: commands.Bot):
     transformer_cache.clear()
     if lobby_cog:
         # await cog.lobby_manager.close()
-        # await cog.game_manager.close()
         await bot.remove_cog(lobby_cog.__cog_name__)
     else:
         raise Exception("LobbyCog not found!")
