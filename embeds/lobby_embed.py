@@ -226,6 +226,15 @@ class LobbyEmbedManager:
         return lobby_message.id
 
     @staticmethod
+    async def create_queue_embed(
+        queue_members: list[Member],
+        channel: TextChannel | Thread,
+    ) -> int | None:
+        queue_embed = QueueEmbed(queue_members)
+        queue_message = await channel.send(embed=queue_embed)
+        return queue_message.id
+
+    @staticmethod
     async def update_lobby_embed(
         lobby_id: int,
         owner: Member | User,
@@ -253,14 +262,6 @@ class LobbyEmbedManager:
         if message is not None:
             await message.edit(embed=embed)
 
-    @staticmethod
-    async def create_queue_embed(
-        queue_members: list[Member],
-        channel: TextChannel | Thread,
-    ) -> int | None:
-        queue_embed = QueueEmbed(queue_members)
-        queue_message = await channel.send(embed=queue_embed)
-        return queue_message.id
 
     @staticmethod
     async def update_queue_embed(
