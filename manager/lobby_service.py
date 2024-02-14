@@ -111,7 +111,8 @@ class LobbyManager:
     
     async def get_games_by_guild_id(self, guild_id: int) -> list[GameModel]:
         games = await self._api_manager.get_games_by_guild_id(guild_id)
-        self.transformer_cache.set(str(guild_id), games)
+        for game in games:
+            self.transformer_cache.set(str(guild_id), game)
         return games
     
     async def get_game(self, game_id: int) -> GameModel:
@@ -149,7 +150,7 @@ class LobbyManager:
         role_id: int,
         icon_url: str | None
     ) -> GameModel:
-        return await self._api_manager.post_game(
+        game_model = await self._api_manager.post_game(
             InsertGameModel(
                 name=game_name,
                 guild_id=guild_id,
@@ -158,6 +159,8 @@ class LobbyManager:
                 icon_url=icon_url
             )
         )
+        self.transformer_cache.set(str(guild_id), game_model)
+        return game_model
 
     """Update functions"""
 
@@ -231,7 +234,10 @@ class LobbyManager:
             await self.update_lobby(lobby)
 
     """Delete methods"""
-    async def remove_game(self, game_id: int) -> None:
+    async def remove_game(self, game_id: int) -> GameModel:
+        game = await self._api_manager.get_game(game_id)
+        # Clear cache before deleting as deletion raises an exception.
+        self.transformer_cache.remove(str(game.guild_id), game_id)
         await self._api_manager.delete_game(game_id)
 
     def print_lobby(self, lobby_id: int) -> None:

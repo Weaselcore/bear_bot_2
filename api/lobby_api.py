@@ -41,7 +41,7 @@ class LobbyApi:
                 content_type = response.headers.get("Content-Type", "")
                 if "application/json" in content_type:
                     data = await response.json()
-                    if data is {}:
+                    if data == {}:
                         if model_cls is GameModel:
                             raise DeletedGame("Game has been deleted.")
                         if model_cls is LobbyModel:
@@ -57,6 +57,8 @@ class LobbyApi:
         except aiohttp.ClientResponseError as e:
             # Handle client-side errors (e.g., 4xx status codes)
             self.logger.error(f"Client error: {e.status} - {e.message}")
+            if model_cls is GameModel:
+                raise DeletedGame
         except aiohttp.ServerDisconnectedError as e:
             # Handle server disconnected errors
             self.logger.error(f"Server disconnected error: {e}")
@@ -75,7 +77,8 @@ class LobbyApi:
                 self.logger.error(f"Error in field '{error['loc'][0]}': {error['msg']}")
         except Exception as e:
             # Handle any other unexpected errors
-            self.logger.error(f"Unexpected error: {e}")
+            self.logger.error(e)
+            raise e
 
     """
     Lobby API methods
@@ -162,5 +165,5 @@ class LobbyApi:
             "PUT", f"/api/Game/{game.id}", GameModel, data=game.model_dump_json()
         )
 
-    async def delete_game(self, game_id: int) -> None:
+    async def delete_game(self, game_id: int) -> int:
         await self._request("DELETE", f"/api/Game/{game_id}", GameModel)

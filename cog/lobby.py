@@ -103,6 +103,8 @@ class NumberTransformer(app_commands.Transformer):
             games = transformer_cache.get(str(interaction.guild.id))
             # Find the GameModel with the matching game_id
             game_model = next((game for game in games if game.id == int(game_id)), None)
+            if game_model is None:
+                raise ValueError
             max_size = game_model.max_size
             number = int(argument)
             if number < 2:
@@ -784,16 +786,18 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
         game_model = await self.lobby_manager.get_game(int(game))
         # If game not found.
         if game_model is None:
-            # Send message to the user
             await interaction.response.send_message(
                 "The game given does not exist!", ephemeral=True
             )
             return
 
         try:
-            await self.lobby_manager.remove_game(int(game))
+            await self.lobby_manager.remove_game(game)
+            await interaction.response.send_message(
+                f"Failed to remove game: {game_model.name} with id {game_model.id}!",
+                ephemeral=True,
+            )
         except DeletedGame:
-            # Send message to the user
             await interaction.response.send_message(
                 f"Game {game_model.name} with id {game_model.id} removed!",
                 ephemeral=True,
@@ -989,7 +993,6 @@ async def setup(bot: commands.Bot):
     lobbies = await lobby_manager.get_all_lobbies()
     if lobbies:
         for lobby in lobbies:
-
             # Construct button view
             bot.add_view(
                 view=ButtonView(
