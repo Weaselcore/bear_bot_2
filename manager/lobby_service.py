@@ -445,6 +445,13 @@ class LobbyManager:
         lobby = await self._api_manager.get_lobby(lobby_id)
         if lobby is None:
             # Serverside deletion -> on last member leaving
+            lobby_from_cache = self.lobby_cache.get(lobby_id)
+            if isinstance(lobby_from_cache, None):
+                self.logger.error("Lobby was not found in cache, unable to delete lobby.")
+                return
+
+            original_channel = await self.get_channel(lobby_from_cache.guild_id, lobby_from_cache.original_channel_id)
+            session_time = await self.get_session_time(lobby_from_cache.created_datetime)
             embed_type = (
                 self.embed_manager.UPDATE_TYPES.CLEAN_UP
                 if clean_up
@@ -455,8 +462,8 @@ class LobbyManager:
 
             await self.embed_manager.send_update_embed(
                 update_type=embed_type,
-                title=owner,
-                destination=original_channel,
+                title=lobby_from_cache.owner,
+                destination=lobby_from_cache.original_channel,
                 additional_string=str(additional_string) if additional_string else None,
                 footer_string="⌚ " + session_time,
             )

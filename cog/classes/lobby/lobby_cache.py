@@ -5,7 +5,7 @@ from cog.classes.utils import set_logger
 
 class LobbyCache:
     def __init__(self) -> None:
-        self._cache: dict[str, list[LobbyModel]] = dict()
+        self._cache: dict[str, LobbyModel] = dict()
         self.logger = set_logger("lobby_cache")
 
     def __call__(self, func):
@@ -27,31 +27,33 @@ class LobbyCache:
                 return None
         return wrapper
 
-    def get(self, guild_id: str) -> list[LobbyModel] | None:
-        self.logger.info(f"Fetching from cache with guild_id: {guild_id}")
+    def get(self, lobby_id: str) -> LobbyModel | None:
+        self.logger.info(f"Fetching from cache with lobby: {lobby_id}")
         self.logger.info(self._cache.__repr__())
-        return self._cache.get(guild_id)
+        lobby = self._cache.get(str(lobby_id))
+        if lobby is None:
+            return None
+        return lobby
     
-    def set(self, guild_id: str, lobby_model: LobbyModel) -> None:
-        self.logger.info(f"Setting key: {guild_id} with value: {lobby_model}")
-        lobby_list = self._cache.setdefault(guild_id, [])
+    def set(self, lobby_id: str, lobby_model: LobbyModel) -> None:
+        self.logger.info(f"Setting key: {lobby_id} with value: {lobby_model}")
+        lobby = self._cache.get(str(lobby_id))
         # The lobby model doesn't update, so they either exist or not.
-        if lobby_model in lobby_list:
+        if lobby_model == lobby:
             self.logger.info(f"Lobby with ID: {lobby_model.id} found, skipping caching.")
             return
-        lobby_list.append(lobby_model)
+        self._cache[str(lobby_id)] = lobby_model
         self.logger.info(self._cache.__repr__())
 
-    def remove(self, guild_id: str, lobby_id: str) -> None:
+    def remove(self, lobby_id: str) -> None:
         self.logger.info(f"Removing cached data with key: {lobby_id}")
         try:
-            lobby_list = self._cache.get(guild_id)
-            if lobby_list is None:
-                self.logger.warning(f"No cached data found for guild ID: {guild_id}")
+            lobby = self._cache.get(str(lobby_id))
+            if lobby is None:
+                self.logger.warning(f"No cached data found for lobby ID: {lobby_id}")
                 return
-            lobby = next((lobby for lobby in lobby_list if lobby.id == int(lobby_id)))
-            lobby_list.remove(lobby)
             self.logger.info(self._cache.__repr__())
+            self._cache.pop(str(lobby_id))
         except KeyError as e:
             self.logger.error(e)
         except StopIteration as e:
