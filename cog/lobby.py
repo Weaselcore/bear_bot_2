@@ -14,6 +14,7 @@ from discord import (
     SelectOption,
     TextChannel,
     TextStyle,
+    VoiceState,
     app_commands,
     threads,
     utils,
@@ -24,6 +25,7 @@ from discord.ui import Button, Modal, Select, TextInput, View, button
 from api.lobby_api import LobbyApi
 from api.models import LobbyModel
 from api.session_manager import ClientSessionManager
+from cog.classes.lobby.lobby_cache import LobbyCache
 from cog.classes.lobby.transformer_error import GameTransformError, NumberTransformError
 from cog.classes.lobby.transformer_cache import TransformerCache
 from cog.classes.utils import set_logger
@@ -32,6 +34,7 @@ from exceptions.lobby_exceptions import DeletedGame, DeletedLobby, LobbyNotFound
 from manager.lobby_service import LobbyManager
 
 transformer_cache = TransformerCache()
+lobby_cache = LobbyCache()
 
 # Predicate for commands
 def is_lobby_thread():
@@ -49,6 +52,8 @@ class GameTransformer(app_commands.Transformer):
     async def transform(self, interaction: Interaction, argument: str) -> int:
         assert interaction.guild is not None
         games = transformer_cache.get(str(interaction.guild.id))
+        if games is None:
+            raise GameTransformError("There are no games for this server.")
         try:
             value = int(argument)
             for game in games:
@@ -67,7 +72,7 @@ class GameTransformer(app_commands.Transformer):
 
         games = transformer_cache.get(str(interaction.guild.id))
         # If there are no games available, return an empty list
-        if len(games) == 0:
+        if not games or len(games) == 0:
             return list_of_options
         # If nothing is inputted, return all games
         if value == "":
@@ -86,14 +91,14 @@ class GameTransformer(app_commands.Transformer):
 
 
 class NumberTransformer(app_commands.Transformer):
-    def __init__(self):
-        self._game_manager = None
 
     async def transform(self, interaction: Interaction, argument: str) -> int:
         assert interaction.guild is not None
         try:
             game_id = interaction.namespace["game"]
             games = transformer_cache.get(str(interaction.guild.id))
+            if games is None:
+                raise NumberTransformError("There are no games in this server")
             # Find the GameModel with the matching game_id
             game_model = next((game for game in games if game.id == int(game_id)), None)
             if game_model is None:
@@ -119,6 +124,9 @@ class NumberTransformer(app_commands.Transformer):
             return list_of_options
         try:
             games = transformer_cache.get(str(interaction.guild.id))
+
+            if games is None:
+                raise NumberTransformError("No games on this server")
             
             # Find the GameModel with the matching game_id
             game_model = next((game for game in games if game.id == int(game_id)), None)
@@ -636,12 +644,32 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
     @tasks.loop(count=1, reconnect=True)
     async def hydrate_cache(self):
         await self.bot.wait_until_ready()
-        # Hydrate cache
         for guild in self.bot.guilds:
-            # Function implicitly caches
+            # Hydrate game cache. Function implicitly caches.
             await self.lobby_manager.get_games_by_guild_id(guild.id)
-            self.logger.info(transformer_cache)
+        # Hydrate lobby cache
+        lobbies = await self.lobby_manager.get_all_lobbies()
+        # Register persistent views per lobby on restart
+        if lobbies:
+            for lobby in lobbies:
+                # Construct button view
+                self.bot.add_view(
+                    view=ButtonView(
+                        lobby_id=lobby.id,
+                        lobby_manager=self.lobby_manager,
+                    ),
+                    message_id=lobby.embed_message_id,
+                )
+        
 
+    @commands.Cog.listener()
+    async def on_voice_state_update(self, member: Member, before: VoiceState, after: VoiceState):
+        if member.bot is False:
+            if before.channel is None:
+                await self.lobby_manager.set_has_joined_vc(member.id)
+            # if after.channel is None:
+            #     await self.lobby_manager.set_has_left_vc(member.id)
+                # TODO: Trigger a deletion
 
     @app_commands.command(description="Create lobby through UI", name="create")
     async def create_lobby(
@@ -742,12 +770,13 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
         interaction: Interaction,
         game_name: str,
         max_size: int,
-        role: Role,
+        role: Role | None,
         icon_url: str | None,
     ):
         """Adds a game to the lobby module"""
 
         # Add the game to the list
+        await interaction.response.defer()
         assert interaction.guild is not None
 
         game = await self.lobby_manager.create_game(
@@ -759,7 +788,7 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
         )
 
         # Send message to the user
-        await interaction.response.send_message(
+        await interaction.followup.send(
             f"Game {game.name} added with {game.id}!", ephemeral=True
         )
 
@@ -769,14 +798,14 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
     async def remove_game(
         self,
         interaction: Interaction,
-        game: app_commands.Transform[int, GameTransformer] | None,
+        game_id: app_commands.Transform[int, GameTransformer],
     ):
         """Removes a game from the lobby module"""
         # Check if the game exists
 
-        assert isinstance(game, int)
+        assert isinstance(game_id, int)
 
-        game_model = await self.lobby_manager.get_game(int(game))
+        game_model = await self.lobby_manager.get_game(int(game_id))
         # If game not found.
         if game_model is None:
             await interaction.response.send_message(
@@ -785,7 +814,7 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
             return
 
         try:
-            await self.lobby_manager.remove_game(game)
+            await self.lobby_manager.remove_game(game_id)
             await interaction.response.send_message(
                 f"Failed to remove game: {game_model.name} with id {game_model.id}!",
                 ephemeral=True,
@@ -971,7 +1000,6 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
 async def setup(bot: commands.Bot):
 
     lobby_embed_manager = LobbyEmbedManager()
-
     session_manager = ClientSessionManager()
     api_manager = LobbyApi(session_manager)
 
@@ -979,26 +1007,16 @@ async def setup(bot: commands.Bot):
         api_manager=api_manager,
         bot=bot,
         embed_manager=lobby_embed_manager,
-        transformer_cache=transformer_cache
+        transformer_cache=transformer_cache,
+        lobby_cache=lobby_cache
     )
 
-    # Register persistent views per lobby on restart
-    lobbies = await lobby_manager.get_all_lobbies()
-    if lobbies:
-        for lobby in lobbies:
-            # Construct button view
-            bot.add_view(
-                view=ButtonView(
-                    lobby_id=lobby.id,
-                    lobby_manager=lobby_manager,
-                ),
-                message_id=lobby.embed_message_id,
-            )
     await bot.add_cog(LobbyCog(bot, lobby_manager))
 
 async def teardown(bot: commands.Bot):
     lobby_cog = bot.get_cog("LobbyCog")
     transformer_cache.clear()
+    lobby_cache.clear()
     if lobby_cog:
         # await cog.lobby_manager.close()
         await bot.remove_cog(lobby_cog.__cog_name__)

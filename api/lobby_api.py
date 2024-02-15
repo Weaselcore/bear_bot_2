@@ -129,6 +129,13 @@ class LobbyApi:
             MemberModel,
             json=member.model_dump_json(),
         )
+    
+    async def put_joined_vc(
+        self, lobby_id: int, member_id: int
+    ) -> MemberLobbyModel:
+        return await self._request(
+            "PUT", f"/api/Member/{lobby_id}/join-vc/{member_id}", MemberLobbyModel
+        )
 
     async def toggle_member_ready(
         self, member_id: int, lobby_id: int
@@ -139,7 +146,7 @@ class LobbyApi:
 
     async def delete_member(self, member_id: int, lobby_id: int) -> None:
         await self._request(
-            "DELETE", f"/api/Member/{lobby_id}/{member_id}", MemberModel
+            "DELETE", f"/api/Member/{lobby_id}/{member_id}", LobbyModel
         )
 
     """
@@ -166,4 +173,4 @@ class LobbyApi:
         )
 
     async def delete_game(self, game_id: int) -> int:
-        await self._request("DELETE", f"/api/Game/{game_id}", GameModel)
+        return await self._request("DELETE", f"/api/Game/{game_id}", GameModel)

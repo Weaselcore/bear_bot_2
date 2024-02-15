@@ -1,3 +1,4 @@
+from functools import wraps
 from api.models import GameModel
 from cog.classes.utils import set_logger
 
@@ -7,7 +8,27 @@ class TransformerCache:
         self._cache: dict[str, list[GameModel]] = dict()
         self.logger = set_logger("transformer_cache")
 
-    def get(self, guild_id: str) -> list[GameModel]:
+    def __call__(self, func):
+        """
+        Decorator that will capture the result and add it to the cache.
+        Guild ID needs to a string and be the first element in the function signature.
+        """
+        @wraps(func)
+        async def wrapper(instance, guild_id: str, *args, **kwargs):
+            result: GameModel | list[GameModel] = await func(instance, guild_id, *args, **kwargs)
+            if isinstance(result, GameModel):
+                self.set(str(guild_id), result)
+                return result
+            elif isinstance(result, list) and all(isinstance(item, GameModel) for item in result):
+                for game_model in result:
+                    self.set(str(guild_id), game_model)
+                return result
+            else:
+                instance.logger.warning(f"Returned data is not an instance of GameModel or a list of GameModels.")
+                return None
+        return wrapper
+
+    def get(self, guild_id: str) -> list[GameModel] | None:
         self.logger.info(f"Fetching from cache with guild_id: {guild_id}")
         self.logger.info(self._cache.__repr__())
         return self._cache.get(guild_id)
