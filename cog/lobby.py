@@ -30,11 +30,17 @@ from cog.classes.lobby.transformer_error import GameTransformError, NumberTransf
 from cog.classes.lobby.transformer_cache import TransformerCache
 from cog.classes.utils import set_logger
 from embeds.lobby_embed import LobbyEmbedManager
-from exceptions.lobby_exceptions import DeletedGame, DeletedLobby, LobbyNotFound, MemberNotFound
+from exceptions.lobby_exceptions import (
+    DeletedGame,
+    DeletedLobby,
+    LobbyNotFound,
+    MemberNotFound,
+)
 from manager.lobby_service import LobbyManager
 
 transformer_cache = TransformerCache()
 lobby_cache = LobbyCache()
+
 
 # Predicate for commands
 def is_lobby_thread():
@@ -127,7 +133,7 @@ class NumberTransformer(app_commands.Transformer):
 
             if games is None:
                 raise NumberTransformError("No games on this server")
-            
+
             # Find the GameModel with the matching game_id
             game_model = next((game for game in games if game.id == int(game_id)), None)
             if game_model is not None:
@@ -364,7 +370,9 @@ class ButtonView(View):
         await interaction.response.defer()
 
         lobby = await self.lobby_manager.get_lobby(self.lobby_id)
-        lobby_owner = await self.lobby_manager.get_member(lobby.guild_id, lobby.owner_id)
+        lobby_owner = await self.lobby_manager.get_member(
+            lobby.guild_id, lobby.owner_id
+        )
 
         if interaction.user != lobby_owner:
             return
@@ -391,7 +399,9 @@ class ButtonView(View):
     )
     async def edit_description(self, interaction: Interaction, _: Button):
         lobby = await self.lobby_manager.get_lobby(self.lobby_id)
-        if interaction.user != await self.lobby_manager.get_member(lobby.guild_id, lobby.owner_id):
+        if interaction.user != await self.lobby_manager.get_member(
+            lobby.guild_id, lobby.owner_id
+        ):
             await interaction.response.defer()
         else:
             await interaction.response.send_modal(
@@ -468,10 +478,10 @@ class ButtonView(View):
             return
 
         is_full = await self.lobby_manager.is_full(self.lobby_id)
-        
+
         if is_full:
             return
-        
+
         game = await self.lobby_manager.get_game(lobby.game_id)
         # If the lobby is not full, promote
         original_channel = await self.lobby_manager.get_channel(
@@ -482,7 +492,7 @@ class ButtonView(View):
             last_message = await self.lobby_manager.get_message(
                 lobby.guild_id,
                 lobby.original_channel_id,
-                lobby.last_promotion_message_id
+                lobby.last_promotion_message_id,
             )
             # If there was an older promotion, delete it
             await last_message.delete()
@@ -496,7 +506,7 @@ class ButtonView(View):
         await promotional_embed.create(lobby)
 
         message = await original_channel.send(
-            content= f"<@&{game.role}>" if game.role else None , embed=promotional_embed
+            content=f"<@&{game.role}>" if game.role else None, embed=promotional_embed
         )
         lobby.last_promotion_message_id = message.id
         lobby.last_promotion_datetime = datetime.now()
@@ -660,16 +670,17 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
                     ),
                     message_id=lobby.embed_message_id,
                 )
-        
 
     @commands.Cog.listener()
-    async def on_voice_state_update(self, member: Member, before: VoiceState, after: VoiceState):
+    async def on_voice_state_update(
+        self, member: Member, before: VoiceState, after: VoiceState
+    ):
         if member.bot is False:
             if before.channel is None:
                 await self.lobby_manager.set_has_joined_vc(member.id)
             # if after.channel is None:
             #     await self.lobby_manager.set_has_left_vc(member.id)
-                # TODO: Trigger a deletion
+            # TODO: Trigger a deletion
 
     @app_commands.command(description="Create lobby through UI", name="create")
     async def create_lobby(
@@ -783,8 +794,8 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
             game_name=game_name,
             guild_id=interaction.guild.id,
             max_size=max_size,
-            role_id=role.id,
-            icon_url=icon_url
+            role_id=None if role is None else role.id,
+            icon_url=icon_url,
         )
 
         # Send message to the user
@@ -868,9 +879,7 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
             )
             return
         # Check if interaction user is the owner of the lobby
-        lobby = await self.lobby_manager.get_lobby_by_owner_id(
-            interaction.user.id
-        )
+        lobby = await self.lobby_manager.get_lobby_by_owner_id(interaction.user.id)
         if not lobby:
             await interaction.response.send_message(
                 "You are not an owner of a lobby!", ephemeral=True
@@ -916,9 +925,7 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
             )
             return
         # Check if interaction user is the owner of the lobby
-        lobby = await self.lobby_manager.get_lobby_by_owner_id(
-            interaction.user.id
-        )
+        lobby = await self.lobby_manager.get_lobby_by_owner_id(interaction.user.id)
         if not lobby:
             await interaction.response.send_message(
                 "You are not an owner of a lobby!", ephemeral=True
@@ -963,9 +970,7 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
             )
             return
         # Check if interaction user is the owner of the lobby
-        lobby = await self.lobby_manager.get_lobby_by_owner_id(
-            interaction.user.id
-        )
+        lobby = await self.lobby_manager.get_lobby_by_owner_id(interaction.user.id)
         if not lobby:
             await interaction.response.send_message(
                 "You are not the owner of a lobby!", ephemeral=True
@@ -1008,10 +1013,11 @@ async def setup(bot: commands.Bot):
         bot=bot,
         embed_manager=lobby_embed_manager,
         transformer_cache=transformer_cache,
-        lobby_cache=lobby_cache
+        lobby_cache=lobby_cache,
     )
 
     await bot.add_cog(LobbyCog(bot, lobby_manager))
+
 
 async def teardown(bot: commands.Bot):
     lobby_cog = bot.get_cog("LobbyCog")

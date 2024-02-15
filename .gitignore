@@ -11,3 +11,5 @@ discord.log
 Pipfile.lock
 
 *.log
+
+.dmypy.json

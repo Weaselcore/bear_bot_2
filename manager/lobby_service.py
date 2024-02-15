@@ -125,7 +125,7 @@ class LobbyManager:
                 return None
             return games
         
-        await _get_games_by_guild_id(self, guild_id)
+        return await _get_games_by_guild_id(self, guild_id)
     
     async def get_game(self, game_id: int) -> GameModel:
         return await self._api_manager.get_game(game_id)
@@ -200,7 +200,7 @@ class LobbyManager:
         guild_id: int,
         game_name: str,
         max_size: int,
-        role_id: int,
+        role_id: int | None,
         icon_url: str | None
     ) -> GameModel:
         
@@ -210,7 +210,7 @@ class LobbyManager:
             guild_id: int,
             game_name: str,
             max_size: int,
-            role_id: int,
+            role_id: int | None,
             icon_url: str | None
         ) -> GameModel:
             game_model = await self._api_manager.post_game(
@@ -300,6 +300,8 @@ class LobbyManager:
         await self._update_model_instance(lobby, LobbyModel)
         owner = await self.get_member(lobby.guild_id, lobby.owner_id)
         try:
+            if not isinstance(lobby.history_thread_id, int):
+                raise TypeError("History Thread ID not set.")
             thread = await self.get_thread(lobby.guild_id, lobby.history_thread_id)
             await self.embed_manager.send_update_embed(
                 update_type=self.embed_manager.UPDATE_TYPES.GAME_CHANGE,
@@ -318,6 +320,8 @@ class LobbyManager:
         is_member = any(member.member_id == member_id for member in lobby.member_lobbies)
         
         if is_member:
+            if not isinstance(lobby.history_thread_id, int):
+                raise TypeError("History Thread ID not set.")
             await self.embed_manager.send_update_embed(
                 update_type=self.embed_manager.UPDATE_TYPES.OWNER_CHANGE,
                 title=f"{(await self.get_member(lobby.guild_id, lobby.owner_id)).display_name}",
@@ -335,6 +339,8 @@ class LobbyManager:
         )).ready
 
         lobby = await self.get_lobby(lobby_id)
+        if not isinstance(lobby.history_thread_id, int):
+            raise TypeError("History Thread ID not set.")
         thread = await self.get_thread(lobby.guild_id, lobby.history_thread_id)
         member = await self.get_member(lobby.guild_id, member_id)
         if not owner_set and updated_state:
@@ -367,6 +373,8 @@ class LobbyManager:
         await self._update_model_instance(lobby, LobbyModel)
 
         owner = await self.get_member(lobby.guild_id, lobby.owner_id)
+        if not isinstance(lobby.history_thread_id, int):
+            raise TypeError("History Thread ID not set.")
         thread = await self.get_thread(lobby.guild_id, lobby.history_thread_id)
 
         if updated_is_locked:
@@ -391,6 +399,8 @@ class LobbyManager:
         await self._update_model_instance(lobby, LobbyModel)
 
         owner = await self.get_member(lobby.guild_id, lobby.owner_id)
+        if not isinstance(lobby.history_thread_id, int):
+            raise TypeError("History Thread ID not set.")
         thread = await self.get_thread(lobby.guild_id, lobby.history_thread_id)
         await self.embed_manager.send_update_embed(
             update_type=self.embed_manager.UPDATE_TYPES.DESCRIPTION_CHANGE,
@@ -420,6 +430,8 @@ class LobbyManager:
         ) -> None:
             lobby = await self.get_lobby(lobby_id)
             member = await self.get_member(lobby.guild_id, member_id)
+            if not isinstance(lobby.history_thread_id, int):
+                raise TypeError("History Thread ID not set.")
             thread = await self.get_thread(lobby.guild_id, lobby.history_thread_id)
 
             await self._api_manager.delete_member(member_id, lobby_id)

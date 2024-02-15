@@ -68,8 +68,8 @@ class InsertLobbyModel(BaseModel):
 class InsertGameModel(BaseModel):
     name: str
     max_size: int
-    role: int
     guild_id: int
+    role: int | None
     icon_url: str | None
 
 
