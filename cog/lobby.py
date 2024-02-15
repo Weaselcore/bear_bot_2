@@ -798,14 +798,14 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
     async def remove_game(
         self,
         interaction: Interaction,
-        game_id: app_commands.Transform[int, GameTransformer],
+        game: app_commands.Transform[int, GameTransformer],
     ):
         """Removes a game from the lobby module"""
         # Check if the game exists
 
-        assert isinstance(game_id, int)
+        assert isinstance(game, int)
 
-        game_model = await self.lobby_manager.get_game(int(game_id))
+        game_model = await self.lobby_manager.get_game(int(game))
         # If game not found.
         if game_model is None:
             await interaction.response.send_message(
@@ -814,7 +814,7 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
             return
 
         try:
-            await self.lobby_manager.remove_game(game_id)
+            await self.lobby_manager.remove_game(game)
             await interaction.response.send_message(
                 f"Failed to remove game: {game_model.name} with id {game_model.id}!",
                 ephemeral=True,
