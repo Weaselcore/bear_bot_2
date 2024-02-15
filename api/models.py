@@ -70,4 +70,15 @@ class InsertGameModel(BaseModel):
     max_size: int
     role: int
     guild_id: int
-    icon_url: None | str
+    icon_url: str | None
+
+
+class MessageResponseModel:
+    title: str
+    description: str
+    additional_field: str | None
+
+
+class ResponseModel:
+    lobby: LobbyModel
+    message: MessageResponseModel
