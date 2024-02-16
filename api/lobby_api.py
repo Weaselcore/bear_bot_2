@@ -18,6 +18,7 @@ from api.models import (
 
 from api.session_manager import ClientSessionManager
 from cog.classes.utils import set_logger
+from exceptions.lobby_exceptions import DeletedLobby, LobbyNotFound
 
 
 LOBBY_SERVER_ADDRESS = os.environ["LOBBY_SERVER_ADDRESS"]
@@ -73,7 +74,7 @@ class LobbyApi:
                 content_type = response.headers.get("Content-Type", "")
                 if "application/json" in content_type:
                     data = await response.json()
-                    if isinstance(return_type, MultipleGameResponseModel):
+                    if return_type is MultipleGameResponseModel:
                         if data == []:
                             raise GamesNotFound
                         return unwrap_response(
@@ -81,7 +82,7 @@ class LobbyApi:
                                 data, from_attributes=True
                             )
                         )
-                    elif isinstance(return_type, MultipleLobbyResponseModel):
+                    elif return_type is MultipleLobbyResponseModel:
                         if data == []:
                             raise LobbiesNotFound
                         return unwrap_response(
@@ -89,11 +90,11 @@ class LobbyApi:
                                 data, from_attributes=True
                             )
                         )
-                    elif isinstance(return_type, GameModel):
+                    elif return_type is GameResponseModel:
                         return unwrap_response(
                             GameResponseModel.model_validate(data, from_attributes=True)
                         )
-                    elif isinstance(return_type, LobbyModel):
+                    elif return_type is LobbyResponseModel:
                         return unwrap_response(
                             LobbyResponseModel.model_validate(
                                 data, from_attributes=True
@@ -107,6 +108,10 @@ class LobbyApi:
         except aiohttp.ClientResponseError as e:
             # Handle client-side errors (e.g., 4xx status codes)
             self.logger.error(f"Client error: {e.status} - {e.message}")
+            if return_type is LobbyResponseModel and method == "GET":
+                raise LobbyNotFound
+            elif return_type is LobbyResponseModel and method == "DELETE":
+                raise DeletedLobby
         except aiohttp.ServerDisconnectedError as e:
             # Handle server disconnected errors
             self.logger.error(f"Server disconnected error: {e}")

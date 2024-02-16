@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
-from time import gmtime, strftime
-from typing import TypeVar, Union, cast
+from typing import TypeVar, Union
 from zoneinfo import ZoneInfo
 
 import discord
@@ -19,12 +18,14 @@ from cog.classes.lobby.lobby_cache import LobbyCache
 from cog.classes.lobby.transformer_cache import TransformerCache
 from cog.classes.utils import set_logger
 from embeds.lobby_embed import LobbyEmbedManager
-from exceptions.lobby_exceptions import MemberNotFound
+from exceptions.lobby_exceptions import DeletedLobby, LobbyNotFound, MemberNotFound
 
 T = TypeVar("T", GameModel, LobbyModel, MemberModel)
-U = Union[tuple[GameModel, MessageResponseModel],
-        tuple[LobbyModel, MessageResponseModel],
-        tuple[MemberModel, MessageResponseModel]]
+U = Union[
+    tuple[GameModel, MessageResponseModel],
+    tuple[LobbyModel, MessageResponseModel],
+    tuple[MemberModel, MessageResponseModel],
+]
 
 
 class LobbyManager:
@@ -138,7 +139,7 @@ class LobbyManager:
 
         @self.transformer_cache
         async def _get_games_by_guild_id(self, guild_id: int) -> list[GameModel] | None:
-            games, _  = await self._api_manager.get_games_by_guild_id(guild_id)
+            games, _ = await self._api_manager.get_games_by_guild_id(guild_id)
             if games is None:
                 return None
             return games
@@ -160,7 +161,7 @@ class LobbyManager:
     async def get_queue_members(self, lobby_id: int) -> list[discord.Member]:
         lobby, _ = await self._api_manager.get_lobby(lobby_id)
         list_of_queue_members = [
-            await self.get_member(lobby_id, member.member_id)
+            await self.get_member(lobby.guild_id, member.member_id)
             for member in lobby.queue_member_lobbies
         ]
         final_list = list(filter(None, list_of_queue_members))
@@ -170,22 +171,31 @@ class LobbyManager:
         self, lobby_id: int, ready_status: bool
     ) -> list[MemberLobbyModel]:
         """Get the number of members that are ready"""
-        lobby, message = await self._api_manager.get_lobby(lobby_id)
+        lobby, _ = await self._api_manager.get_lobby(lobby_id)
         return [
             member for member in lobby.member_lobbies if member.ready == ready_status
         ]
 
     async def get_session_time(self, created_datetime: datetime) -> str:
         """Get the session time of the lobby"""
-        timezone = ZoneInfo("Pacific/Auckland")
+        timezone = ZoneInfo("UTC")
 
-        localised_creation_datetime = created_datetime.astimezone(tz=timezone)
-        localised_datetime_now = datetime.utcnow().astimezone(tz=timezone)
+        # Database stores UTC datetime strings but with the timezone data truncated.
+        localised_creation_datetime = datetime.utcfromtimestamp(
+            created_datetime.timestamp()
+        ).astimezone(timezone)
+        localised_datetime_now = datetime.utcnow().astimezone(timezone)
 
         duration = localised_datetime_now - localised_creation_datetime
-        return "Session Duration: " + strftime(
-            "%H:%M:%S", gmtime(duration.total_seconds())
-        )
+
+        total_seconds = int(duration.total_seconds())
+        hours, remainder = divmod(total_seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+
+        # Format the duration as a string
+        duration_str = "{:02}:{:02}:{:02}".format(hours, minutes, seconds)
+
+        return "Session Duration: " + duration_str
 
     async def get_ready_mentions(self, lobby_id: int) -> str:
         members_to_ping = await self.get_members_status(lobby_id, True)
@@ -208,18 +218,41 @@ class LobbyManager:
         max_size: int,
         description: str,
     ) -> LobbyModel:
-        lobby, _ = await self._api_manager.post_lobby(
-            InsertLobbyModel(
-                original_channel_id=original_channel_id,
-                guild_id=guild_id,
-                guild_name=guild_name,
-                owner_id=owner_id,
-                game_id=game_id,
-                game_size=max_size,
-                description=description,
+
+        @self.lobby_cache
+        async def _create_lobby(
+            self,
+            original_channel_id: int,
+            guild_id: int,
+            guild_name: str,
+            owner_id: int,
+            game_id: int,
+            max_size: int,
+            description: str,
+        ) -> LobbyModel:
+            lobby, _ = await self._api_manager.post_lobby(
+                InsertLobbyModel(
+                    original_channel_id=original_channel_id,
+                    guild_id=guild_id,
+                    guild_name=guild_name,
+                    owner_id=owner_id,
+                    game_id=game_id,
+                    game_size=max_size,
+                    description=description,
+                )
             )
+            return lobby
+
+        return await _create_lobby(
+            self,
+            original_channel_id=original_channel_id,
+            guild_id=guild_id,
+            guild_name=guild_name,
+            owner_id=owner_id,
+            game_id=game_id,
+            max_size=max_size,
+            description=description,
         )
-        return lobby
 
     async def create_game(
         self,
@@ -258,11 +291,11 @@ class LobbyManager:
         self, lobby_id: int, member_id: int, owner_added: bool = False
     ) -> None:
         lobby = await self.get_lobby(lobby_id)
-        member_model, _ = await self._api_manager.post_member(
+        await self._api_manager.post_member(
             lobby.id, MemberModel(id=member_id)
         )
-        member = await self.get_member(lobby.guild_id, member_model.id)
-        thread = await self.get_thread(lobby.guild_id, lobby_id)
+        member = await self.get_member(lobby.guild_id, member_id)
+        thread = await self.get_thread(lobby.guild_id, lobby.history_thread_id)
         if not owner_added:
             await self.embed_manager.send_update_embed(
                 update_type=self.embed_manager.UPDATE_TYPES.JOIN,
@@ -285,23 +318,27 @@ class LobbyManager:
         instance: T,
         lobby_id=None,
     ) -> U:
-        # Post the updated model instance to the appropriate function based on model type
+        # Determine the appropriate function based on the instance type
         if isinstance(instance, LobbyModel):
             result = await self._api_manager.put_lobby(instance)
-            return result
         elif isinstance(instance, MemberModel):
             result = await self._api_manager.put_member(lobby_id, instance)
-            return result
         elif isinstance(instance, GameModel):
             result = await self._api_manager.put_game(instance)
-            return result
         else:
             self.logger.warning(f"No specific handler found for {instance.__str__}.")
             raise NotImplementedError
 
+        # Update the cache based on the instance type
+        if isinstance(instance, LobbyModel):
+            self.lobby_cache.set(str(result[0].id), result[0])
+        elif isinstance(instance, GameModel):
+            self.transformer_cache.set(str(result[0].id), result[0])
+
+        return result
+
     async def update_lobby(self, lobby: LobbyModel) -> LobbyModel:
-        response = await self._update_model_instance(lobby)
-        lobby, _ = cast(tuple[LobbyModel, MessageResponseModel], response)
+        lobby, _ = await self._update_model_instance(lobby)
         return lobby
 
     async def update_game_id(self, lobby_id: int, game_id: int) -> int:
@@ -347,13 +384,11 @@ class LobbyManager:
         lobby, _ = await self._api_manager.get_lobby(lobby_id)
 
         # Check if member is in lobby
-        is_member = any(
-            member.member_id == member_id for member in lobby.member_lobbies
-        )
-
-        if is_member:
+        if any(member.member_id == member_id for member in lobby.member_lobbies):
             if not isinstance(lobby.history_thread_id, int):
                 raise TypeError("History Thread ID not set.")
+
+            # Send update embed
             await self.embed_manager.send_update_embed(
                 update_type=self.embed_manager.UPDATE_TYPES.OWNER_CHANGE,
                 title=f"{(await self.get_member(lobby.guild_id, lobby.owner_id)).display_name}",
@@ -362,6 +397,8 @@ class LobbyManager:
                 ),
                 additional_string=f"<@{member_id}>",
             )
+
+            # Update lobby owner
             lobby.owner_id = member_id
             await self.update_lobby(lobby)
 
@@ -404,8 +441,7 @@ class LobbyManager:
         """Toggle the lock state of the lobby"""
         lobby, _ = await self._api_manager.get_lobby(lobby_id)
         # Modify lobby model
-        updated_is_locked = not lobby.is_locked
-        lobby.is_locked = updated_is_locked
+        lobby.is_locked = not lobby.is_locked
 
         await self._update_model_instance(lobby)
 
@@ -414,14 +450,14 @@ class LobbyManager:
             raise TypeError("History Thread ID not set.")
         thread = await self.get_thread(lobby.guild_id, lobby.history_thread_id)
 
-        if updated_is_locked:
+        if lobby.is_locked:
             await self.embed_manager.send_update_embed(
                 update_type=self.embed_manager.UPDATE_TYPES.LOCK,
                 title=owner.display_name,
                 destination=thread,
                 pings=await self.get_all_mentions(lobby),
             )
-        elif not updated_is_locked:
+        else:
             await self.embed_manager.send_update_embed(
                 update_type=self.embed_manager.UPDATE_TYPES.UNLOCK,
                 title=owner.display_name,
@@ -465,7 +501,7 @@ class LobbyManager:
     """Delete Functions"""
 
     async def remove_game(self, game_id: int) -> None:
-        game = await self._api_manager.get_game(game_id)
+        game, _ = await self._api_manager.get_game(game_id)
         # Clear cache before deleting as deletion raises an exception.
         self.transformer_cache.remove(str(game.guild_id), game_id)  # type: ignore
         await self._api_manager.delete_game(game_id)
@@ -498,69 +534,47 @@ class LobbyManager:
     async def delete_lobby(
         self, lobby_id: int, reason: str | None = None, clean_up: bool = False
     ) -> None:
-        """Delete a lobby"""
-        lobby, _ = await self._api_manager.get_lobby(lobby_id)
-        if lobby is None:
-            # Serverside deletion -> on last member leaving
-            lobby_from_cache = self.lobby_cache.get(lobby_id)
-            if isinstance(lobby_from_cache, None):
+        try:
+            lobby, _ = await self._api_manager.get_lobby(lobby_id)
+        except LobbyNotFound:
+            lobby = self.lobby_cache.get(str(lobby_id))
+            if lobby is None:
                 self.logger.error(
                     "Lobby was not found in cache, unable to delete lobby."
                 )
                 return
 
-            original_channel = await self.get_channel(
-                lobby_from_cache.guild_id, lobby_from_cache.original_channel_id
-            )
-            session_time = await self.get_session_time(
-                lobby_from_cache.created_datetime
-            )
-            embed_type = (
-                self.embed_manager.UPDATE_TYPES.CLEAN_UP
-                if clean_up
-                else self.embed_manager.UPDATE_TYPES.DELETE
-            )
+        original_channel = await self.get_channel(
+            lobby.guild_id, lobby.original_channel_id
+        )
+        lobby_channel = await self.get_channel(lobby.guild_id, lobby.lobby_channel_id)
+        owner = (
+            "Bear Bot"
+            if clean_up
+            else (await self.get_member(lobby.guild_id, lobby.owner_id)).display_name
+        )
+        session_time = await self.get_session_time(lobby.created_datetime)
 
-            additional_string = lobby_id if clean_up else reason
-
-            await self.embed_manager.send_update_embed(
-                update_type=embed_type,
-                title=lobby_from_cache.owner,
-                destination=lobby_from_cache.original_channel,
-                additional_string=str(additional_string) if additional_string else None,
-                footer_string="⌚ " + session_time,
-            )
-            return
-        else:
-            original_channel = await self.get_channel(
-                lobby.guild_id, lobby.original_channel_id
-            )
-            session_time = await self.get_session_time(lobby.created_datetime)
-            owner = (
-                "Bear Bot"
-                if clean_up
-                else (
-                    await self.get_member(lobby.guild_id, lobby.owner_id)
-                ).display_name
-            )
-
+        try:
             await self._api_manager.delete_lobby(lobby_id)
+        except DeletedLobby:
+            self.lobby_cache.remove(str(lobby_id))
 
-            embed_type = (
-                self.embed_manager.UPDATE_TYPES.CLEAN_UP
-                if clean_up
-                else self.embed_manager.UPDATE_TYPES.DELETE
-            )
+        embed_type = (
+            self.embed_manager.UPDATE_TYPES.CLEAN_UP
+            if clean_up
+            else self.embed_manager.UPDATE_TYPES.DELETE
+        )
+        additional_string = lobby_id if clean_up else reason
 
-            additional_string = lobby_id if clean_up else reason
-
-            await self.embed_manager.send_update_embed(
-                update_type=embed_type,
-                title=owner,
-                destination=original_channel,
-                additional_string=str(additional_string) if additional_string else None,
-                footer_string="⌚ " + session_time,
-            )
+        await self.embed_manager.send_update_embed(
+            update_type=embed_type,
+            title=owner,
+            destination=original_channel,
+            additional_string=str(additional_string) if additional_string else None,
+            footer_string="⌚ " + session_time,
+        )
+        await lobby_channel.delete()
 
     """Helper Functions"""
 
@@ -588,10 +602,18 @@ class LobbyManager:
         last_promotion_datetime = lobby.last_promotion_datetime
         if not last_promotion_datetime:
             return True
+        
+        timezone = ZoneInfo("UTC")
 
-        if last_promotion_datetime is None or (
-            datetime.utcnow() - last_promotion_datetime.utcnow()
-        ) > timedelta(minutes=10):
+        localised_last_promotion_datetime = datetime.utcfromtimestamp(
+            last_promotion_datetime.timestamp()
+        ).astimezone(timezone)
+
+        last_promotion_duration = datetime.utcnow().astimezone(timezone) - localised_last_promotion_datetime
+
+        if last_promotion_datetime is None or (last_promotion_duration) > timedelta(
+            minutes=10
+        ):
             return True
         else:
             return False
