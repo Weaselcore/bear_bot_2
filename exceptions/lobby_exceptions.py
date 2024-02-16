@@ -1,14 +1,6 @@
 class LobbyNotFound(Exception):
-    def __init__(self, lobby_id: int):
-        self.message = f"Lobby with {lobby_id} not found."
-
-    def __str__(self) -> str:
-        return self.message
-    
-
-class LobbyNotFoundByOwnerId(Exception):
+    """Occurs when server returns a 404 when querying for a lobby."""
     pass
-
 
 class MemberNotFound(Exception):
     def __init__(self, member_id: int):
@@ -43,7 +35,7 @@ class LobbyCreationError(Exception):
     
 
 class DeletedLobby(Exception):
-    """Exception raised for empty JSON response."""
+    """Occurs when the server has deleted a lobby."""
     pass
 
 class DeletedGame(Exception):
