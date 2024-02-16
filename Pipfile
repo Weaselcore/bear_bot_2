@@ -4,14 +4,14 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-"discord.py" = {extras = ["voice"], version = "*"}
+"discord.py" = {extras = ["voice"] }
 ffmpeg-python = "*"
 aiofiles = "*"
 perflint = "*"
 openai = "*"
 aiofile = "*"
 python-dotenv = "*"
-sqlalchemy = {extras = ["asyncio"], version = "*"}
+sqlalchemy = {extras = ["asyncio"] }
 asyncpg = "*"
 types-cachetools = "*"
 cachetools = "*"
@@ -20,7 +20,6 @@ tzdata = "*"
 human-readable = "*"
 python-dateutil = "*"
 pytz = "*"
-mypy = "*"
 
 [dev-packages]
 autopep8 = "*"
@@ -30,6 +29,8 @@ pytest-async-sqlalchemy = "*"
 pytest-asyncio = "*"
 ruff = "*"
 black = "*"
+mypy = "*"
+pylint = "*"
 
 [requires]
 python_version = "3.11"
