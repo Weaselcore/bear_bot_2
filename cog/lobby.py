@@ -21,6 +21,7 @@ from discord import (
 )
 from discord.ext import commands, tasks
 from discord.ui import Button, Modal, Select, TextInput, View, button
+from api.api_error import GamesNotFound
 
 from api.lobby_api import LobbyApi
 from api.models import LobbyModel
@@ -655,8 +656,12 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
     async def hydrate_cache(self):
         await self.bot.wait_until_ready()
         for guild in self.bot.guilds:
-            # Hydrate game cache. Function implicitly caches.
-            await self.lobby_manager.get_games_by_guild_id(guild.id)
+            try:
+                # Hydrate game cache. Function implicitly caches.
+                await self.lobby_manager.get_games_by_guild_id(guild.id)
+            except GamesNotFound:
+                self.logger.info(f"Guild with ID: {guild.id} has no games, skipping...")
+                continue
         # Hydrate lobby cache
         lobbies = await self.lobby_manager.get_all_lobbies()
         # Register persistent views per lobby on restart
