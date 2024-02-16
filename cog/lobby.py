@@ -665,16 +665,15 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
         # Hydrate lobby cache
         lobbies = await self.lobby_manager.get_all_lobbies()
         # Register persistent views per lobby on restart
-        if lobbies:
-            for lobby in lobbies:
-                # Construct button view
-                self.bot.add_view(
-                    view=ButtonView(
-                        lobby_id=lobby.id,
-                        lobby_manager=self.lobby_manager,
-                    ),
-                    message_id=lobby.embed_message_id,
-                )
+        for lobby in lobbies:
+            # Construct button view
+            self.bot.add_view(
+                view=ButtonView(
+                    lobby_id=lobby.id,
+                    lobby_manager=self.lobby_manager,
+                ),
+                message_id=lobby.embed_message_id,
+            )
 
     @commands.Cog.listener()
     async def on_voice_state_update(

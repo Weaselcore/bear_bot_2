@@ -1,5 +1,5 @@
 import os
-from typing import Type, TypeAlias, TypeVar, Union, cast
+from typing import Type, TypeVar, Union
 import aiohttp
 from pydantic import ValidationError
 from api.api_error import GamesNotFound, LobbiesNotFound
@@ -8,14 +8,12 @@ from api.models import (
     GameResponseModel,
     InsertGameModel,
     InsertLobbyModel,
-    ListResponseModel,
     LobbyModel,
     LobbyResponseModel,
     MemberModel,
     MessageResponseModel,
     MultipleGameResponseModel,
     MultipleLobbyResponseModel,
-    SingleResponseModel,
 )
 
 from api.session_manager import ClientSessionManager
