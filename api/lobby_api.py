@@ -1,5 +1,5 @@
 import os
-from typing import Type, TypeVar, Union
+from typing import Type, TypeVar
 import aiohttp
 from pydantic import ValidationError
 from api.api_error import GamesNotFound, LobbiesNotFound
@@ -25,6 +25,8 @@ LOBBY_SERVER_ADDRESS = os.environ["LOBBY_SERVER_ADDRESS"]
 LOBBY_API_AUTH_KEY = os.environ["LOBBY_API_AUTH_KEY"]
 BASE_API_URL = f"http://{LOBBY_SERVER_ADDRESS}"
 
+T = TypeVar("T")
+
 ModelType = TypeVar(
     "ModelType",
     GameModel,
@@ -32,20 +34,6 @@ ModelType = TypeVar(
     LobbyModel,
     list[LobbyModel],
 )
-
-ResponseType = TypeVar(
-    "ResponseType",
-    GameResponseModel,
-    MultipleGameResponseModel,
-    LobbyResponseModel,
-    MultipleLobbyResponseModel,
-)
-
-
-def unwrap_response(
-    response: ResponseType,
-) -> tuple[Union[GameModel, list[GameModel], LobbyModel, list[LobbyModel]], MessageResponseModel]:
-    return response.data, response.message
 
 
 class LobbyApi:
@@ -57,10 +45,18 @@ class LobbyApi:
         self,
         method: str,
         endpoint: str,
-        return_type: Type[ResponseType],
+        return_type: Type[
+            GameResponseModel
+            | MultipleGameResponseModel
+            | LobbyResponseModel
+            | MultipleLobbyResponseModel
+        ],
         *args,
         **kwargs,
-    ) -> tuple[ModelType, MessageResponseModel]:
+    ) -> tuple[
+            ModelType,
+            MessageResponseModel,
+        ]:
         session = self._session_manager.session
         headers = {
             "x-api-key": f"{LOBBY_API_AUTH_KEY}",
@@ -77,29 +73,23 @@ class LobbyApi:
                     if return_type is MultipleGameResponseModel:
                         if data == []:
                             raise GamesNotFound
-                        return unwrap_response(
-                            MultipleGameResponseModel.model_validate(
-                                data, from_attributes=True
-                            )
-                        )
+                        return MultipleGameResponseModel.model_validate(
+                            data, from_attributes=True
+                        ).unwrap()
                     elif return_type is MultipleLobbyResponseModel:
                         if data == []:
                             raise LobbiesNotFound
-                        return unwrap_response(
-                            MultipleLobbyResponseModel.model_validate(
-                                data, from_attributes=True
-                            )
-                        )
+                        return MultipleLobbyResponseModel.model_validate(
+                            data, from_attributes=True
+                        ).unwrap()
                     elif return_type is GameResponseModel:
-                        return unwrap_response(
-                            GameResponseModel.model_validate(data, from_attributes=True)
-                        )
+                        return GameResponseModel.model_validate(
+                            data, from_attributes=True
+                        ).unwrap()
                     elif return_type is LobbyResponseModel:
-                        return unwrap_response(
-                            LobbyResponseModel.model_validate(
-                                data, from_attributes=True
-                            )
-                        )
+                        return LobbyResponseModel.model_validate(
+                            data, from_attributes=True
+                        ).unwrap()
                     else:
                         raise NotImplementedError("This type has no implementations.")
                 else:
@@ -155,7 +145,7 @@ class LobbyApi:
     ) -> tuple[LobbyModel, MessageResponseModel]:
         return await self._request(
             "POST",
-            f"/api/Lobby",
+            "/api/Lobby",
             LobbyResponseModel,
             data=lobby.model_dump_json(),
         )
