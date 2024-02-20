@@ -18,14 +18,20 @@ from cog.classes.lobby.lobby_cache import LobbyCache
 from cog.classes.lobby.transformer_cache import TransformerCache
 from cog.classes.utils import set_logger
 from embeds.lobby_embed import LobbyEmbedManager
-from exceptions.lobby_exceptions import DeletedLobby, LobbyNotFound, MemberNotFound
+from exceptions.lobby_exceptions import DeletedLobby, LobbyNotFound, MemberNotFound, ThreadNotFound
 
-T = TypeVar("T", GameModel, LobbyModel, MemberModel)
-U = Union[
+T = TypeVar(
+    "T",
+    GameModel,
+    LobbyModel,
+    MemberModel,
+)
+U = TypeVar(
+    "U",
     tuple[GameModel, MessageResponseModel],
     tuple[LobbyModel, MessageResponseModel],
     tuple[MemberModel, MessageResponseModel],
-]
+)
 
 
 class LobbyManager:
@@ -272,7 +278,7 @@ class LobbyManager:
             role_id: int | None,
             icon_url: str | None,
         ) -> GameModel:
-            game_model = await self._api_manager.post_game(
+            game_model, _ = await self._api_manager.post_game(
                 InsertGameModel(
                     name=game_name,
                     guild_id=guild_id,
@@ -291,9 +297,11 @@ class LobbyManager:
         self, lobby_id: int, member_id: int, owner_added: bool = False
     ) -> None:
         lobby = await self.get_lobby(lobby_id)
-        await self._api_manager.post_member(
-            lobby.id, MemberModel(id=member_id)
-        )
+        await self._api_manager.post_member(lobby.id, MemberModel(id=member_id))
+
+        if lobby.history_thread_id is None:
+            raise ThreadNotFound
+
         member = await self.get_member(lobby.guild_id, member_id)
         thread = await self.get_thread(lobby.guild_id, lobby.history_thread_id)
         if not owner_added:
@@ -315,27 +323,27 @@ class LobbyManager:
 
     async def _update_model_instance(
         self,
-        instance: T,
+        instance: Union[GameModel, LobbyModel, MemberModel],
         lobby_id=None,
-    ) -> U:
+    ) -> Union[
+        tuple[GameModel, MessageResponseModel],
+        tuple[LobbyModel, MessageResponseModel],
+        tuple[MemberModel, MessageResponseModel],
+    ]:
         # Determine the appropriate function based on the instance type
         if isinstance(instance, LobbyModel):
             result = await self._api_manager.put_lobby(instance)
+            self.lobby_cache.set(str(result[0].id), result[0]) # type: ignore
+            return result
         elif isinstance(instance, MemberModel):
-            result = await self._api_manager.put_member(lobby_id, instance)
+            return await self._api_manager.put_member(lobby_id, instance)
         elif isinstance(instance, GameModel):
             result = await self._api_manager.put_game(instance)
+            self.transformer_cache.set(str(result[0].id), result[0]) # type: ignore
+            return result
         else:
             self.logger.warning(f"No specific handler found for {instance.__str__}.")
             raise NotImplementedError
-
-        # Update the cache based on the instance type
-        if isinstance(instance, LobbyModel):
-            self.lobby_cache.set(str(result[0].id), result[0])
-        elif isinstance(instance, GameModel):
-            self.transformer_cache.set(str(result[0].id), result[0])
-
-        return result
 
     async def update_lobby(self, lobby: LobbyModel) -> LobbyModel:
         lobby, _ = await self._update_model_instance(lobby)
@@ -491,7 +499,7 @@ class LobbyManager:
                 for member in lobby.member_lobbies
                 if member.member_id == member_id
             ):
-                if member.has_joined_vc == False:
+                if member.has_joined_vc is False:
                     await self._api_manager.put_joined_vc(
                         member.lobby_id,
                         member.member_id,
@@ -602,14 +610,16 @@ class LobbyManager:
         last_promotion_datetime = lobby.last_promotion_datetime
         if not last_promotion_datetime:
             return True
-        
+
         timezone = ZoneInfo("UTC")
 
         localised_last_promotion_datetime = datetime.utcfromtimestamp(
             last_promotion_datetime.timestamp()
         ).astimezone(timezone)
 
-        last_promotion_duration = datetime.utcnow().astimezone(timezone) - localised_last_promotion_datetime
+        last_promotion_duration = (
+            datetime.utcnow().astimezone(timezone) - localised_last_promotion_datetime
+        )
 
         if last_promotion_datetime is None or (last_promotion_duration) > timedelta(
             minutes=10
