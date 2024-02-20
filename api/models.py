@@ -84,17 +84,27 @@ class LobbyResponseModel(BaseModel):
     data: LobbyModel
     message: MessageResponseModel
 
+    def unwrap(self) -> tuple[LobbyModel, MessageResponseModel]:
+        return self.data, self.message,
 
 class MultipleLobbyResponseModel(BaseModel):
     data: list[LobbyModel] = []
     message: MessageResponseModel
 
+    def unwrap(self) -> tuple[list[LobbyModel], MessageResponseModel]:
+        return self.data, self.message,
 
 class GameResponseModel(BaseModel):
     data: GameModel
     message: MessageResponseModel
 
+    def unwrap(self) -> tuple[GameModel, MessageResponseModel]:
+        return self.data, self.message,
+
 
 class MultipleGameResponseModel(BaseModel):
     data: list[GameModel] = []
     message: MessageResponseModel
+
+    def unwrap(self) -> tuple[list[GameModel], MessageResponseModel]:
+        return self.data, self.message,
