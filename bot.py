@@ -21,7 +21,6 @@ class MyClient(commands.Bot):
 
     async def setup_hook(self) -> None:
         await self.load_extension("cog.scheduler")
-        await asyncio.sleep(5)
         await self.load_extension("cog.reminder")
         await self.load_extension("cog.lobby")
         await self.load_extension("cog.soundboard")
