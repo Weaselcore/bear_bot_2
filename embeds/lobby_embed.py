@@ -5,6 +5,8 @@ from discord import (Color, Embed, Member, Message, PartialMessage,
                      TextChannel, Thread, User)
 from discord.ui import View
 
+from api.models import LobbyStates
+
 
 class UpdateEmbedType(Enum):
     LEAVE = "LEAVE"
@@ -63,7 +65,7 @@ class LobbyEmbed(Embed):
         lobby_id: int,
         owner: Member | User,
         description: str | None,
-        is_locked: bool,
+        state: LobbyStates,
         is_full: bool,
         members: list[Member],
         member_ready: list[int],
@@ -86,7 +88,7 @@ class LobbyEmbed(Embed):
             self.description = "Description: None"
 
         # Set colour based on status
-        if is_locked:
+        if state is LobbyStates.LOCKED:
             self.color = Color.yellow()  # type: ignore
         elif is_full:
             self.color = Color.green()  # type: ignore
@@ -203,7 +205,7 @@ class LobbyEmbedManager:
         lobby_id: int,
         owner: Member | User,
         description: str | None,
-        is_locked: bool,
+        state: LobbyStates,
         is_full: bool,
         members: list[Member],
         member_ready: list[int],
@@ -215,7 +217,7 @@ class LobbyEmbedManager:
             lobby_id=lobby_id,
             owner=owner,
             description=description,
-            is_locked=is_locked,
+            state=state,
             is_full=is_full,
             members=members,
             member_ready=member_ready,
@@ -239,7 +241,7 @@ class LobbyEmbedManager:
         lobby_id: int,
         owner: Member | User,
         description: str | None,
-        is_locked: bool,
+        state: LobbyStates,
         is_full: bool,
         members: list[Member],
         member_ready: list[int],
@@ -253,7 +255,7 @@ class LobbyEmbedManager:
             lobby_id=lobby_id,
             owner=owner,
             description=description,
-            is_locked=is_locked,
+            state=state,
             is_full=is_full,
             members=members,
             member_ready=member_ready,

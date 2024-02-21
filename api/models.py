@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import IntEnum
 from pydantic import BaseModel
 
 
@@ -35,6 +36,12 @@ class QueueMemberLobbyModel(BaseModel):
     join_datetime: datetime
 
 
+class LobbyStates(IntEnum):
+    ACTIVE = 1
+    LOCKED = 2
+    PENDING_DELETION = 3
+
+
 class LobbyModel(BaseModel):
     id: int
     description: str | None = None
@@ -44,7 +51,7 @@ class LobbyModel(BaseModel):
     game_size: int
     guild_id: int
     history_thread_id: int | None = None
-    is_locked: bool
+    state: LobbyStates = LobbyStates.ACTIVE
     last_promotion_datetime: datetime | None = None
     last_promotion_message_id: int | None = None
     lobby_channel_id: int | None = None
@@ -63,6 +70,7 @@ class InsertLobbyModel(BaseModel):
     game_id: int
     game_size: int
     description: str | None = None
+    state: LobbyStates = LobbyStates.ACTIVE
 
 
 class InsertGameModel(BaseModel):

@@ -10,6 +10,7 @@ from api.models import (
     InsertGameModel,
     InsertLobbyModel,
     LobbyModel,
+    LobbyStates,
     MemberLobbyModel,
     MemberModel,
     MessageResponseModel,
@@ -449,7 +450,7 @@ class LobbyManager:
         """Toggle the lock state of the lobby"""
         lobby, _ = await self._api_manager.get_lobby(lobby_id)
         # Modify lobby model
-        lobby.is_locked = not lobby.is_locked
+        lobby.state = LobbyStates.LOCKED if lobby.state is LobbyStates.ACTIVE else LobbyStates.LOCKED
 
         await self._update_model_instance(lobby)
 
@@ -458,7 +459,7 @@ class LobbyManager:
             raise TypeError("History Thread ID not set.")
         thread = await self.get_thread(lobby.guild_id, lobby.history_thread_id)
 
-        if lobby.is_locked:
+        if lobby.state is LobbyStates.LOCKED:
             await self.embed_manager.send_update_embed(
                 update_type=self.embed_manager.UPDATE_TYPES.LOCK,
                 title=owner.display_name,
@@ -471,7 +472,7 @@ class LobbyManager:
                 title=owner.display_name,
                 destination=thread,
             )
-        return lobby.is_locked
+        return lobby.state
 
     async def set_description(self, lobby_id: int, description: str) -> None:
         """Set the description of the lobby"""
@@ -665,7 +666,6 @@ class LobbyManager:
             lobby_id=lobby_id,
             owner=await self.get_member(lobby.guild_id, lobby.owner_id),
             description=description,
-            is_locked=False,
             is_full=False,
             members=await self.get_members(lobby),
             member_ready=[],

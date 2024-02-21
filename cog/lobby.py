@@ -24,7 +24,7 @@ from discord.ui import Button, Modal, Select, TextInput, View, button
 
 from api.api_error import GamesNotFound
 from api.lobby_api import LobbyApi
-from api.models import LobbyModel
+from api.models import LobbyModel, LobbyStates
 from api.session_manager import ClientSessionManager
 from cog.classes.lobby.lobby_cache import LobbyCache
 from cog.classes.lobby.transformer_error import GameTransformError, NumberTransformError
@@ -310,7 +310,7 @@ class ButtonView(View):
             return
 
         # Reject interaction if lobby is locked
-        is_locked = (await self.lobby_manager.get_lobby(self.lobby_id)).is_locked
+        is_locked = (await self.lobby_manager.get_lobby(self.lobby_id)).state is LobbyStates.LOCKED
         if is_locked:
             # Defer interaction update
             return
@@ -376,12 +376,11 @@ class ButtonView(View):
             return
 
         # Update lobby state
-        is_locked = lobby.is_locked
-        lobby.is_locked = not is_locked
+        lobby.state = LobbyStates.ACTIVE if lobby.state is LobbyStates.LOCKED else LobbyStates.LOCKED
         await self.lobby_manager.update_lobby(lobby)
 
         # Send button label
-        if lobby.is_locked:
+        if lobby.state is LobbyStates.LOCKED:
             button.label = "Unlock"
         else:
             button.label = "Lock"
@@ -637,7 +636,7 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
                     lobby.guild_id, lobby.owner_id
                 ),
                 description=lobby.description,
-                is_locked=lobby.is_locked,
+                state=lobby.state,
                 is_full=await self.lobby_manager.is_full(lobby_id),
                 members=await self.lobby_manager.get_members(lobby),
                 member_ready=list_of_member_int,
