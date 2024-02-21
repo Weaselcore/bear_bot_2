@@ -19,7 +19,7 @@ from cog.classes.lobby.lobby_cache import LobbyCache
 from cog.classes.lobby.transformer_cache import TransformerCache
 from cog.classes.utils import set_logger
 from embeds.lobby_embed import LobbyEmbedManager
-from exceptions.lobby_exceptions import DeletedLobby, LobbyNotFound, MemberNotFound, ThreadNotFound
+from exceptions.lobby_exceptions import DeletedLobby, LobbyNotFound, MemberNotFound, ThreadChannelNotFound
 
 T = TypeVar(
     "T",
@@ -301,7 +301,7 @@ class LobbyManager:
         await self._api_manager.post_member(lobby.id, MemberModel(id=member_id))
 
         if lobby.history_thread_id is None:
-            raise ThreadNotFound
+            raise ThreadChannelNotFound
 
         member = await self.get_member(lobby.guild_id, member_id)
         thread = await self.get_thread(lobby.guild_id, lobby.history_thread_id)
@@ -445,34 +445,6 @@ class LobbyManager:
                 pings=await self.get_unready_mentions(lobby),
             )
         return updated_state
-
-    async def set_is_lobby_locked(self, lobby_id: int) -> bool:
-        """Toggle the lock state of the lobby"""
-        lobby, _ = await self._api_manager.get_lobby(lobby_id)
-        # Modify lobby model
-        lobby.state = LobbyStates.LOCKED if lobby.state is LobbyStates.ACTIVE else LobbyStates.LOCKED
-
-        await self._update_model_instance(lobby)
-
-        owner = await self.get_member(lobby.guild_id, lobby.owner_id)
-        if not isinstance(lobby.history_thread_id, int):
-            raise TypeError("History Thread ID not set.")
-        thread = await self.get_thread(lobby.guild_id, lobby.history_thread_id)
-
-        if lobby.state is LobbyStates.LOCKED:
-            await self.embed_manager.send_update_embed(
-                update_type=self.embed_manager.UPDATE_TYPES.LOCK,
-                title=owner.display_name,
-                destination=thread,
-                pings=await self.get_all_mentions(lobby),
-            )
-        else:
-            await self.embed_manager.send_update_embed(
-                update_type=self.embed_manager.UPDATE_TYPES.UNLOCK,
-                title=owner.display_name,
-                destination=thread,
-            )
-        return lobby.state
 
     async def set_description(self, lobby_id: int, description: str) -> None:
         """Set the description of the lobby"""
@@ -653,6 +625,28 @@ class LobbyManager:
         assert lobby.history_thread_id is not None
         thread = await self.get_thread(lobby.guild_id, lobby.history_thread_id)
         return f"<#{thread.id}>"
+    
+    async def send_update_lock_embed(self, lobby_id: int):
+        
+        lobby = await self.get_lobby(lobby_id)
+        owner = await self.get_member(lobby.guild_id, lobby.owner_id)
+        if not isinstance(lobby.history_thread_id, int):
+            raise TypeError("History Thread ID not set.")
+        thread = await self.get_thread(lobby.guild_id, lobby.history_thread_id)
+
+        if lobby.state is LobbyStates.ACTIVE:
+            await self.embed_manager.send_update_embed(
+                update_type=self.embed_manager.UPDATE_TYPES.LOCK,
+                title=owner.display_name,
+                destination=thread,
+                pings=await self.get_all_mentions(lobby),
+            )
+        else:
+            await self.embed_manager.send_update_embed(
+                update_type=self.embed_manager.UPDATE_TYPES.UNLOCK,
+                title=owner.display_name,
+                destination=thread,
+            )
 
     async def initialise_lobby_embed(self, lobby_id: int) -> None:
         from cog.lobby import ButtonView

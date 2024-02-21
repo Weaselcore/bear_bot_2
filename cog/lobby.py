@@ -34,9 +34,11 @@ from embeds.lobby_embed import LobbyEmbedManager
 from exceptions.lobby_exceptions import (
     DeletedGame,
     DeletedLobby,
+    LobbyChannelNotFound,
     LobbyNotFound,
     MemberAlreadyInLobby,
     MemberNotFound,
+    ThreadChannelNotFound,
 )
 from manager.lobby_service import LobbyManager
 
@@ -255,6 +257,27 @@ class OwnerSelectView(View):
                 self.view.stop()
 
 
+class DeletionButtonView(View):
+    def __init__(self, lobby_id: int ,lobby_manager: LobbyManager, *, timeout: float | None = 180):
+        super().__init__(timeout=timeout)
+        self.lobby_id = lobby_id
+        self.lobby_manager = lobby_manager
+
+    @button(label="Delete", style=ButtonStyle.red, custom_id="delete_button")
+    async def delete_button(self, interaction: Interaction, _: Button):
+        await interaction.response.defer()
+        lobby = lobby_cache.get(str(self.lobby_id)).owner_id
+        if lobby is None:
+            lobby = await self.lobby_manager.get_lobby(self.lobby_id)
+        if interaction.user.id == lobby.owner_id:
+            await self.lobby_manager.delete_lobby(lobby_id=self.lobby_id)
+
+    @button(label="Cancel", style=ButtonStyle.blurple, custom_id="cancel_button")
+    async def cancel_button(self, interaction: Interaction, button: Button):
+        # TODO: Delete pass deletion message and datetime
+        pass
+
+
 class ButtonView(View):
     def __init__(self, lobby_id: int, lobby_manager: LobbyManager):
         super().__init__(timeout=None)
@@ -377,13 +400,16 @@ class ButtonView(View):
 
         # Update lobby state
         lobby.state = LobbyStates.ACTIVE if lobby.state is LobbyStates.LOCKED else LobbyStates.LOCKED
-        await self.lobby_manager.update_lobby(lobby)
 
         # Send button label
         if lobby.state is LobbyStates.LOCKED:
             button.label = "Unlock"
         else:
             button.label = "Lock"
+
+        await self.lobby_manager.send_update_lock_embed(self.lobby_id)
+        
+        await self.lobby_manager.update_lobby(lobby)
 
         # Update button label
         await interaction.edit_original_response(view=self)
@@ -577,6 +603,10 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
                         embed=embed,
                         ephemeral=True,
                     )
+        elif isinstance(error, (ThreadChannelNotFound, LobbyChannelNotFound)):
+            self.logger.error("Channel ID not found in Lobby %s", self.id)
+        else:
+            self.logger.error(error)
 
     @tasks.loop(
         count=None,
