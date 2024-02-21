@@ -23,18 +23,14 @@ class GuildNotFound(Exception):
         return self.message
 
 
-class ThreadNotFound(Exception):
+class ThreadChannelNotFound(app_commands.AppCommandError):
     """Occurs when lobby history_thread_id is None"""
-
     pass
 
 
-class LobbyChannelNotFound(Exception):
-    def __init__(self, lobby_channel_id: int):
-        self.message = f"Lobby channel with {lobby_channel_id} not found"
-
-    def __str__(self) -> str:
-        return self.message
+class LobbyChannelNotFound(app_commands.AppCommandError):
+    """Occurs when lobby lobby_channel_id is None"""
+    pass
 
 
 class LobbyCreationError(Exception):

@@ -30,7 +30,7 @@ class LobbyCache:
     def get(self, lobby_id: str) -> LobbyModel | None:
         self.logger.info(f"Fetching from cache with lobby: {lobby_id}")
         self.logger.info(self._cache.__repr__())
-        lobby = self._cache.get(lobby_id)
+        lobby = self._cache.get(lobby_id, None)
         return lobby
     
     def set(self, lobby_id: str, lobby_model: LobbyModel) -> None:
