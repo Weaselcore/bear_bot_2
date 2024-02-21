@@ -33,6 +33,11 @@ class LobbyChannelNotFound(app_commands.AppCommandError):
     pass
 
 
+class MessageNotFound(app_commands.AppCommandError):
+    """Occurs when lobby message id is None"""
+    pass
+
+
 class LobbyCreationError(Exception):
     def __init__(self, message: str):
         self.message = message

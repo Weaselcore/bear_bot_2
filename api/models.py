@@ -52,8 +52,10 @@ class LobbyModel(BaseModel):
     guild_id: int
     history_thread_id: int | None = None
     state: LobbyStates = LobbyStates.ACTIVE
-    last_promotion_datetime: datetime | None = None
     last_promotion_message_id: int | None = None
+    last_promotion_datetime: datetime | None = None
+    last_deletion_message_id: int | None = None
+    last_deletion_datetime: datetime | None = None
     lobby_channel_id: int | None = None
     original_channel_id: int
     owner_id: int

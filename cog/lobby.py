@@ -9,6 +9,7 @@ from discord import (
     Embed,
     Interaction,
     Member,
+    NotFound,
     PermissionOverwrite,
     Role,
     SelectOption,
@@ -38,6 +39,7 @@ from exceptions.lobby_exceptions import (
     LobbyNotFound,
     MemberAlreadyInLobby,
     MemberNotFound,
+    MessageNotFound,
     ThreadChannelNotFound,
 )
 from manager.lobby_service import LobbyManager
@@ -258,24 +260,51 @@ class OwnerSelectView(View):
 
 
 class DeletionButtonView(View):
-    def __init__(self, lobby_id: int ,lobby_manager: LobbyManager, *, timeout: float | None = 180):
+    def __init__(
+        self,
+        lobby_id: int,
+        lobby_manager: LobbyManager,
+        bot: commands.Bot,
+        *,
+        timeout: float | None = 900,
+    ):
+        """Deletion prompt that will timeout in 15mins to delete."""
         super().__init__(timeout=timeout)
         self.lobby_id = lobby_id
         self.lobby_manager = lobby_manager
+        self.bot = bot
 
     @button(label="Delete", style=ButtonStyle.red, custom_id="delete_button")
     async def delete_button(self, interaction: Interaction, _: Button):
         await interaction.response.defer()
-        lobby = lobby_cache.get(str(self.lobby_id)).owner_id
+        lobby = lobby_cache.get(str(self.lobby_id))
         if lobby is None:
             lobby = await self.lobby_manager.get_lobby(self.lobby_id)
         if interaction.user.id == lobby.owner_id:
             await self.lobby_manager.delete_lobby(lobby_id=self.lobby_id)
 
     @button(label="Cancel", style=ButtonStyle.blurple, custom_id="cancel_button")
-    async def cancel_button(self, interaction: Interaction, button: Button):
-        # TODO: Delete pass deletion message and datetime
-        pass
+    async def cancel_button(self, interaction: Interaction, _: Button):
+        await interaction.response.defer()
+        lobby = lobby_cache.get(str(self.lobby_id))
+        if lobby is None:
+            lobby = await self.lobby_manager.get_lobby(self.lobby_id)
+        if interaction.user.id == lobby.owner_id:
+            message = await self.lobby_manager.get_message(lobby.guild_id, lobby.history_thread_id, lobby.last_deletion_message_id)
+            if not message:
+                raise MessageNotFound
+            lobby.state = LobbyStates.ACTIVE
+            lobby.last_deletion_datetime = None
+            lobby.last_deletion_message_id = None
+            await self.lobby_manager.update_lobby(lobby)
+            await message.delete()
+            
+
+    async def on_timeout(self) -> None:
+        await self.lobby_manager.delete_lobby(
+            lobby_id=self.lobby_id,
+            reason=f"🧼 {self.bot.user.display_name} has cleaned up this lobby!",
+        )
 
 
 class ButtonView(View):
@@ -294,7 +323,6 @@ class ButtonView(View):
             )
             await error.thread.send(embed=embed)
 
-
     @button(label="Join", style=ButtonStyle.green, custom_id="join_button")
     async def join_button(self, interaction: Interaction, button: Button):
 
@@ -303,18 +331,17 @@ class ButtonView(View):
         if await self.lobby_manager.has_joined(self.lobby_id, interaction.user.id):
             return
 
-        lobbies = await self.lobby_manager.get_all_lobbies()
-
         # Find if the member is in any lobby or queue
-        member_lobby_result = next((member for lobby in lobbies for member in lobby.member_lobbies if member.member_id == interaction.user.id), None)
-        queue_member_lobby_result = next((member for lobby in lobbies for member in lobby.queue_member_lobbies if member.member_id == interaction.user.id), None)
+        is_member_in_lobby, lobby_id = await self.lobby_manager.is_member_in_lobbies(interaction.user.id)
 
-        if member_lobby_result or queue_member_lobby_result:
-            lobby_id = member_lobby_result.lobby_id if member_lobby_result else queue_member_lobby_result.lobby_id
+        if is_member_in_lobby:
             raise MemberAlreadyInLobby(
                 display_name=interaction.user.display_name,
                 lobby_id=lobby_id,
-                thread=await self.lobby_manager.get_thread(interaction.guild_id, lobby_cache.get(str(self.lobby_id)).history_thread_id)
+                thread=await self.lobby_manager.get_thread(
+                    interaction.guild_id,
+                    lobby_cache.get(str(self.lobby_id)).history_thread_id,
+                ),
             )
 
         await self.lobby_manager.add_member(self.lobby_id, interaction.user.id)
@@ -333,7 +360,9 @@ class ButtonView(View):
             return
 
         # Reject interaction if lobby is locked
-        is_locked = (await self.lobby_manager.get_lobby(self.lobby_id)).state is LobbyStates.LOCKED
+        is_locked = (
+            await self.lobby_manager.get_lobby(self.lobby_id)
+        ).state is LobbyStates.LOCKED
         if is_locked:
             # Defer interaction update
             return
@@ -399,7 +428,11 @@ class ButtonView(View):
             return
 
         # Update lobby state
-        lobby.state = LobbyStates.ACTIVE if lobby.state is LobbyStates.LOCKED else LobbyStates.LOCKED
+        lobby.state = (
+            LobbyStates.ACTIVE
+            if lobby.state is LobbyStates.LOCKED
+            else LobbyStates.LOCKED
+        )
 
         # Send button label
         if lobby.state is LobbyStates.LOCKED:
@@ -408,7 +441,7 @@ class ButtonView(View):
             button.label = "Lock"
 
         await self.lobby_manager.send_update_lock_embed(self.lobby_id)
-        
+
         await self.lobby_manager.update_lobby(lobby)
 
         # Update button label
@@ -604,7 +637,9 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
                         ephemeral=True,
                     )
         elif isinstance(error, (ThreadChannelNotFound, LobbyChannelNotFound)):
-            self.logger.error("Channel ID not found in Lobby %s", self.id)
+            self.logger.error("Channel ID not found in Lobby: %s", type(error))
+        elif isinstance(error, MessageNotFound):
+            self.logger.error("Channel ID not found in Lobby: %s", type(error))
         else:
             self.logger.error(error)
 
@@ -714,6 +749,27 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
                 ),
                 message_id=lobby.embed_message_id,
             )
+            if lobby.last_deletion_message_id is not None:
+                lobby.last_deletion_datetime = datetime.utcnow()
+                message = await self.lobby_manager.get_message(
+                    guild_id=lobby.guild_id,
+                    channel_id=lobby.history_thread_id,
+                    message_id=lobby.last_deletion_message_id,
+                )
+                if message is None:
+                    continue
+                try: 
+                    await message.delete()
+                except NotFound:
+                    pass
+                await self.lobby_manager.send_deletion_message(
+                    lobby_id=lobby.id,
+                    view=DeletionButtonView(
+                        lobby_id=lobby.id,
+                        lobby_manager=self.lobby_manager,
+                        bot=self.bot,
+                    ),
+                )
 
     @commands.Cog.listener()
     async def on_voice_state_update(
@@ -722,8 +778,23 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
         if member.bot is False:
             if before.channel is None:
                 await self.lobby_manager.set_has_joined_vc(member.id)
-            # elif after.channel is None:
-            # TODO: Trigger a deletion
+            elif after.channel is None:
+                is_in_lobby, lobby_id = await self.lobby_manager.is_member_in_lobbies(
+                    member.id
+                )
+                if not is_in_lobby:
+                    return
+                if not lobby_id:
+                    raise LobbyNotFound
+                if (lobby_cache.get(str(lobby_id))).state is LobbyStates.PENDING_DELETION:
+                    return
+                if await self.lobby_manager.is_full(lobby_id):
+                    view = DeletionButtonView(
+                        lobby_id=lobby_id,
+                        lobby_manager=self.lobby_manager,
+                        bot=self.bot,
+                    )
+                    await self.lobby_manager.send_deletion_message(lobby_id, view)
 
     @app_commands.command(description="Create lobby through UI", name="create")
     async def create_lobby(
@@ -903,6 +974,10 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
             title=f"Registered Games on {interaction.guild.name}",
             color=Color.green(),
         )
+        if games is None:
+            await interaction.response.send_message(
+                "There are no games!", ephemeral=True
+            )
         for game in games:
             role = interaction.guild.get_role(game.role) if game.role else None
             link = f"[Click here to view]({game.icon_url})" if game.icon_url else "None"

@@ -479,6 +479,28 @@ class LobbyManager:
                     )
                     return
 
+    async def send_deletion_message(self, lobby_id: int, view: discord.ui.View) -> None:
+        lobby = await self.get_lobby(lobby_id)
+
+        thread_channel = await self.get_channel(lobby.guild_id, lobby.history_thread_id)
+        if thread_channel is None:
+            raise ThreadChannelNotFound
+        
+        embed = discord.Embed(
+            colour=discord.Colour.red(),
+            title="Deletion Triggered",
+            description="A member has left a full lobby from a voice channel. Will delete in 15 minutes!",
+            timestamp=datetime.now()
+        )
+
+        message = await thread_channel.send(embed=embed, view=view)
+
+        lobby.last_deletion_datetime = datetime.utcnow()
+        lobby.last_deletion_message_id = message.id
+        lobby.state = LobbyStates.PENDING_DELETION
+
+        await self.update_lobby(lobby)
+
     """Delete Functions"""
 
     async def remove_game(self, game_id: int) -> None:
@@ -578,6 +600,20 @@ class LobbyManager:
         lobby, _ = await self._api_manager.get_lobby(lobby_id)
         return False if len(lobby.member_lobbies) != lobby.game_size else True
 
+    async def is_member_in_lobbies(self, member_id: int) -> tuple[bool, int | None]:
+        """Checks if member is in any lobby"""
+        lobbies = await self.get_all_lobbies()
+
+        for lobby in lobbies:
+            for member in lobby.member_lobbies:
+                if member.member_id == member_id:
+                    return True, lobby.id
+            for queue_member in lobby.queue_member_lobbies:
+                if queue_member.member_id == member_id:
+                    return True, lobby.id
+        
+        return False, None
+
     async def can_promote(self, lobby: LobbyModel) -> bool:
         """Check if last promotion message is older than 10 minutes"""
         last_promotion_datetime = lobby.last_promotion_datetime
@@ -666,6 +702,7 @@ class LobbyManager:
             game_size=lobby.game_size,
             channel=lobby_channel,
             view=lobby_button_view,
+            state=LobbyStates.ACTIVE
         )
         assert lobby_embed_message_id is not None
 
