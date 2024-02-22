@@ -1,12 +1,10 @@
-from typing import Any
+from discord import Thread, app_commands
 
 
 class LobbyNotFound(Exception):
-    def __init__(self, lobby_id: Any):
-        self.message = f"Lobby with {lobby_id} not found"
+    """Occurs when server returns a 404 when querying for a lobby."""
 
-    def __str__(self) -> str:
-        return self.message
+    pass
 
 
 class MemberNotFound(Exception):
@@ -25,12 +23,19 @@ class GuildNotFound(Exception):
         return self.message
 
 
-class LobbyChannelNotFound(Exception):
-    def __init__(self, lobby_channel_id: int):
-        self.message = f"Lobby channel with {lobby_channel_id} not found"
+class ThreadChannelNotFound(app_commands.AppCommandError):
+    """Occurs when lobby history_thread_id is None"""
+    pass
 
-    def __str__(self) -> str:
-        return self.message
+
+class LobbyChannelNotFound(app_commands.AppCommandError):
+    """Occurs when lobby lobby_channel_id is None"""
+    pass
+
+
+class MessageNotFound(app_commands.AppCommandError):
+    """Occurs when lobby message id is None"""
+    pass
 
 
 class LobbyCreationError(Exception):
@@ -39,3 +44,29 @@ class LobbyCreationError(Exception):
 
     def __str__(self) -> str:
         return self.message
+
+
+class DeletedLobby(Exception):
+    """Occurs when the server has deleted a lobby."""
+
+    pass
+
+
+class DeletedGame(Exception):
+    pass
+
+
+class MemberAlreadyInLobby(app_commands.AppCommandError):
+    """Occurs when a member joins a lobby while already being in one."""
+
+    def __init__(self, display_name: str, lobby_id: int, thread: Thread):
+        self.message = f"{display_name}, you are already in another lobby with ID: {lobby_id}."
+        self.thread = thread
+
+    def __str__(self) -> str:
+        return self.message
+    
+
+class ServerConnectionException(app_commands.AppCommandError):
+    """Occurs when the http client cannot connect."""
+    pass

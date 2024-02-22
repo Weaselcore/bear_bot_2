@@ -1,10 +1,11 @@
-from collections.abc import Sequence
 from datetime import datetime
 from enum import Enum
 
 from discord import (Color, Embed, Member, Message, PartialMessage,
                      TextChannel, Thread, User)
 from discord.ui import View
+
+from api.models import LobbyStates
 
 
 class UpdateEmbedType(Enum):
@@ -64,10 +65,10 @@ class LobbyEmbed(Embed):
         lobby_id: int,
         owner: Member | User,
         description: str | None,
-        is_locked: bool,
+        state: LobbyStates,
         is_full: bool,
         members: list[Member],
-        member_ready: Sequence[int],
+        member_ready: list[int],
         game_size: int,
     ):
         # Setup slots and owner field
@@ -87,7 +88,7 @@ class LobbyEmbed(Embed):
             self.description = "Description: None"
 
         # Set colour based on status
-        if is_locked:
+        if state is LobbyStates.LOCKED:
             self.color = Color.yellow()  # type: ignore
         elif is_full:
             self.color = Color.green()  # type: ignore
@@ -204,7 +205,7 @@ class LobbyEmbedManager:
         lobby_id: int,
         owner: Member | User,
         description: str | None,
-        is_locked: bool,
+        state: LobbyStates,
         is_full: bool,
         members: list[Member],
         member_ready: list[int],
@@ -216,7 +217,7 @@ class LobbyEmbedManager:
             lobby_id=lobby_id,
             owner=owner,
             description=description,
-            is_locked=is_locked,
+            state=state,
             is_full=is_full,
             members=members,
             member_ready=member_ready,
@@ -227,14 +228,23 @@ class LobbyEmbedManager:
         return lobby_message.id
 
     @staticmethod
+    async def create_queue_embed(
+        queue_members: list[Member],
+        channel: TextChannel | Thread,
+    ) -> int | None:
+        queue_embed = QueueEmbed(queue_members)
+        queue_message = await channel.send(embed=queue_embed)
+        return queue_message.id
+
+    @staticmethod
     async def update_lobby_embed(
         lobby_id: int,
         owner: Member | User,
         description: str | None,
-        is_locked: bool,
+        state: LobbyStates,
         is_full: bool,
         members: list[Member],
-        member_ready: Sequence[int],
+        member_ready: list[int],
         game_size: int,
         message: Message | PartialMessage | None,
     ) -> None:
@@ -245,7 +255,7 @@ class LobbyEmbedManager:
             lobby_id=lobby_id,
             owner=owner,
             description=description,
-            is_locked=is_locked,
+            state=state,
             is_full=is_full,
             members=members,
             member_ready=member_ready,
@@ -254,14 +264,6 @@ class LobbyEmbedManager:
         if message is not None:
             await message.edit(embed=embed)
 
-    @staticmethod
-    async def create_queue_embed(
-        queue_members: list[Member],
-        channel: TextChannel | Thread,
-    ) -> int | None:
-        queue_embed = QueueEmbed(queue_members)
-        queue_message = await channel.send(embed=queue_embed)
-        return queue_message.id
 
     @staticmethod
     async def update_queue_embed(
