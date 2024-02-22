@@ -65,3 +65,8 @@ class MemberAlreadyInLobby(app_commands.AppCommandError):
 
     def __str__(self) -> str:
         return self.message
+    
+
+class ServerConnectionException(app_commands.AppCommandError):
+    """Occurs when the http client cannot connect."""
+    pass

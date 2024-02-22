@@ -2,7 +2,7 @@ import os
 from typing import Type, TypeVar
 import aiohttp
 from pydantic import ValidationError
-from api.api_error import GamesNotFound, LobbiesNotFound
+from api.api_exceptions import GamesNotFound, LobbiesNotFound
 from api.models import (
     GameModel,
     GameResponseModel,
@@ -18,7 +18,7 @@ from api.models import (
 
 from api.session_manager import ClientSessionManager
 from cog.classes.utils import set_logger
-from exceptions.lobby_exceptions import DeletedLobby, LobbyNotFound
+from exceptions.lobby_exceptions import DeletedLobby, LobbyNotFound, ServerConnectionException
 
 
 LOBBY_SERVER_ADDRESS = os.environ["LOBBY_SERVER_ADDRESS"]
@@ -105,12 +105,14 @@ class LobbyApi:
         except aiohttp.ServerDisconnectedError as e:
             # Handle server disconnected errors
             self.logger.error(f"Server disconnected error: {e}")
+            raise ServerConnectionException
         except aiohttp.ServerTimeoutError as e:
             # Handle server timeout errors
             self.logger.error(f"Server timeout error: {e}")
         except aiohttp.ClientConnectionError as e:
             # Handle connection errors (e.g., network issues)
             self.logger.error(f"Connection error: {e}")
+            raise ServerConnectionException
         except aiohttp.ClientError as e:
             # Handle other aiohttp client errors
             self.logger.error(f"An error occurred: {e}")

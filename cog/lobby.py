@@ -23,7 +23,7 @@ from discord import (
 from discord.ext import commands, tasks
 from discord.ui import Button, Modal, Select, TextInput, View, button
 
-from api.api_error import GamesNotFound
+from api.api_exceptions import GamesNotFound
 from api.lobby_api import LobbyApi
 from api.models import LobbyModel, LobbyStates
 from api.session_manager import ClientSessionManager
@@ -40,6 +40,7 @@ from exceptions.lobby_exceptions import (
     MemberAlreadyInLobby,
     MemberNotFound,
     MessageNotFound,
+    ServerConnectionException,
     ThreadChannelNotFound,
 )
 from manager.lobby_service import LobbyManager
@@ -616,7 +617,9 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
 
     async def cog_app_command_error(self, interaction: Interaction, error: Exception):
         embed = None
-        if isinstance(error, app_commands.errors.CheckFailure):
+        if isinstance(error, ServerConnectionException):
+            self.logger.error(error) 
+        elif isinstance(error, app_commands.errors.CheckFailure):
             try:
                 lobby = await self.lobby_manager.get_lobby_by_owner_id(
                     interaction.user.id
