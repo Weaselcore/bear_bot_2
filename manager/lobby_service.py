@@ -594,6 +594,11 @@ class LobbyManager:
             ]
         else:
             return False
+        
+    async def is_lobby_in_vc(self, lobby_id: int) -> bool:
+        lobby = await self.get_lobby(lobby_id)
+        has_all_joined_vc = all(member.has_joined_vc for member in lobby.member_lobbies)
+        return has_all_joined_vc
 
     async def is_full(self, lobby_id: int) -> bool:
         """Check if the lobby is full"""
