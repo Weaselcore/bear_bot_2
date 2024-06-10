@@ -697,6 +697,8 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
             )
             list_of_member_int = [member.member_id for member in list_of_members]
 
+            game = await self.lobby_manager.get_game(lobby.game_id)
+
             # Update the lobby embed
             await LobbyEmbedManager.update_lobby_embed(
                 lobby_id=lobby_id,
@@ -708,6 +710,7 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
                 is_full=await self.lobby_manager.is_full(lobby_id),
                 members=await self.lobby_manager.get_members(lobby),
                 member_ready=list_of_member_int,
+                game_name=game.name,
                 game_size=lobby.game_size,
                 message=embed_message,
             )
