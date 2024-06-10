@@ -1,4 +1,4 @@
-from aiohttp import ClientSession
+from aiohttp import ClientSession, TCPConnector
 
 
 class ClientSessionManager:
@@ -7,8 +7,9 @@ class ClientSessionManager:
 
     @property
     def session(self):
-        if self._session == None: 
-            self._session = ClientSession()
+        if self._session == None:
+            conn = TCPConnector(ssl=False)
+            self._session = ClientSession(connector=conn)
         return self._session
     
     async def close(self) -> None:
