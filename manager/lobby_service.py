@@ -486,6 +486,8 @@ class LobbyManager:
         if thread_channel is None:
             raise ThreadChannelNotFound
         
+        owner_to_ping = await self.get_owner_mention(lobby.id)
+        
         embed = discord.Embed(
             colour=discord.Colour.red(),
             title="Deletion Triggered",
@@ -493,7 +495,7 @@ class LobbyManager:
             timestamp=datetime.now()
         )
 
-        message = await thread_channel.send(embed=embed, view=view)
+        message = await thread_channel.send(content=owner_to_ping, embed=embed, view=view)
 
         lobby.last_deletion_datetime = datetime.utcnow()
         lobby.last_deletion_message_id = message.id
