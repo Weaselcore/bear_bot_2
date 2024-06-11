@@ -694,6 +694,7 @@ class LobbyManager:
 
         lobby_button_view = ButtonView(lobby_id=lobby_id, lobby_manager=self)
         lobby, _ = await self._api_manager.get_lobby(lobby_id)
+        game, _ = await self._api_manager.get_game(lobby.game_id)
         assert lobby.lobby_channel_id is not None
         lobby_channel = await self.get_channel(lobby.guild_id, lobby.lobby_channel_id)
         description = lobby.description
@@ -704,6 +705,7 @@ class LobbyManager:
             is_full=False,
             members=await self.get_members(lobby),
             member_ready=[],
+            game_name=game.name,
             game_size=lobby.game_size,
             channel=lobby_channel,
             view=lobby_button_view,

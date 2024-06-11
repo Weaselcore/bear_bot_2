@@ -69,6 +69,7 @@ class LobbyEmbed(Embed):
         is_full: bool,
         members: list[Member],
         member_ready: list[int],
+        game_name: str,
         game_size: int,
     ):
         # Setup slots and owner field
@@ -83,7 +84,7 @@ class LobbyEmbed(Embed):
 
         # Set description
         if description is not None:
-            self.description = f"```Description: {description}```"
+            self.description = f"**Game: {game_name}** ```Description: {description}```"
         else:
             self.description = "Description: None"
 
@@ -209,6 +210,7 @@ class LobbyEmbedManager:
         is_full: bool,
         members: list[Member],
         member_ready: list[int],
+        game_name: str,
         game_size: int,
         channel: TextChannel | Thread,
         view: View,
@@ -221,6 +223,7 @@ class LobbyEmbedManager:
             is_full=is_full,
             members=members,
             member_ready=member_ready,
+            game_name=game_name,
             game_size=game_size,
         )
 
@@ -245,6 +248,7 @@ class LobbyEmbedManager:
         is_full: bool,
         members: list[Member],
         member_ready: list[int],
+        game_name: str,
         game_size: int,
         message: Message | PartialMessage | None,
     ) -> None:
@@ -259,6 +263,7 @@ class LobbyEmbedManager:
             is_full=is_full,
             members=members,
             member_ready=member_ready,
+            game_name=game_name,
             game_size=game_size,
         )
         if message is not None:
