@@ -316,14 +316,15 @@ class ButtonView(View):
         self.lobby_id = lobby_id
         self.lobby_manager = lobby_manager
 
-    async def on_error(self, interaction, error, item):
+    async def on_error(self, interaction: Interaction, error, item):
+        member_to_mention = self.lobby_manager.member_id_to_mention(interaction.user.id)
         if isinstance(error, MemberAlreadyInLobby):
             embed = Embed(
                 title="🚫 Sorry, cannot join...",
                 description=error.message,
                 color=Color.red(),
             )
-            await error.thread.send(embed=embed)
+            await error.thread.send(content=member_to_mention, embed=embed)
 
     @button(label="Join", style=ButtonStyle.green, custom_id="join_button")
     async def join_button(self, interaction: Interaction, button: Button):
