@@ -468,16 +468,18 @@ class LobbyManager:
         # TODO: Make it so a member can only be in one lobby.
         for lobby in lobbies:
             if member := next(
-                member
+                (member
                 for member in lobby.member_lobbies
-                if member.member_id == member_id
+                if member.member_id == member_id),
+                None
             ):
-                if member.has_joined_vc is False:
+                if member is None:
+                    return
+                elif member.has_joined_vc is False:
                     await self._api_manager.put_joined_vc(
                         member.lobby_id,
                         member.member_id,
                     )
-                    return
 
     async def send_deletion_message(self, lobby_id: int, view: discord.ui.View) -> None:
         lobby = await self.get_lobby(lobby_id)
