@@ -21,7 +21,7 @@ class StopButton(Button):
 
     async def callback(self, interaction: Interaction):
         await interaction.response.defer()
-        self.bot.dispatch("stop", interaction)
+        self.bot.dispatch("soundboard_stop", interaction)
 
 
 class DisconnectButton(Button):
@@ -36,7 +36,7 @@ class DisconnectButton(Button):
 
     async def callback(self, interaction: Interaction):
         await interaction.response.defer()
-        self.bot.dispatch("disconnect", interaction)
+        self.bot.dispatch("soundboard_disconnect", interaction)
 
 
 class ControlPanelView(View):
@@ -57,4 +57,4 @@ class SoundButton(Button):
 
     async def callback(self, interaction: Interaction):
         await interaction.response.defer()
-        self.bot.dispatch("play", interaction, self.custom_id)
+        self.bot.dispatch("soundboard_play", interaction, self.custom_id)

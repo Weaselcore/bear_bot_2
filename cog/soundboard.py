@@ -50,7 +50,7 @@ class SoundBoardCog(commands.GroupCog, name="soundboard"):
             pass
 
     @commands.Cog.listener()
-    async def on_play(self, interaction: Interaction, custom_id: str):
+    async def on_soundboard_play(self, interaction: Interaction, custom_id: str):
         """Custom listener for when bot is going to play audio."""
 
         # Fetch voice client
@@ -95,7 +95,7 @@ class SoundBoardCog(commands.GroupCog, name="soundboard"):
         )
 
     @commands.Cog.listener()
-    async def on_disconnect(self, interaction: Interaction):
+    async def on_soundboard_disconnect(self, interaction: Interaction):
         """Custom listener for when bot is going to stop audio."""
 
         if not interaction.guild:
@@ -115,7 +115,7 @@ class SoundBoardCog(commands.GroupCog, name="soundboard"):
         voice_client.cleanup()
 
     @commands.Cog.listener()
-    async def on_stop(self, interaction: Interaction):
+    async def on_soundboard_stop(self, interaction: Interaction):
         """Custom listener for when bot is going to stop audio."""
 
         if not interaction.guild:
