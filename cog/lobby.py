@@ -350,6 +350,12 @@ class ButtonView(View):
 
         await self.lobby_manager.add_member(self.lobby_id, interaction.user.id)
 
+        # Check if user is already in voice channel.
+        if interaction.user.voice is None:
+            return
+        elif interaction.user.voice.channel is not None:
+            await self.lobby_manager.set_has_joined_vc(interaction.user.id)
+
         interaction.client.dispatch("update_lobby_embed", self.lobby_id)  # type: ignore
 
     @button(label="Ready", style=ButtonStyle.green, custom_id="ready_button")
@@ -862,7 +868,6 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
             )
 
             lobby.lobby_channel_id = lobby_channel.id
-            # TODO: Move into embed manager class ?
 
             embed = Embed(
                 title=f"{interaction.user.display_name} created a lobby ✨",
@@ -907,6 +912,13 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
             await self.lobby_manager.initialise_lobby_embed(lobby.id)
 
             self.bot.dispatch("update_lobby_embed", lobby.id)
+
+            # Query if owner is connected to a voice channel
+            owner_voice_state = interaction.user.voice
+            if owner_voice_state is None:
+                return
+            elif owner_voice_state.channel is not None:
+                   await self.lobby_manager.set_has_joined_vc(interaction.user.id)
         else:
             await interaction.followup.send(
                 "You have already an owner of a lobby!", ephemeral=True
@@ -1149,6 +1161,7 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
 
 
 async def setup(bot: commands.Bot):
+
 
     lobby_embed_manager = LobbyEmbedManager()
     session_manager = ClientSessionManager()
