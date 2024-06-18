@@ -23,7 +23,7 @@ class MyClient(commands.Bot):
         await self.load_extension("cog.scheduler")
         await self.load_extension("cog.reminder")
         await self.load_extension("cog.lobby")
-        await self.load_extension("cog.soundboard")
+        # await self.load_extension("cog.soundboard")
         await self.load_extension("cog.utils")
         # await self.load_extension("cog.poll")
         # await self.load_extension("cog.timezone")
