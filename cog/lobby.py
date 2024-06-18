@@ -905,6 +905,10 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
                 value=f"⠀⠀⠀⠀⤷  {description}",
                 inline=False,
             )
+            # Add thumbnail if set
+            if game_model.icon_url:
+                embed.set_thumbnail(url=game_model.icon_url)
+
             # Promote to role for free on lobby creation
             role: int | None = None
             if game_model.role is not None:
