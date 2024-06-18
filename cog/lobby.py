@@ -1,5 +1,6 @@
 import asyncio
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
+from datetime import UTC as UTC
 from zoneinfo import ZoneInfo
 
 from discord import (
@@ -47,6 +48,7 @@ from manager.lobby_service import LobbyManager
 
 transformer_cache = TransformerCache()
 lobby_cache = LobbyCache()
+scheduled_clean_up_time = time(5, 0, 0, 0, tzinfo=ZoneInfo("Pacific/Auckland"))
 
 
 # Predicate for commands
@@ -610,7 +612,7 @@ class ButtonView(View):
             content=f"<@&{game.role}>" if game.role else None, embed=promotional_embed
         )
         lobby.last_promotion_message_id = message.id
-        lobby.last_promotion_datetime = datetime.utcnow()
+        lobby.last_promotion_datetime = datetime.now(UTC)
         await self.lobby_manager.update_lobby(lobby)
 
 
@@ -619,10 +621,12 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
         self.bot = bot
         self.lobby_manager = lobby_manager
         self.logger = set_logger("lobby_cog")
+        self.scheduled_clean_up_time = scheduled_clean_up_time
         print("LobbyCog loaded")
         # Start tasks
         self.lobby_cleanup.start()
         self.hydrate_cache.start()
+        print(self.get_lobby_cleanup_status())
 
     async def cog_app_command_error(self, interaction: Interaction, error: Exception):
         embed = None
@@ -658,21 +662,35 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
     @tasks.loop(
         count=None,
         reconnect=True,
-        time=time(5, 0, 0, 0, tzinfo=ZoneInfo("Pacific/Auckland")),
+        time=scheduled_clean_up_time,
     )
     async def lobby_cleanup(self):
         """Cleans up lobbies every 5am NZT"""
         lobbies = await self.lobby_manager.get_all_lobbies()
         for lobby in lobbies:
-            lobby_channel = await self.lobby_manager.get_channel(
+            await self.lobby_manager.get_channel(
                 lobby.guild_id, lobby.id
             )
-            await lobby_channel.delete()
             await self.lobby_manager.delete_lobby(lobby_id=lobby.id, clean_up=True)
 
     @lobby_cleanup.before_loop
     async def before_lobby_cleanup(self):
         await self.bot.wait_until_ready()
+
+    def get_lobby_cleanup_status(self):
+        running_status = self.lobby_cleanup.is_running()
+        next_run_time = datetime.combine(datetime.now(tz=ZoneInfo("Pacific/Auckland")).date(), self.scheduled_clean_up_time)
+
+        if next_run_time < datetime.now(tz=ZoneInfo("Pacific/Auckland")):
+            next_run_time += timedelta(days=1)
+
+        status_message = (
+            f"=== Lobby Clean Up Task Status ===\n"
+            f"Lobby cleanup task is {'running' if running_status else 'not running'}.\n"
+            f"Next scheduled run time: {next_run_time.strftime('%Y-%m-%d %H:%M:%S %Z')}\n"
+            f"======\n"
+        )
+        return status_message
 
     # Custom listeners for tasks
     @tasks.loop(count=1, reconnect=True)
@@ -763,7 +781,7 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
                 message_id=lobby.embed_message_id,
             )
             if lobby.last_deletion_message_id is not None:
-                lobby.last_deletion_datetime = datetime.utcnow()
+                lobby.last_deletion_datetime = datetime.now(UTC)
                 message = await self.lobby_manager.get_message(
                     guild_id=lobby.guild_id,
                     channel_id=lobby.history_thread_id,
