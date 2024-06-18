@@ -1061,6 +1061,11 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
         )
         # Send message to the user
         interaction.client.dispatch("update_lobby_embed", lobby.id)  # type: ignore
+        # Check if user is in voice channel
+        if user.voice is None:
+            return
+        elif user.voice.channel is not None:
+            await self.lobby_manager.set_has_joined_vc(user.id)
 
     @app_commands.command(
         description="Lobby Owner: Remove user from the lobby", name="userkick"
