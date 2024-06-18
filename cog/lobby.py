@@ -353,9 +353,7 @@ class ButtonView(View):
         await self.lobby_manager.add_member(self.lobby_id, interaction.user.id)
 
         # Check if user is already in voice channel.
-        if interaction.user.voice is None:
-            return
-        elif interaction.user.voice.channel is not None:
+        if interaction.user.voice and interaction.user.voice.channel:
             await self.lobby_manager.set_has_joined_vc(interaction.user.id)
 
         interaction.client.dispatch("update_lobby_embed", self.lobby_id)  # type: ignore
