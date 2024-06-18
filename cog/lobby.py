@@ -669,7 +669,7 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
         lobbies = await self.lobby_manager.get_all_lobbies()
         for lobby in lobbies:
             await self.lobby_manager.get_channel(
-                lobby.guild_id, lobby.id
+                lobby.guild_id, lobby.lobby_channel_id
             )
             await self.lobby_manager.delete_lobby(lobby_id=lobby.id, clean_up=True)
 
