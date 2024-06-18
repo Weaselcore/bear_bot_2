@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from datetime import UTC as UTC
 from typing import TypeVar, Union
 from zoneinfo import ZoneInfo
 
@@ -185,13 +186,12 @@ class LobbyManager:
 
     async def get_session_time(self, created_datetime: datetime) -> str:
         """Get the session time of the lobby"""
-        timezone = ZoneInfo("UTC")
 
         # Database stores UTC datetime strings but with the timezone data truncated.
-        localised_creation_datetime = datetime.utcfromtimestamp(
-            created_datetime.timestamp()
-        ).astimezone(timezone)
-        localised_datetime_now = datetime.utcnow().astimezone(timezone)
+        localised_creation_datetime = datetime.fromtimestamp(
+            created_datetime.timestamp(), UTC
+        )
+        localised_datetime_now = datetime.now(UTC)
 
         duration = localised_datetime_now - localised_creation_datetime
 
@@ -499,7 +499,7 @@ class LobbyManager:
 
         message = await thread_channel.send(content=owner_to_ping, embed=embed, view=view)
 
-        lobby.last_deletion_datetime = datetime.utcnow()
+        lobby.last_deletion_datetime = datetime.now(UTC)
         lobby.last_deletion_message_id = message.id
         lobby.state = LobbyStates.PENDING_DELETION
 
@@ -629,14 +629,12 @@ class LobbyManager:
         if not last_promotion_datetime:
             return True
 
-        timezone = ZoneInfo("UTC")
-
-        localised_last_promotion_datetime = datetime.utcfromtimestamp(
-            last_promotion_datetime.timestamp()
-        ).astimezone(timezone)
+        localised_last_promotion_datetime = datetime.fromtimestamp(
+            last_promotion_datetime.timestamp(), UTC,
+        )
 
         last_promotion_duration = (
-            datetime.utcnow().astimezone(timezone) - localised_last_promotion_datetime
+            datetime.now(UTC) - localised_last_promotion_datetime
         )
 
         if last_promotion_datetime is None or (last_promotion_duration) > timedelta(
