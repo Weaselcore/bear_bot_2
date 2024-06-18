@@ -662,8 +662,13 @@ class LobbyManager:
         mention_list = [f"<@{member.id}>" for member in members_to_ping]
         return ", ".join(mention_list)
 
-    def member_id_to_mention(self, member_id: int) -> str:
+    @classmethod
+    def member_id_to_mention(cls, member_id: int) -> str:
         return f"<@{member_id}>"
+    
+    @classmethod
+    def role_id_to_mention(cls, role_id: int) -> str:
+        return f"<@&{role_id}>"
 
     async def lobby_id_to_thread_mention(self, lobby_id: int) -> str:
         lobby, _ = await self._api_manager.get_lobby(lobby_id)
