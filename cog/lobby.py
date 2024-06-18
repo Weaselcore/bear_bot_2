@@ -201,7 +201,6 @@ class DeletionConfirmationModal(Modal, title="Are you sure? Reason optional."):
             lobby_id=self.lobby_id,
             reason=self.reason.value,
         )
-        await lobby_channel.delete()
 
 
 class OwnerSelectView(View):
@@ -864,6 +863,7 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
 
             lobby.lobby_channel_id = lobby_channel.id
             # TODO: Move into embed manager class ?
+
             embed = Embed(
                 title=f"{interaction.user.display_name} created a lobby ✨",
                 description=f"Click <#{lobby_channel.id}> to join the lobby",
@@ -882,13 +882,18 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
                 value=f"⠀⠀⠀⠀⤷  {description}",
                 inline=False,
             )
+            # Promote to role for free on lobby creation
+            role: int | None = None
+            if game_model.role is not None:
+                role = self.lobby_manager.role_id_to_mention(game_model.role)
 
             # Create embed to redirect user to the new lobby channel
             await interaction.followup.send(
+                content=role,
                 embed=embed,
             )
 
-            # Create thread for logging
+            # Create thread for client logging
             thread_message = await lobby_channel.send(
                 embed=Embed(title="✍ Lobby History & Chat")
             )
