@@ -4,6 +4,7 @@ from datetime import UTC as UTC
 from zoneinfo import ZoneInfo
 
 from discord import (
+    AllowedMentions,
     ButtonStyle,
     CategoryChannel,
     Color,
@@ -838,7 +839,7 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
     ):
         """Creates a lobby through UI command"""
 
-        await interaction.response.defer()
+        # await interaction.response.defer()
         assert interaction.guild is not None
         lobby_category_channel = utils.get(interaction.guild.channels, name="Lobbies")
 
@@ -913,9 +914,13 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
                 role = self.lobby_manager.role_id_to_mention(game_model.role)
 
             # Create embed to redirect user to the new lobby channel
-            await interaction.followup.send(
+            # await interaction.followup.send(
+            #     content=role,
+            #     embed=embed,
+            # )
+            await interaction.response.send_message(
                 content=role,
-                embed=embed,
+                embed=embed
             )
 
             # Create thread for client logging
@@ -940,8 +945,11 @@ class LobbyCog(commands.GroupCog, group_name="lobby"):
             elif owner_voice_state.channel is not None:
                    await self.lobby_manager.set_has_joined_vc(interaction.user.id)
         else:
-            await interaction.followup.send(
-                "You have already an owner of a lobby!", ephemeral=True
+            # await interaction.followup.send(
+            #     "You have already an owner of a lobby!", ephemeral=True
+            # )
+            await interaction.response.send_message(
+                "You are already an owner of a lobby!", ephemeral=True
             )
 
     @app_commands.command(description="Add game to the lobby module", name="gameadd")
