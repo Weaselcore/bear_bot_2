@@ -484,8 +484,13 @@ class LobbyManager:
     async def send_deletion_message(self, lobby_id: int, view: discord.ui.View) -> None:
         lobby = await self.get_lobby(lobby_id)
 
-        thread_channel = await self.get_channel(lobby.guild_id, lobby.history_thread_id)
-        if thread_channel is None:
+        if not isinstance(lobby.history_thread_id, int):
+            return
+
+        try:
+            thread_channel = await self.get_channel(lobby.guild_id, lobby.history_thread_id)
+        except Exception as e:
+            print(e)
             raise ThreadChannelNotFound
         
         owner_to_ping = await self.get_owner_mention(lobby.id)
@@ -554,6 +559,9 @@ class LobbyManager:
         original_channel = await self.get_channel(
             lobby.guild_id, lobby.original_channel_id
         )
+        if lobby.lobby_channel_id is None:
+            raise LobbyNotFound(f"{lobby} does not have a lobby channel.")
+        
         lobby_channel = await self.get_channel(lobby.guild_id, lobby.lobby_channel_id)
         owner = (
             "Bear Bot"
@@ -610,7 +618,7 @@ class LobbyManager:
         return False if len(lobby.member_lobbies) != lobby.game_size else True
 
     async def is_member_in_lobbies(self, member_id: int) -> tuple[bool, int | None]:
-        """Checks if member is in any lobby"""
+        """Checks if member is in any lobby, return a bool and id of the lobby."""
         lobbies = await self.get_all_lobbies()
 
         for lobby in lobbies:
@@ -620,6 +628,20 @@ class LobbyManager:
             for queue_member in lobby.queue_member_lobbies:
                 if queue_member.member_id == member_id:
                     return True, lobby.id
+        
+        return False, None
+    
+    async def is_member_in_lobby(self, member_id: int, lobby_id: int) -> tuple[bool, int | None]:
+        """Checks if member is in a specific lobby"""
+        lobby, _ = await self._api_manager.get_lobby(lobby_id)
+
+        for member in lobby.member_lobbies:
+            if member.member_id == member_id:
+                return True, lobby.id
+        
+        for queue_member in lobby.queue_member_lobbies:
+            if queue_member.member_id == member_id:
+                return True, lobby.id
         
         return False, None
 
