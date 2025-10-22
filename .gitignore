@@ -1,6 +1,8 @@
 .vscode/*
 .env
 .idea
+.github/*
+uv.lock
 
 *__pycache__/
 

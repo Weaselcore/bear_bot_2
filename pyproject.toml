@@ -1,3 +1,24 @@
+[project]
+name = ""
+version = "0.0.1"
+requires-python = "~=3.14"
+dependencies = [
+    "discord.py[voice]",
+    "ffmpeg-python",
+    "aiofiles",
+    "perflint",
+    "aiofile",
+    "python-dotenv",
+    "sqlalchemy[asyncio]",
+    "types-cachetools",
+    "cachetools",
+    "asyncache",
+    "tzdata",
+    "human-readable",
+    "python-dateutil",
+    "pytz",
+]
+
 [tool.ruff]
 # Enable pycodestyle (`E`) and Pyflakes (`F`) codes by default.
 lint.select = ["E", "F"]
@@ -6,6 +27,9 @@ lint.ignore = []
 # Allow autofix for all enabled rules (when `--fix`) is provided.
 lint.fixable = ["A", "B", "C", "D", "E", "F"]
 lint.unfixable = []
+
+# Allow unused variables when underscore-prefixed.
+lint.dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 # Exclude a variety of commonly ignored directories.
 exclude = [
@@ -34,8 +58,25 @@ exclude = [
 # Same as Black.
 line-length = 88
 
-# Allow unused variables when underscore-prefixed.
-lint.dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
-
 # Assume Python 3.11.
 target-version = "py311"
+
+[dependency-groups]
+dev = [
+    "autopep8",
+    "pylama",
+    "types-aiofiles",
+    "pytest-async-sqlalchemy",
+    "pytest-asyncio",
+    "ruff",
+    "black",
+    "mypy",
+    "pylint",
+]
+
+[tool.uv]
+package = false
+
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple"
